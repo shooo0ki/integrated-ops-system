@@ -1,0 +1,6 @@
+- 設計の入力ソースは docs/sources/requirements.docx を最優先とする
+- 設計成果物は必ず docs/requirements/** に出力する
+- 各ステップは「質問→反映→ファイル更新→次ステップ案内」
+- 不足情報の質問は最大5問まで
+- 実装は設計完了後（/flow-build の後）に開始し、出力先は src/** とする
+- レビュー出力は docs/review/** とする
