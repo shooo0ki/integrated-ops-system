@@ -23,6 +23,10 @@
 | 12 | INVOICE | 請求書 | 月次請求書 |
 | 13 | PL_RECORD | PL / CF レコード | 損益・キャッシュフロー |
 | 14 | AUDIT_LOG | 監査ログ | 全書き込み操作の変更前後 |
+| 15 | MEMBER_TOOL | メンバー利用ツール | 個人ごとの有料ツール契約と月額コスト |
+| 16 | MEMBER_CONTRACT | メンバー契約書 | 契約書ステータスと署名済みPDF |
+| 17 | ATTENDANCE_ALLOCATION | 勤怠プロジェクト配分 | 日別実働をプロジェクト別に按分 |
+| 18 | INTRA_COMPANY_SETTLEMENT | 社内精算 | Boost/SALT2間の内部取引（給与按分に基づく） |
 
 ---
 
@@ -52,6 +56,10 @@
 | 住所 | address | TEXT | 条件付 | 時給制メンバーは必須 | `東京都渋谷区...` | M1-03 | M1-02 | ○ | |
 | ステータス | status | ENUM | ○ | `executive` / `employee` / `intern_full` / `intern_training` / `training_member` | `intern_training` | M1-03 | M1-01 フィルター | — | 役員/社員/本採用インターン/研修インターン/研修メンバー |
 | 所属会社 | company | ENUM | ○ | `boost` / `salt2` | `salt2` | M1-03 | M1-01, M3, M6 | — | |
+| 利用ツール | (related) member_tool | — | 任意 | 別テーブル参照 | — | M1-03 | M1-02, M6 コスト | △ | ツール費は MEMBER_TOOL に保持 |
+| 契約書 | (related) member_contract | — | 任意 | 別テーブル参照 | — | 採用連携/M1-03 | M1-02 | ○ | 本人・管理者のみ閲覧 |
+| 勤怠配分 | (related) attendance_allocation | — | 任意 | 別テーブル参照 | — | M4-03入力 | PL計算 | — | 当日実働配分 |
+| 利用ツール | (related) member_tool | — | 任意 | 別テーブル参照 | — | M1-03 | M1-02, M6 コスト | △ | ツール費は MEMBER_TOOL に保持 |
 | 報酬形態 | salary_type | ENUM | ○ | `hourly` / `monthly` | `hourly` | M1-03 | M5-01, M6-01 | — | 時給制 / 月額固定 |
 | 報酬金額 | salary_amount | INTEGER | ○ | 正の整数 | `1500` | M1-03 | M5-01, M6-01 人件費計算 | ○ | 時給または月額（円） |
 | 銀行名 | bank_name | TEXT | 条件付 | 時給制必須・AES-256暗号化 | `三菱UFJ銀行` | M1-03 | M5-02 請求書 | ○ | 暗号化保存 |
@@ -118,6 +126,7 @@
 | 説明 | description | TEXT | — | 最大1000文字 | — | M3-03 | M3-02 | — | |
 | ステータス | status | ENUM | ○ | `planning` / `active` / `completed` / `on_hold` | `active` | M3-03 | M3-01 フィルター | — | 計画中/進行中/完了/保留 |
 | 所属会社 | company | ENUM | ○ | `boost` / `salt2` | `boost` | M3-03 | M3-01, M6-02 フィルター | — | |
+| 契約書 | (related) member_contract | — | 任意 | 採用連携で作成 | — | 採用→人事同期 | M1-02, DocuSign | ○ | 署名PDFは本人/管理者のみ |
 | 開始日 | start_date | DATE | ○ | YYYY-MM-DD | `2026-03-01` | M3-03 | M3-01 | — | |
 | 終了日 | end_date | DATE | — | start_date 以降 | `2026-09-30` | M3-03 | M3-01 | — | |
 | クライアント名 | client_name | VARCHAR(200) | — | — | `株式会社〇〇` | M3-03 | M3-01 | — | |
@@ -256,6 +265,36 @@
 | CF: 月末残高 | cf_balance_current | INTEGER | — | 自動計算 / CF時のみ | `2925000` | システム | M6-03 | — | 前月残高 + 月次収支 |
 | 備考 | memo | VARCHAR(200) | — | — | `〇〇社3月分入金` | M6-03 | M6-03 | — | |
 | 作成者ID | created_by | UUID | ○ | FK → USER_ACCOUNT.id | — | セッション | AUDIT_LOG | — | |
+| 作成日時 | created_at | TIMESTAMPTZ | ○ | DEFAULT NOW() | — | システム | — | — | |
+| 更新日時 | updated_at | TIMESTAMPTZ | ○ | ON UPDATE NOW() | — | システム | — | — | |
+
+---
+
+## 17. ATTENDANCE_ALLOCATION（勤怠プロジェクト配分）
+
+| 論理名 | 物理名 | 型 | 必須 | 制約 | 例 | 出所 | 利用先 | PII | 備考 |
+|--------|--------|-----|------|------|----|------|--------|-----|------|
+| 配分ID | id | UUID | ○ | PK | `uuid-xxxx` | M4-03 | PL計算 | — | |
+| 勤怠ID | attendance_id | UUID | ○ | FK → attendances.id, ON DELETE CASCADE | — | M4-03 | M4-04, PL | — | |
+| プロジェクトID | project_id | UUID | ○ | FK → projects.id | — | M4-03 | PL | — | |
+| 配分時間(分) | minutes | INTEGER | ○ | 0以上 | `240` | M4-03 | PL按分 | — | 百分率受領時は分に換算 |
+| 作成日時 | created_at | TIMESTAMPTZ | ○ | DEFAULT NOW() | — | システム | — | — | |
+| 更新日時 | updated_at | TIMESTAMPTZ | ○ | ON UPDATE NOW() | — | システム | — | — | |
+
+---
+
+## 18. INTRA_COMPANY_SETTLEMENT（社内精算）
+
+| 論理名 | 物理名 | 型 | 必須 | 制約 | 例 | 出所 | 利用先 | PII | 備考 |
+|--------|--------|-----|------|------|----|------|--------|-----|------|
+| 精算ID | id | UUID | ○ | PK | `uuid-xxxx` | M5-01 集計 | M6 (内部取引相殺) | — | |
+| 対象月 | target_month | DATE | ○ | 月初日(YYYY-MM-01) | `2026-02-01` | M5-01 | PL | — | |
+| 支払元会社 | paying_company | ENUM | ○ | `boost` / `salt2` | `salt2` | M5-01 | PL | — | |
+| 受取会社 | receiving_company | ENUM | ○ | `boost` / `salt2` | `boost` | M5-01 | PL | — | |
+| メンバーID | member_id | UUID | — | FK → members.id | — | M5-01 | トレース用 | — | 任意（会社単位集計のみなら NULL） |
+| 精算額 | amount | INTEGER | ○ | 0以上 | `150000` | M5-01 | PL | — | 支払元→受取側への内部請求額 |
+| 算出根拠 | basis | ENUM | ○ | `allocation` / `manual` | `allocation` | M5-01 | 監査 | — | |
+| 備考 | note | VARCHAR(200) | — | — | — | M5-01 | — | — | |
 | 作成日時 | created_at | TIMESTAMPTZ | ○ | DEFAULT NOW() | — | システム | — | — | |
 | 更新日時 | updated_at | TIMESTAMPTZ | ○ | ON UPDATE NOW() | — | システム | — | — | |
 

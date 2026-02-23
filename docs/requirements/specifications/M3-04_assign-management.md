@@ -48,7 +48,7 @@
 |--------|------|
 | 管理者 | 全 PJ アサイン管理 |
 | マネージャー | 担当 PJ のみ |
-| 社員・インターン | 不可 |
+| メンバー（社員・インターン共通） | 不可 |
 
 ## 関連データ（エンティティ）
 - `PROJECT_ASSIGNMENT`、`PROJECT_POSITION`、`POSITION_REQUIRED_SKILL`、`MEMBER_SKILL`、`MEMBER`

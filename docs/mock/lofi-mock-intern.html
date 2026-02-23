@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Intern View Lo-Fi Mock</title>
+  <style>
+    * { box-sizing: border-box; font-family: "Inter", system-ui, -apple-system, sans-serif; }
+    body { margin: 24px; background: #f8fafc; color: #111827; }
+    h2 { margin: 0 0 10px; }
+    h3 { margin: 0 0 6px; }
+    .card { background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 4px 14px rgba(0,0,0,0.05); margin-bottom: 14px; }
+    .row { display: flex; justify-content: space-between; align-items: center; margin: 4px 0; }
+    .pill { padding: 5px 10px; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-weight: 600; }
+    .button { padding: 10px 12px; border-radius: 10px; border: none; background: #2563eb; color: #fff; font-weight: 600; width: 100%; cursor: pointer; }
+    .muted { color: #6b7280; font-size: 13px; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 8px 6px; border-bottom: 1px solid #e5e7eb; font-size: 13px; text-align: left; }
+    .grid { display: grid; gap: 12px; }
+    .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <h2>インターン向けダッシュボード</h2>
+    <div class="pill">権限: Intern</div>
+  </div>
+
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>今日の勤怠</h3>
+      <div class="row"><span>ステータス</span><span class="pill">未出勤</span></div>
+      <div class="row"><span>予定</span><span class="muted">10:00-18:00 オンライン</span></div>
+      <textarea style="width:100%;height:60px;margin-top:6px;" placeholder="今日やること"></textarea>
+      <button class="button" style="margin-top:6px;">出勤する</button>
+    </div>
+
+    <div class="card">
+      <h3>自分の週スケジュール</h3>
+      <div class="row"><span>月</span><span>10:00-18:00 オンライン</span></div>
+      <div class="row"><span>火</span><span>10:00-18:00 出社</span></div>
+      <div class="row"><span>水</span><span class="muted">休み</span></div>
+      <div class="row"><span>木</span><span>10:00-18:00 出社</span></div>
+      <div class="row"><span>金</span><span>10:00-17:00 オンライン</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>担当プロジェクト</h3>
+    <div class="row"><span>SALT2 新規SaaS (インターン)</span><span class="muted">稼働は勤怠配分から集計</span></div>
+    <div class="muted">※ 稼働配分は退勤時に手入力する配分が反映される。ここでは編集不可。</div>
+  </div>
+
+  <div class="card">
+    <h3>打刻後の配分入力</h3>
+    <table class="table">
+      <thead><tr><th>PJ</th><th>分</th><th>%</th></tr></thead>
+      <tbody>
+        <tr><td>SALT2 新規SaaS</td><td><input value="360"></td><td><input value="100"></td></tr>
+      </tbody>
+    </table>
+    <div class="muted">合計が実働と一致しない場合はエラー。インターンは自分の配分のみ編集可。</div>
+    <button class="button" style="margin-top:6px;">保存</button>
+  </div>
+
+  <div class="card">
+    <h3>勤怠一覧（自分のみ）</h3>
+    <table class="table">
+      <thead><tr><th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>状態</th></tr></thead>
+      <tbody>
+        <tr><td>2/18</td><td>10:02</td><td>18:05</td><td>60m</td><td>7h03m</td><td>提出済</td></tr>
+        <tr><td>2/17</td><td>10:00</td><td>18:00</td><td>60m</td><td>7h00m</td><td>承認済</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>閲覧できる情報</h3>
+    <ul style="margin:0 0 6px 18px; padding:0;">
+      <li>自分のスケジュール・勤怠・配分のみ編集可</li>
+      <li>他メンバーのスケジュール/スキル/PJは閲覧可</li>
+      <li>報酬・銀行口座・ツール費・契約書は非表示</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>自分の情報を編集</h3>
+    <div class="grid cols-2">
+      <div>
+        <div class="row"><span>氏名</span><input value="山田 太郎"></div>
+        <div class="row"><span>電話</span><input value="090-xxxx"></div>
+        <div class="row"><span>住所</span><input value="東京都…"></div>
+      </div>
+      <div>
+        <div class="row"><span>銀行名</span><input value="みずほ銀行"></div>
+        <div class="row"><span>口座番号</span><input value="1234567"></div>
+      </div>
+    </div>
+    <div class="muted">インターンは自分の基本情報・連絡先・住所・銀行口座のみ編集可。所属会社・報酬・ロールは編集不可。</div>
+    <button class="button" style="margin-top:6px;">保存</button>
+  </div>
+</body>
+</html>

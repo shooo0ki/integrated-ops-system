@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>統合業務管理 Lo-Fi Mock</title>
+  <style>
+    * { box-sizing: border-box; font-family: "Inter", system-ui, -apple-system, sans-serif; }
+    body { margin: 24px; background: #f6f8fb; color: #1f2937; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    header .pill { padding: 6px 10px; border-radius: 999px; background: #e5f0ff; color: #1d4ed8; font-weight: 600; }
+    h2 { margin: 0 0 8px; font-size: 18px; }
+    h3 { margin: 0 0 6px; font-size: 16px; color: #374151; }
+    .grid { display: grid; gap: 12px; }
+    .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card { padding: 14px; border-radius: 12px; background: #fff; box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
+    .row { display: flex; justify-content: space-between; align-items: center; margin: 4px 0; }
+    .badge { padding: 4px 8px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-size: 12px; }
+    .list { display: grid; gap: 6px; }
+    .pill-sm { padding: 4px 8px; border-radius: 999px; background: #ecfeff; color: #0ea5e9; font-size: 12px; }
+    .button { padding: 10px 12px; border-radius: 10px; border: none; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+    .muted { color: #6b7280; font-size: 13px; }
+    .section { margin-top: 28px; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 8px 6px; border-bottom: 1px solid #e5e7eb; font-size: 13px; text-align: left; }
+    .tag { padding: 3px 6px; border-radius: 6px; background: #e0f2fe; color: #0369a1; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="pill">Dash</div>
+    <div class="muted">Boost / SALT2 | v0.1 Lo-Fi</div>
+    <div style="margin-left:auto;" class="pill">ユーザー: 田中(管理者)</div>
+  </header>
+
+  <section class="grid cols-3">
+    <div class="card">
+      <h3>今日の勤怠</h3>
+      <div class="row"><span>ステータス</span><span class="badge">未出勤</span></div>
+      <div class="row"><span>予定</span><span class="muted">10:00-19:00（出社）</span></div>
+      <button class="button" style="width:100%; margin-top:8px;">出勤する</button>
+      <div class="muted" style="margin-top:6px;">出勤時に「今日やること」を入力</div>
+    </div>
+    <div class="card">
+      <h3>社内精算サマリー</h3>
+      <div class="row"><span>Boost→SALT2</span><strong>¥150,000</strong></div>
+      <div class="row"><span>SALT2→Boost</span><strong>¥0</strong></div>
+      <div class="muted">所属=SALT2、稼働 Boost 30% / SALT2 70%</div>
+    </div>
+    <div class="card">
+      <h3>通知</h3>
+      <div class="list">
+        <div class="row"><span>打刻漏れ 2件</span><span class="tag">対応要</span></div>
+        <div class="row"><span>DocuSign 署名待ち</span><span class="tag">契約書</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section card">
+    <h2>自分の週スケジュール</h2>
+    <div class="grid cols-3">
+      <div class="row"><span>月</span><span>10:00-19:00 出社</span></div>
+      <div class="row"><span>火</span><span>10:00-19:00 オンライン</span></div>
+      <div class="row"><span>水</span><span class="muted">休み</span></div>
+      <div class="row"><span>木</span><span>10:00-19:00 出社</span></div>
+      <div class="row"><span>金</span><span>10:00-18:00 オンライン</span></div>
+    </div>
+  </section>
+
+  <section class="section grid cols-3">
+    <div class="card">
+      <h3>担当プロジェクト</h3>
+      <div class="list">
+        <div class="row"><span>Boost AI基盤</span><span class="pill-sm">Boost 30%</span></div>
+        <div class="row"><span>SALT2 新規SaaS</span><span class="pill-sm">SALT2 70%</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>利用ツール（本人/管理者のみ）</h3>
+      <div class="row"><span>Claude Pro</span><span>¥2,000 / SALT2</span></div>
+      <div class="row"><span>Google Workspace</span><span>¥900 / Boost</span></div>
+      <div class="muted">管理者はここでツールの追加/編集/削除が可能（本人は閲覧のみ）</div>
+    </div>
+    <div class="card">
+      <h3>契約書（本人/管理者のみ）</h3>
+      <div class="row"><span>雇用契約 2026-02</span><span class="tag">署名待ち</span></div>
+      <div class="row"><span>業務委託 NDA</span><span class="tag" style="background:#d1fae5; color:#065f46;">契約書締結済み</span></div>
+      <button class="button" style="width:100%; margin-top:6px; background:#10b981;">DocuSignで送信</button>
+      <div class="muted" style="margin-top:6px;">締結済みの契約は送信ボタンを無効/非表示にする想定</div>
+    </div>
+  </section>
+
+  <section class="section card">
+    <h2>勤怠一覧（抜粋）</h2>
+    <table class="table">
+      <thead>
+        <tr><th>日付</th><th>出勤</th><th>退勤</th><th>実働</th><th>PJ配分(分/% 手入力)</th><th>状態</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>2/18(火)</td><td>10:05</td><td>19:10</td><td>8h15m</td>
+          <td>Boost 150m / SALT2 345m</td><td>承認待ち</td>
+        </tr>
+        <tr>
+          <td>2/17(月)</td><td>10:00</td><td>19:00</td><td>8h30m</td>
+          <td>Boost 240m / SALT2 270m</td><td>承認済</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- M4-02 勤務予定登録 -->
+  <section class="section card">
+    <h2>M4-02 勤務予定登録（週）</h2>
+    <div class="row"><span>対象週 2/17-2/21</span><div class="pill-sm">前週コピー</div></div>
+    <table class="table">
+      <thead><tr><th>日</th><th>開始</th><th>終了</th><th>勤務形態</th><th>休み</th></tr></thead>
+      <tbody>
+        <tr><td>月</td><td><input value="10:00"></td><td><input value="19:00"></td><td>出社</td><td>-</td></tr>
+        <tr><td>火</td><td><input value="10:00"></td><td><input value="19:00"></td><td>オンライン</td><td>-</td></tr>
+        <tr><td>水</td><td></td><td></td><td></td><td>終日休み</td></tr>
+      </tbody>
+    </table>
+    <button class="button" style="margin-top:8px;">保存</button>
+  </section>
+
+  <!-- M4-03 打刻 -->
+  <section class="section grid cols-3">
+    <div class="card">
+      <h3>出勤前</h3>
+      <div class="row"><span>現在時刻</span><span>09:58</span></div>
+      <textarea style="width:100%;height:60px;" placeholder="今日やること"></textarea>
+      <button class="button" style="width:100%; margin-top:8px;">出勤する</button>
+    </div>
+    <div class="card">
+      <h3>勤務中</h3>
+      <div class="row"><span>出勤</span><span>10:02</span></div>
+      <input style="width:100%; margin:6px 0;" placeholder="休憩 (分)" value="60">
+      <textarea style="width:100%;height:60px;" placeholder="今日やったこと"></textarea>
+      <textarea style="width:100%;height:60px;" placeholder="明日やること"></textarea>
+      <button class="button" style="width:100%; margin-top:6px; background:#f59e0b;">退勤する</button>
+    </div>
+    <div class="card">
+      <h3>退勤後: PJ配分入力</h3>
+      <table class="table">
+        <thead><tr><th>PJ</th><th>分</th><th>%</th></tr></thead>
+        <tbody>
+          <tr><td>Boost AI基盤</td><td><input value="150"></td><td><input value="30"></td></tr>
+          <tr><td>SALT2 新規SaaS</td><td><input value="350"></td><td><input value="70"></td></tr>
+        </tbody>
+      </table>
+      <div class="muted">%入力で実働×%が分に自動反映（逆に分を入れれば%も計算）。合計=実働に一致しないとエラー。</div>
+      <button class="button" style="width:100%; margin-top:6px;">勤怠一覧へ</button>
+    </div>
+  </section>
+
+  <!-- M3-01 プロジェクト一覧 -->
+  <section class="section card">
+    <h2>M3-01 プロジェクト一覧</h2>
+    <div class="row">
+      <div class="muted">会社=All | ステータス=進行中</div>
+      <button class="button" style="background:#10b981;">プロジェクト追加</button>
+    </div>
+    <table class="table">
+      <thead><tr><th>名称</th><th>会社</th><th>ステータス</th><th>期間</th><th>予算</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>Boost AI基盤</td><td>Boost</td><td>進行中</td><td>2026/1-3</td><td>¥8,000,000</td><td>詳細</td></tr>
+        <tr><td>SaaS立ち上げ</td><td>SALT2</td><td>準備中</td><td>2026/2-5</td><td>¥5,000,000</td><td>詳細</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- M3-02 詳細 + M3-04 アサイン -->
+  <section class="section grid cols-3">
+    <div class="card">
+      <h3>M3-02 プロジェクト概要</h3>
+      <div class="row"><span>名称</span><strong>Boost AI基盤</strong></div>
+      <div class="row"><span>会社</span><span class="pill-sm">Boost</span></div>
+      <div class="row"><span>期間</span><span>2026/1-3</span></div>
+      <div class="row"><span>契約金額</span><span>¥8,000,000</span></div>
+    </div>
+    <div class="card">
+      <h3>ポジション一覧</h3>
+      <div class="row"><span>PM</span><span>佐藤 / 50%</span></div>
+      <div class="row"><span>BE</span><span>田中 / 70%</span></div>
+      <button class="button" style="width:100%; margin-top:6px;">編集</button>
+    </div>
+    <div class="card">
+      <h3>M3-04 アサイン管理</h3>
+      <div class="row"><span>ポジション</span><span class="pill-sm">メインエンジニア</span></div>
+      <div class="muted">責任範囲: 技術設計、コアな開発タスクの遂行</div>
+      <div class="row" style="margin-top:6px;"><span>必要スキル</span><span class="muted">BE>=3, FE>=3, Infra>=2</span></div>
+      <div class="row"><span>候補</span><span>スキル一致ON</span></div>
+      <div class="list">
+        <div class="row"><span>鈴木 (適合 82%)</span><button class="pill-sm">→</button></div>
+        <div class="row"><span>山田 (適合 68%)</span><button class="pill-sm">→</button></div>
+      </div>
+      <h4 style="margin-top:8px;">割当詳細</h4>
+      <div class="row"><span>役割</span><span>BE</span></div>
+      <div class="row"><span>工数</span><input value="120h"></div>
+      <div class="row"><span>期間</span><input value="2/1-3/31"></div>
+      <button class="button" style="width:100%; margin-top:6px;">保存</button>
+    </div>
+  </section>
+
+  <!-- M3-05 工数管理 -->
+  <section class="section card">
+    <h2>M3-05 工数管理</h2>
+    <div class="row">
+      <div class="muted">月: 2026-02 | PJ: Boost AI基盤</div>
+      <div class="pill-sm">CSV出力</div>
+    </div>
+    <table class="table">
+      <thead><tr><th>メンバー</th><th>想定(h)</th><th>実績(h)</th><th>差分</th><th>週次まとめ</th></tr></thead>
+      <tbody>
+        <tr><td>田中</td><td>120</td><td>118</td><td>-2</td><td><input value="Week1 28h / Week2 30h ..."></td></tr>
+        <tr><td>佐藤</td><td>80</td><td>84</td><td>+4</td><td><input value="Week1 20h / Week2 22h ..."></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- M4-04 勤怠一覧 (管理者ビュー) -->
+  <section class="section card">
+    <h2>M4-04 勤怠一覧（承認・配分編集）</h2>
+    <table class="table">
+      <thead><tr><th>日付</th><th>出退勤</th><th>実働</th><th>PJ配分</th><th>状態</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>2/18</td><td>10:05-19:10</td><td>8h15m</td><td><input value="Boost150 / SALT2345"></input></td><td>承認待ち</td><td><button class="pill-sm">OK</button><button class="pill-sm">修正依頼</button></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- M5-01 月末締め管理 -->
+  <section class="section card">
+    <h2>M5-01 月末締め</h2>
+    <div class="row"><span>対象月: 2026-02</span><button class="button" style="background:#9333ea;">締め処理を実行</button></div>
+    <table class="table">
+      <thead><tr><th>メンバー</th><th>勤務時間</th><th>給与見込</th><th>状態</th><th>会社別請求</th><th>アクション</th></tr></thead>
+      <tbody>
+        <tr><td>田中</td><td>160h</td><td>¥500,000</td><td>確認待ち</td><td>Boost ¥150,000 / SALT2 ¥350,000</td><td><button class="pill-sm">リマインド</button></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- M5-02 請求書一覧 -->
+  <section class="section card">
+    <h2>M5-02 請求書一覧</h2>
+    <table class="table">
+      <thead><tr><th>請求書#</th><th>メンバー</th><th>Boost請求</th><th>SALT2請求</th><th>発行日</th><th>ステータス</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>INV-202602-001</td><td>田中</td><td>¥150,000</td><td>¥350,000</td><td>2026-02-28</td><td>Draft</td><td><button class="pill-sm">再生成</button><button class="pill-sm">Slack送付</button></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- M6-01 / M6-02 PL -->
+  <section class="section grid cols-3">
+    <div class="card">
+      <h3>M6-01 プロジェクトPL</h3>
+      <div class="row"><span>PJ</span><span>Boost AI基盤</span></div>
+      <div class="row"><span>売上</span><strong>¥8,000,000</strong></div>
+      <div class="list">
+        <div class="row"><span>人件(工数按分)</span><span>¥3,200,000</span></div>
+        <div class="row"><span>外注</span><span>¥400,000</span></div>
+        <div class="row"><span>ツール費</span><span>¥50,000</span></div>
+        <div class="row"><span>内部精算</span><span>¥150,000</span></div>
+      </div>
+      <div class="row" style="margin-top:8px;"><span>粗利</span><strong>¥4,200,000</strong></div>
+    </div>
+    <div class="card">
+      <h3>M6-02 全社PLサマリー</h3>
+      <div class="row"><span>会社フィルタ</span><span>All</span></div>
+      <div class="list">
+        <div class="row"><span>売上</span><strong>¥18,000,000</strong></div>
+        <div class="row"><span>コスト(人件/外注/ツール/その他)</span><span>¥10,200,000</span></div>
+        <div class="row"><span>内部精算相殺後</span><span>¥9,900,000</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>M6-03 キャッシュフロー</h3>
+      <table class="table">
+        <thead><tr><th>種別</th><th>項目</th><th>金額</th><th>日付</th></tr></thead>
+        <tbody>
+          <tr><td>入金</td><td>契約売上</td><td>¥3,000,000</td><td>2/15</td></tr>
+          <tr><td>出金</td><td>人件費</td><td>¥1,200,000</td><td>2/25</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 設定 C-03 -->
+  <section class="section card">
+    <h2>C-03 設定</h2>
+    <div class="grid cols-3">
+      <div>
+        <h4>通知設定</h4>
+        <div class="row"><span>Slack Webhook</span><span class="muted">https://hooks...</span></div>
+        <div class="row"><span>出勤通知</span><span class="badge">ON</span></div>
+        <div class="row"><span>退勤通知</span><span class="badge">OFF</span></div>
+      </div>
+      <div>
+        <h4>権限・閲覧</h4>
+        <div class="row"><span>ツール費閲覧</span><span class="muted">管理者/本人</span></div>
+        <div class="row"><span>契約書閲覧</span><span class="muted">管理者/本人</span></div>
+      </div>
+      <div>
+        <h4>社内精算</h4>
+        <div class="row"><span>相殺ON/OFF</span><span class="badge">ON</span></div>
+        <div class="row"><span>支払会社デフォルト</span><span class="muted">所属会社</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- スキル設定 M2-02 -->
+  <section class="section card">
+    <h2>M2-02 スキル設定</h2>
+    <div class="row"><span>カテゴリ</span><button class="pill-sm">カテゴリ追加</button></div>
+    <div class="list">
+      <div class="row"><strong>Backend</strong><span class="pill-sm">＋スキル追加</span></div>
+      <div class="row"><span>Go</span><span class="muted">並び替えドラッグ</span></div>
+      <div class="row"><span>Node.js</span><span class="muted">並び替えドラッグ</span></div>
+    </div>
+  </section>
+
+  <!-- スキルマトリクス M2-01 (Dev / Biz タブ切替イメージ) -->
+  <section class="section card">
+    <h2>M2-01 スキルマトリクス</h2>
+    <div class="row" style="gap:8px;">
+      <div class="pill">Dev</div>
+      <div class="pill-sm">Biz</div>
+      <div class="muted">カテゴリフィルタ: Backend / Frontend / Data ...</div>
+    </div>
+    <table class="table" style="margin-top:8px;">
+      <thead><tr><th>メンバー</th><th>FE</th><th>BE</th><th>Infra</th><th>DS</th><th>LLM</th></tr></thead>
+      <tbody>
+        <tr><td>田中</td><td>3</td><td>4</td><td>3</td><td>2</td><td>2</td></tr>
+        <tr><td>佐藤</td><td>2</td><td>3</td><td>4</td><td>3</td><td>1</td></tr>
+      </tbody>
+    </table>
+    <div class="muted" style="margin-top:10px;">タブを「Biz」に切り替えると Bizカテゴリ（PM力 / 営業力 / スライドライティング力 / 提案力 / 技術理解 / 技術提案）に列が置き換わる</div>
+  </section>
+
+  <!-- メンバー登録 M1-03 -->
+  <section class="section card">
+    <h2>M1-03 メンバー登録/編集</h2>
+    <div class="grid cols-3">
+      <div class="list">
+        <h4>基本情報</h4>
+        <input placeholder="氏名 田中太郎">
+        <input placeholder="メール tanaka@example.com">
+        <input placeholder="電話 090-xxxx">
+        <input placeholder="住所 東京都...">
+      </div>
+      <div class="list">
+        <h4>会社ラベルのみ</h4>
+        <div class="row"><span>所属会社</span><span class="pill-sm">SALT2</span></div>
+        <div class="muted">※ 稼働配分は日々の打刻後にPJ配分入力→月次集計で表示。ここでは固定値を持たない。</div>
+      </div>
+      <div class="list">
+        <h4>ツール</h4>
+        <div class="row"><span>ツール名/プラン</span><select><option>Claude Pro</option><option>Claude Max</option><option>Slack Business</option></select></div>
+        <div class="row"><span>月額</span><input placeholder="2000"></div>
+        <div class="row"><span>請求会社</span><select><option>所属会社(初期)</option><option>Boost</option><option>SALT2</option></select></div>
+        <div class="row"><span>既存</span><span class="pill-sm">Claude Pro ¥2000 SALT2</span></div>
+        <div class="row"><span></span><span class="pill-sm">Google Workspace ¥900 Boost</span></div>
+        <div class="muted">管理者のみ追加/編集/削除可。プランはプルダウンで変更、請求先は所属会社が初期値。</div>
+      </div>
+      <div class="list">
+        <h4>契約</h4>
+        <button class="button" style="background:#0ea5e9;">DocuSignで送信</button>
+      </div>
+    </div>
+    <button class="button" style="margin-top:8px;">保存</button>
+  </section>
+</body>
+</html>

@@ -1,0 +1,480 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// 参照: docs/requirements/database/database-design.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// 1. user_accounts（ユーザーアカウント）
+// ─────────────────────────────────────────────
+model UserAccount {
+  id           String   @id @default(uuid())
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash")
+  role         String   @db.VarChar(20) // 'admin' | 'manager' | 'employee' | 'intern'
+  memberId     String   @unique @map("member_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  member             Member              @relation(fields: [memberId], references: [id])
+  createdProjects    Project[]           @relation("ProjectCreatedBy")
+  createdAssignments ProjectAssignment[] @relation("AssignmentCreatedBy")
+  evaluatedSkills    MemberSkill[]       @relation("SkillEvaluatedBy")
+  createdPLRecords   PLRecord[]          @relation("PLCreatedBy")
+  updatedConfigs     SystemConfig[]      @relation("ConfigUpdatedBy")
+  auditLogs          AuditLog[]          @relation("AuditOperator")
+
+  @@map("user_accounts")
+}
+
+// ─────────────────────────────────────────────
+// 2. members（メンバー）
+// ─────────────────────────────────────────────
+model Member {
+  id                String    @id @default(uuid())
+  name              String    @db.VarChar(100)
+  profileImageUrl   String?   @map("profile_image_url")
+  phone             String?   @db.VarChar(20)
+  address           String?
+  status            String    @db.VarChar(30) // 'executive'|'employee'|'intern_full'|'intern_training'|'training_member'
+  company           String    @db.VarChar(10) // 'boost' | 'salt2'
+  salaryType        String    @map("salary_type") @db.VarChar(10) // 'hourly' | 'monthly'
+  salaryAmount      Int       @map("salary_amount")
+  // 銀行情報: アプリ層で AES-256 暗号化して保存すること（TODO: Phase 3 で暗号化実装）
+  bankName          String?   @map("bank_name")
+  bankBranch        String?   @map("bank_branch")
+  bankAccountNumber String?   @map("bank_account_number")
+  bankAccountHolder String?   @map("bank_account_holder")
+  joinedAt          DateTime  @map("joined_at") @db.Date
+  leftAt            DateTime? @map("left_at") @db.Date
+  deletedAt         DateTime? @map("deleted_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  userAccount   UserAccount?
+  skills        MemberSkill[]
+  assignments   ProjectAssignment[]
+  workSchedules WorkSchedule[]
+  attendances   Attendance[]
+  invoices      Invoice[]
+  tools         MemberTool[]
+  contracts     MemberContract[]
+  selfReports   MonthlySelfReport[]
+
+  @@map("members")
+}
+
+// ─────────────────────────────────────────────
+// 3. skill_categories（スキルカテゴリ）
+// ─────────────────────────────────────────────
+model SkillCategory {
+  id           String   @id @default(uuid())
+  name         String   @unique @db.VarChar(50)
+  description  String?  @db.VarChar(200)
+  displayOrder Int      @default(1) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  skills Skill[]
+
+  @@map("skill_categories")
+}
+
+// ─────────────────────────────────────────────
+// 4. skills（スキル）
+// ─────────────────────────────────────────────
+model Skill {
+  id           String        @id @default(uuid())
+  categoryId   String        @map("category_id")
+  name         String        @db.VarChar(100)
+  description  String?       @db.VarChar(200)
+  displayOrder Int           @default(1) @map("display_order")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  category               SkillCategory           @relation(fields: [categoryId], references: [id])
+  memberSkills           MemberSkill[]
+  positionRequiredSkills PositionRequiredSkill[]
+
+  @@unique([categoryId, name])
+  @@map("skills")
+}
+
+// ─────────────────────────────────────────────
+// 5. member_skills（メンバースキル評価・追記型）
+// ─────────────────────────────────────────────
+model MemberSkill {
+  id          String   @id @default(uuid())
+  memberId    String   @map("member_id")
+  skillId     String   @map("skill_id")
+  level       Int      // 1-5
+  evaluatedAt DateTime @map("evaluated_at") @db.Date
+  memo        String?  @db.VarChar(500)
+  evaluatedBy String   @map("evaluated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations（INSERT専用のためupdatedAtなし）
+  member    Member      @relation(fields: [memberId], references: [id])
+  skill     Skill       @relation(fields: [skillId], references: [id])
+  evaluator UserAccount @relation("SkillEvaluatedBy", fields: [evaluatedBy], references: [id])
+
+  @@map("member_skills")
+}
+
+// ─────────────────────────────────────────────
+// 6. projects（プロジェクト）
+// ─────────────────────────────────────────────
+model Project {
+  id                    String    @id @default(uuid())
+  name                  String    @db.VarChar(200)
+  description           String?
+  status                String    @db.VarChar(20) // 'planning'|'active'|'completed'|'on_hold'
+  company               String    @db.VarChar(10) // 'boost' | 'salt2'
+  projectType           String    @default("salt2_own") @map("project_type") @db.VarChar(20) // 'boost_dispatch'|'salt2_own'
+  startDate             DateTime  @map("start_date") @db.Date
+  endDate               DateTime? @map("end_date") @db.Date
+  clientName            String?   @map("client_name") @db.VarChar(200)
+  contractType          String?   @map("contract_type") @db.VarChar(20) // 'quasi_mandate'|'contract'|'in_house'|'other'
+  monthlyContractAmount Int       @default(0) @map("monthly_contract_amount")
+  createdBy             String    @map("created_by")
+  deletedAt             DateTime? @map("deleted_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  creator               UserAccount            @relation("ProjectCreatedBy", fields: [createdBy], references: [id])
+  positions             ProjectPosition[]
+  assignments           ProjectAssignment[]
+  plRecords             PLRecord[]
+  attendanceAllocations AttendanceAllocation[]
+  selfReports           MonthlySelfReport[]
+
+  @@map("projects")
+}
+
+// ─────────────────────────────────────────────
+// 7. project_positions（PJポジション）
+// ─────────────────────────────────────────────
+model ProjectPosition {
+  id            String   @id @default(uuid())
+  projectId     String   @map("project_id")
+  positionName  String   @map("position_name") @db.VarChar(100)
+  requiredCount Int      @default(1) @map("required_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  project        Project                @relation(fields: [projectId], references: [id])
+  requiredSkills PositionRequiredSkill[]
+  assignments    ProjectAssignment[]
+
+  @@map("project_positions")
+}
+
+// ─────────────────────────────────────────────
+// 8. position_required_skills（ポジション必要スキル）
+// ─────────────────────────────────────────────
+model PositionRequiredSkill {
+  id         String          @id @default(uuid())
+  positionId String          @map("position_id")
+  skillId    String          @map("skill_id")
+  minLevel   Int             @map("min_level") // 1-5
+
+  // Relations
+  position ProjectPosition @relation(fields: [positionId], references: [id])
+  skill    Skill           @relation(fields: [skillId], references: [id])
+
+  @@unique([positionId, skillId])
+  @@map("position_required_skills")
+}
+
+// ─────────────────────────────────────────────
+// 9. project_assignments（アサイン）
+// ─────────────────────────────────────────────
+model ProjectAssignment {
+  id            String    @id @default(uuid())
+  projectId     String    @map("project_id")
+  positionId    String    @map("position_id")
+  memberId      String    @map("member_id")
+  workloadHours Int       @map("workload_hours")
+  startDate     DateTime  @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  project  Project         @relation(fields: [projectId], references: [id])
+  position ProjectPosition @relation(fields: [positionId], references: [id])
+  member   Member          @relation(fields: [memberId], references: [id])
+  creator  UserAccount     @relation("AssignmentCreatedBy", fields: [createdBy], references: [id])
+
+  @@map("project_assignments")
+}
+
+// ─────────────────────────────────────────────
+// 10. work_schedules（勤務予定）
+// ─────────────────────────────────────────────
+model WorkSchedule {
+  id        String   @id @default(uuid())
+  memberId  String   @map("member_id")
+  date      DateTime @db.Date
+  startTime String?  @map("start_time") @db.VarChar(5) // "HH:MM"
+  endTime   String?  @map("end_time") @db.VarChar(5)
+  isOff     Boolean  @default(false) @map("is_off")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@unique([memberId, date])
+  @@map("work_schedules")
+}
+
+// ─────────────────────────────────────────────
+// 11. attendances（勤怠）
+// ─────────────────────────────────────────────
+model Attendance {
+  id            String    @id @default(uuid())
+  memberId      String    @map("member_id")
+  date          DateTime  @db.Date
+  clockIn       DateTime? @map("clock_in")
+  clockOut      DateTime? @map("clock_out")
+  breakMinutes  Int       @default(0) @map("break_minutes")
+  workMinutes   Int?      @map("work_minutes") // 自動計算: (clockOut - clockIn) - breakMinutes
+  todoToday     String?   @map("todo_today") @db.VarChar(500)
+  doneToday     String?   @map("done_today") @db.VarChar(500)
+  todoTomorrow  String?   @map("todo_tomorrow") @db.VarChar(500)
+  status        String    @default("normal") @db.VarChar(20) // 'normal'|'modified'|'absent'
+  confirmStatus String    @default("unconfirmed") @map("confirm_status") @db.VarChar(20) // 'unconfirmed'|'confirmed'|'approved'
+  slackNotified Boolean   @default(false) @map("slack_notified")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  member      Member                 @relation(fields: [memberId], references: [id])
+  allocations AttendanceAllocation[]
+
+  @@unique([memberId, date])
+  @@map("attendances")
+}
+
+// ─────────────────────────────────────────────
+// 12. invoices（請求書）
+// ─────────────────────────────────────────────
+model Invoice {
+  id              String   @id @default(uuid())
+  invoiceNumber   String   @unique @map("invoice_number") @db.VarChar(20)
+  memberId        String   @map("member_id")
+  targetMonth     String   @map("target_month") @db.Char(7) // 'YYYY-MM'
+  workHoursTotal  Decimal  @default(0) @map("work_hours_total") @db.Decimal(6, 2)
+  unitPrice       Int      @map("unit_price")
+  amountExclTax   Int      @default(0) @map("amount_excl_tax")
+  amountInclTax   Int      @default(0) @map("amount_incl_tax")
+  amountBoost     Int      @default(0) @map("amount_boost")
+  amountSalt2     Int      @default(0) @map("amount_salt2")
+  filePath        String?  @map("file_path")
+  slackSentStatus String   @default("unsent") @map("slack_sent_status") @db.VarChar(10) // 'unsent'|'sent'
+  issuedAt        DateTime @map("issued_at") @db.Date
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@unique([memberId, targetMonth])
+  @@map("invoices")
+}
+
+// ─────────────────────────────────────────────
+// 13. pl_records（PL / CFレコード）
+// ─────────────────────────────────────────────
+model PLRecord {
+  id                   String   @id @default(uuid())
+  recordType           String   @map("record_type") @db.VarChar(5) // 'pl' | 'cf'
+  projectId            String?  @map("project_id") // pl時は必須、cf時はNULL
+  targetMonth          String   @map("target_month") @db.Char(7) // 'YYYY-MM'
+  // PL項目
+  revenueContract      Int      @default(0) @map("revenue_contract")
+  revenueExtra         Int      @default(0) @map("revenue_extra")
+  costLaborMonthly     Int      @default(0) @map("cost_labor_monthly")
+  costLaborHourly      Int      @default(0) @map("cost_labor_hourly")
+  costOutsourcing      Int      @default(0) @map("cost_outsourcing")
+  costTools            Int      @default(0) @map("cost_tools")
+  costOther            Int      @default(0) @map("cost_other")
+  grossProfit          Int      @default(0) @map("gross_profit")
+  grossProfitRate      Decimal? @map("gross_profit_rate") @db.Decimal(5, 2)
+  markupRate           Decimal? @map("markup_rate") @db.Decimal(5, 3) // boost_dispatch時の掛け率
+  // CF項目（recordType='cf'のみ有効）
+  cfCashInClient       Int      @default(0) @map("cf_cash_in_client")
+  cfCashInOther        Int      @default(0) @map("cf_cash_in_other")
+  cfCashOutSalary      Int      @default(0) @map("cf_cash_out_salary")
+  cfCashOutOutsourcing Int      @default(0) @map("cf_cash_out_outsourcing")
+  cfCashOutFixed       Int      @default(0) @map("cf_cash_out_fixed")
+  cfCashOutOther       Int      @default(0) @map("cf_cash_out_other")
+  cfBalancePrev        Int?     @map("cf_balance_prev")
+  cfBalanceCurrent     Int      @default(0) @map("cf_balance_current")
+  memo                 String?  @db.VarChar(200)
+  createdBy            String   @map("created_by")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  project Project?    @relation(fields: [projectId], references: [id])
+  creator UserAccount @relation("PLCreatedBy", fields: [createdBy], references: [id])
+
+  @@unique([projectId, targetMonth, recordType])
+  @@map("pl_records")
+}
+
+// ─────────────────────────────────────────────
+// 14. member_tools（メンバー利用ツール）
+// ─────────────────────────────────────────────
+model MemberTool {
+  id           String   @id @default(uuid())
+  memberId     String   @map("member_id")
+  toolName     String   @map("tool_name") @db.VarChar(100)
+  plan         String?  @db.VarChar(50)
+  monthlyCost  Int      @default(0) @map("monthly_cost")
+  companyLabel String   @map("company_label") @db.VarChar(10) // 'boost' | 'salt2'
+  note         String?  @db.VarChar(200)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@map("member_tools")
+}
+
+// ─────────────────────────────────────────────
+// 15. member_contracts（メンバー契約書）
+// ─────────────────────────────────────────────
+model MemberContract {
+  id           String    @id @default(uuid())
+  memberId     String    @map("member_id")
+  status       String    @default("draft") @db.VarChar(20) // 'draft'|'sent'|'waiting_sign'|'completed'|'voided'
+  templateName String    @map("template_name") @db.VarChar(100)
+  startDate    DateTime? @map("start_date") @db.Date
+  endDate      DateTime? @map("end_date") @db.Date
+  fileUrl      String?   @map("file_url")
+  fileHash     String?   @map("file_hash") @db.VarChar(128) // SHA256
+  signerEmail  String    @map("signer_email") @db.VarChar(255) // PII
+  sentAt       DateTime? @map("sent_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@map("member_contracts")
+}
+
+// ─────────────────────────────────────────────
+// 16. audit_logs（監査ログ・INSERT専用）
+// ─────────────────────────────────────────────
+model AuditLog {
+  id          String   @id @default(uuid())
+  operatorId  String   @map("operator_id")
+  targetTable String   @map("target_table") @db.VarChar(100)
+  targetId    String   @map("target_id")
+  action      String   @db.VarChar(10) // 'CREATE'|'UPDATE'|'DELETE'
+  beforeData  Json?    @map("before_data")
+  afterData   Json?    @map("after_data")
+  ipAddress   String   @map("ip_address") @db.VarChar(45)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations（INSERT専用のためupdatedAtなし）
+  operator UserAccount @relation("AuditOperator", fields: [operatorId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// 17. system_configs（システム設定）
+// ─────────────────────────────────────────────
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique @db.VarChar(100)
+  value     String
+  isSecret  Boolean  @default(false) @map("is_secret")
+  updatedBy String   @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  updater UserAccount @relation("ConfigUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("system_configs")
+}
+
+// ─────────────────────────────────────────────
+// 18. attendance_allocations（勤怠PJ配分）
+// ─────────────────────────────────────────────
+model AttendanceAllocation {
+  id           String     @id @default(uuid())
+  attendanceId String     @map("attendance_id")
+  projectId    String     @map("project_id")
+  minutes      Int
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  project    Project    @relation(fields: [projectId], references: [id])
+
+  @@unique([attendanceId, projectId])
+  @@map("attendance_allocations")
+}
+
+// ─────────────────────────────────────────────
+// 19. intra_company_settlements（社内精算）
+// ─────────────────────────────────────────────
+model IntraCompanySettlement {
+  id               String   @id @default(uuid())
+  targetMonth      DateTime @map("target_month") @db.Date // YYYY-MM-01 で管理
+  payingCompany    String   @map("paying_company") @db.VarChar(10) // 'boost' | 'salt2'
+  receivingCompany String   @map("receiving_company") @db.VarChar(10) // 'boost' | 'salt2'
+  memberId         String?  @map("member_id")
+  amount           Int
+  basis            String   @default("allocation") @db.VarChar(20) // 'allocation'|'manual'
+  note             String?  @db.VarChar(200)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("intra_company_settlements")
+}
+
+// ─────────────────────────────────────────────
+// 20. monthly_self_reports（月次自己申告）
+// ─────────────────────────────────────────────
+model MonthlySelfReport {
+  id            String    @id @default(uuid())
+  memberId      String    @map("member_id")
+  targetMonth   String    @map("target_month") @db.Char(7) // 'YYYY-MM'
+  projectId     String    @map("project_id")
+  reportedHours Decimal   @map("reported_hours") @db.Decimal(6, 2)
+  note          String?   @db.VarChar(500)
+  submittedAt   DateTime? @map("submitted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  member  Member  @relation(fields: [memberId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([memberId, targetMonth, projectId])
+  @@map("monthly_self_reports")
+}

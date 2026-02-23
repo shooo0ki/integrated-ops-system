@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>統合業務管理 クライアント向けモック (Static)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --accent: #10b981;
+      --warn: #f59e0b;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    header { height: 56px; background: #0b1224; color: #e5e7eb; display: flex; align-items: center; padding: 0 18px; justify-content: space-between; }
+    header nav a { color: #cbd5e1; margin-right: 14px; text-decoration: none; font-weight: 600; }
+    header nav a:hover { color: #fff; }
+    .wrap { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 56px); }
+    aside { background: #111827; color: #e5e7eb; padding: 18px; }
+    aside h3 { margin: 0 0 12px; font-size: 16px; }
+    aside a { display: block; color: #cbd5e1; text-decoration: none; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; }
+    aside a:hover, aside a.active { background: #1f2937; color: #fff; }
+    main { padding: 24px; }
+    .grid { display: grid; gap: 14px; }
+    .cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .cols-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card { background: var(--card); border-radius: var(--radius); padding: 14px 16px; box-shadow: 0 8px 22px rgba(15,23,42,0.06); }
+    h2 { margin: 0 0 12px; }
+    h4 { margin: 0 0 8px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .button { background: var(--primary); color: #fff; border: none; padding: 10px 12px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+    .button.secondary { background: #e5e7eb; color: #111827; }
+    .tag { padding: 4px 8px; border-radius: 8px; font-size: 12px; background: #e0f2fe; color: #075985; }
+    .tag.green { background: #dcfce7; color: #166534; }
+    .tag.red { background: #fee2e2; color: #b91c1c; }
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table th, .table td { padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    .flex { display: flex; align-items: center; gap: 8px; }
+    .pill { padding: 5px 10px; border-radius: 999px; background: #eef2ff; color: #4338ca; font-weight: 600; font-size: 12px; }
+    .btn-link { color: var(--primary); text-decoration: underline; cursor: pointer; font-size: 13px; }
+    .section-title { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  </style>
+  <script>
+    function show(id) {
+      document.querySelectorAll('section.view').forEach(sec => sec.style.display = 'none');
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'block';
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+    function doLogin() {
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('app').style.display = 'grid';
+      show('dash');
+    }
+  </script>
+</head>
+<body>
+  <!-- Login -->
+  <section id="login" style="max-width:480px; margin:48px auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 12px 30px rgba(15,23,42,0.08);">
+    <h2 style="margin-top:0;">ログイン</h2>
+    <div class="muted" style="margin-bottom:10px;">メールアドレスとパスワードでログインしてください。</div>
+    <div style="margin-bottom:10px;">
+      <div class="muted">メールアドレス</div>
+      <input style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:10px;" placeholder="you@example.com">
+    </div>
+    <div style="margin-bottom:16px;">
+      <div class="muted">パスワード</div>
+      <input type="password" style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:10px;" placeholder="********">
+    </div>
+    <button class="button" style="width:100%;" onclick="doLogin()">ログイン</button>
+    <div class="muted" style="margin-top:10px;">社内SSO連携は今後追加予定。現段階はメール+パスワードのみ。</div>
+  </section>
+
+  <div id="app" style="display:none;">
+  <header>
+    <div class="flex">
+      <strong>SALT2業務管理</strong>
+      <span class="pill">Admin</span>
+    </div>
+    <nav>
+      <a href="#" onclick="show('dash')">ダッシュボード</a>
+      <a href="#" onclick="show('attendance')">勤怠</a>
+      <a href="#" onclick="show('projects')">プロジェクト</a>
+      <a href="#" onclick="show('skills')">スキル</a>
+      <a href="#" onclick="show('invoice')">請求</a>
+      <a href="#" onclick="show('settings')">設定</a>
+    </nav>
+  </header>
+
+  <div class="wrap">
+    <aside>
+      <h3>メニュー</h3>
+      <a class="active" onclick="show('dash')">ダッシュボード</a>
+      <a onclick="show('timeclock')">打刻</a>
+      <a onclick="show('schedule')">勤務予定</a>
+      <a onclick="show('attendance')">勤怠一覧</a>
+      <a onclick="show('projects')">プロジェクト</a>
+      <a onclick="show('assign')">アサイン管理</a>
+      <a onclick="show('project-form')">プロジェクト登録</a>
+      <a onclick="show('skills')">スキルマトリクス</a>
+      <a onclick="show('invoice')">請求書一覧</a>
+      <a onclick="show('settings')">設定</a>
+    </aside>
+
+    <main>
+      <!-- Dashboard -->
+      <section id="dash" class="view">
+        <h2>ダッシュボード</h2>
+        <div class="grid cols-3">
+          <div class="card">
+            <h4>今日の勤怠</h4>
+            <div class="muted">状態: 未出勤 / 予定 10:00-19:00</div>
+            <button class="button" onclick="show('timeclock')" style="margin-top:8px;">出勤する</button>
+          </div>
+          <div class="card">
+            <h4>社内精算サマリー</h4>
+            <div class="flex"><span>Boost→SALT2</span><strong>¥150,000</strong></div>
+            <div class="flex"><span>SALT2→Boost</span><strong>¥0</strong></div>
+            <div class="muted">所属=SALT2、稼働 Boost30% / SALT2 70%</div>
+          </div>
+          <div class="card">
+            <h4>通知</h4>
+            <div class="flex"><span>打刻漏れ</span><span class="tag red">2件</span></div>
+            <div class="flex"><span>DocuSign署名待ち</span><span class="tag">契約書</span></div>
+          </div>
+        </div>
+        <div class="grid cols-3" style="margin-top:12px;">
+          <div class="card">
+            <h4>週スケジュール</h4>
+            <table class="table">
+              <tbody>
+                <tr><td>月</td><td>10:00-19:00 出社</td></tr>
+                <tr><td>火</td><td>10:00-19:00 オンライン</td></tr>
+                <tr><td>水</td><td>休み</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h4>担当プロジェクト</h4>
+            <div class="flex"><span>Boost AI基盤</span><span class="tag">Boost 30%</span></div>
+            <div class="flex"><span>SALT2 新規SaaS</span><span class="tag">SALT2 70%</span></div>
+          </div>
+          <div class="card">
+            <h4>利用ツール・契約（本人/管理者）</h4>
+            <div class="flex"><span>Claude Pro</span><span class="tag">¥2,000 / SALT2</span></div>
+            <div class="flex"><span>Google Workspace</span><span class="tag">¥900 / Boost</span></div>
+            <div class="flex" style="margin-top:6px;"><span>業務委託 NDA</span><span class="tag green">契約書締結済み</span></div>
+            <div class="muted" style="margin-top:6px;">ツールは管理者がプルダウンで編集可。契約書締結済みは送信ボタン非活性。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Timeclock -->
+      <section id="timeclock" class="view" style="display:none;">
+        <div class="section-title"><h2>打刻</h2><button class="button secondary" onclick="show('dash')">戻る</button></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h4>出勤前</h4>
+            <div class="muted">現在 09:58</div>
+            <textarea placeholder="今日やること" style="width:100%;height:70px;"></textarea>
+            <button class="button" style="margin-top:8px;">出勤する</button>
+          </div>
+          <div class="card">
+            <h4>退勤前</h4>
+            <div class="muted">出勤 10:02</div>
+            <input style="width:100%; margin:6px 0;" placeholder="休憩(分)" value="60">
+            <textarea placeholder="今日やったこと" style="width:100%;height:60px;"></textarea>
+            <textarea placeholder="明日やること" style="width:100%;height:60px;"></textarea>
+            <button class="button" style="background:var(--warn); width:100%; margin-top:8px;" onclick="show('allocation')">退勤する</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Allocation -->
+      <section id="allocation" class="view" style="display:none;">
+        <div class="section-title"><h2>退勤後: PJ配分入力</h2><button class="button secondary" onclick="show('timeclock')">戻る</button></div>
+        <table class="table">
+          <thead><tr><th>PJ</th><th>分</th><th>%</th></tr></thead>
+          <tbody>
+            <tr><td>Boost AI基盤</td><td><input value="150"></td><td><input value="30"></td></tr>
+            <tr><td>SALT2 新規SaaS</td><td><input value="350"></td><td><input value="70"></td></tr>
+          </tbody>
+        </table>
+        <div class="muted">%入力で分を自動計算、合計=実働でバリデーション</div>
+        <button class="button" style="margin-top:10px;" onclick="show('attendance')">勤怠一覧へ</button>
+      </section>
+
+      <!-- Work schedule -->
+      <section id="schedule" class="view" style="display:none;">
+        <div class="section-title"><h2>勤務予定（週）</h2><button class="button secondary" onclick="show('dash')">戻る</button></div>
+        <table class="table">
+          <thead><tr><th>日</th><th>開始</th><th>終了</th><th>勤務形態</th><th>終日休み</th></tr></thead>
+          <tbody>
+            <tr><td>月</td><td>10:00</td><td>19:00</td><td>出社</td><td>☐</td></tr>
+            <tr><td>火</td><td>10:00</td><td>19:00</td><td>オンライン</td><td>☐</td></tr>
+            <tr><td>土</td><td>—</td><td>—</td><td>—</td><td>☑</td></tr>
+            <tr><td>日</td><td>—</td><td>—</td><td>—</td><td>☑</td></tr>
+          </tbody>
+        </table>
+        <div class="muted">前週コピー / 前日まで編集可（本人）、管理者はいつでも編集可。</div>
+      </section>
+
+      <!-- Attendance list -->
+      <section id="attendance" class="view" style="display:none;">
+        <div class="section-title"><h2>勤怠一覧</h2><button class="button secondary" onclick="show('dash')">戻る</button></div>
+        <table class="table">
+          <thead><tr><th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>配分</th><th>状態</th><th>承認</th></tr></thead>
+          <tbody>
+            <tr><td>2/18</td><td>10:05</td><td>19:10</td><td>60</td><td>8h05m</td><td>Boost150 / SALT2350</td><td>承認待ち</td><td><button class="button">OK</button></td></tr>
+            <tr><td>2/17</td><td>10:00</td><td>19:00</td><td>60</td><td>8h00m</td><td>Boost240 / SALT2270</td><td>承認済</td><td><span class="muted">—</span></td></tr>
+          </tbody>
+        </table>
+        <div class="muted">管理者/担当Mgrのみ承認活性。本人は自分行のみ編集可。</div>
+      </section>
+
+      <!-- Projects -->
+      <section id="projects" class="view" style="display:none;">
+        <div class="section-title"><h2>プロジェクト一覧</h2><button class="button secondary" onclick="show('dash')">戻る</button></div>
+        <table class="table">
+          <thead><tr><th>名称</th><th>会社</th><th>ステータス</th><th>期間</th><th>予算</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Boost AI基盤</td><td>Boost</td><td>進行中</td><td>2026/1-3</td><td>¥8,000,000</td><td><button class="button" onclick="show('project-detail')">詳細</button></td></tr>
+            <tr><td>SALT2 新規SaaS</td><td>SALT2</td><td>準備中</td><td>2026/2-5</td><td>¥5,000,000</td><td><button class="button" onclick="show('project-detail')">詳細</button></td></tr>
+          </tbody>
+        </table>
+        <div class="btn-link" onclick="show('project-form')">＋ プロジェクト登録</div>
+      </section>
+
+      <!-- Project detail -->
+      <section id="project-detail" class="view" style="display:none;">
+        <div class="section-title"><h2>プロジェクト詳細</h2><button class="button secondary" onclick="show('projects')">戻る</button></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h4>概要</h4>
+            <div>会社: Boost</div>
+            <div>期間: 2026/1-3</div>
+            <div>契約金額: ¥8,000,000</div>
+          </div>
+          <div class="card">
+            <h4>ポジション</h4>
+            <div class="flex"><span>PM</span><span class="muted">佐藤 / 50%</span></div>
+            <div class="flex"><span>メインエンジニア</span><span class="muted">山田 / 70%</span></div>
+            <div class="btn-link" onclick="show('assign')">アサイン管理へ</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Assign -->
+      <section id="assign" class="view" style="display:none;">
+        <div class="section-title"><h2>アサイン管理</h2><button class="button secondary" onclick="show('project-detail')">戻る</button></div>
+        <div class="muted">必要スキル: FE>=3, BE>=3, Infra>=2</div>
+        <table class="table">
+          <thead><tr><th>候補</th><th>適合</th><th>現在工数</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td>鈴木</td><td><span class="tag green">✅充足</span></td><td>40%</td><td><button class="button">割当</button></td></tr>
+            <tr><td>山田</td><td><span class="tag">⚠️不足</span></td><td>70%</td><td><button class="button" style="background:#9ca3af;">割当</button></td></tr>
+          </tbody>
+        </table>
+        <div class="muted">管理者/担当Mgrのみ編集可。その他ロールは閲覧のみ。</div>
+      </section>
+
+      <!-- Project form with required skills -->
+      <section id="project-form" class="view" style="display:none;">
+        <div class="section-title"><h2>プロジェクト登録/編集</h2><button class="button secondary" onclick="show('projects')">戻る</button></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h4>基本情報</h4>
+            <div class="muted">名称 / ステータス / 会社 / 期間 / 契約形態 / 月額</div>
+            <div class="flex"><span>名称</span><input value="SALT2 新規SaaS" style="flex:1;"></div>
+            <div class="flex"><span>会社</span><select><option>SALT2</option><option>Boost</option></select></div>
+            <div class="flex"><span>期間</span><input value="2026/02/01">〜<input value="2026/05/31"></div>
+            <div class="flex"><span>契約形態</span><select><option>準委任</option><option>請負</option><option>自社開発</option></select></div>
+          </div>
+          <div class="card">
+            <h4>ポジション定義 + 必要スキル</h4>
+            <table class="table">
+              <thead><tr><th>ポジション</th><th>必要人数</th><th>必要スキル(レベル)</th><th></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>PM</td>
+                  <td><input value="1" style="width:50px;"></td>
+                  <td>
+                    <div class="muted">PM力 >=3, スライドラ >=3</div>
+                  </td>
+                  <td><button class="button secondary" style="padding:6px 8px;">編集</button></td>
+                </tr>
+                <tr>
+                  <td>メインエンジニア</td>
+                  <td><input value="2" style="width:50px;"></td>
+                  <td>
+                    <div class="muted">FE >=3, BE >=3, Infra >=2</div>
+                  </td>
+                  <td><button class="button secondary" style="padding:6px 8px;">編集</button></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="btn-link">＋ ポジション追加</div>
+            <div class="muted" style="margin-top:6px;">ここで定義した必要スキルがアサイン管理のフィルタ/適合判定に使われる。</div>
+          </div>
+        </div>
+        <div class="flex" style="gap:8px; margin-top:10px;">
+          <button class="button">保存</button>
+          <button class="button secondary" onclick="show('projects')">キャンセル</button>
+        </div>
+      </section>
+
+      <!-- Skills -->
+      <section id="skills" class="view" style="display:none;">
+        <div class="section-title"><h2>スキルマトリクス</h2><button class="button secondary" onclick="show('dash')">戻る</button></div>
+        <div class="flex" style="gap:8px; margin-bottom:8px;">
+          <span class="pill">Dev</span><span class="pill secondary">Biz</span>
+          <span class="muted">カテゴリフィルタ / 最低レベル / 会社</span>
+        </div>
+        <table class="table">
+          <thead><tr><th>メンバー</th><th>FE</th><th>BE</th><th>Infra</th><th>DS</th><th>LLM</th></tr></thead>
+          <tbody>
+            <tr><td>田中</td><td>3</td><td>4</td><td>3</td><td>2</td><td>2</td></tr>
+            <tr><td>佐藤</td><td>2</td><td>3</td><td>4</td><td>3</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <div class="muted">Bizタブに切替でPM力/営業力/スライドライティング/提案力/技術理解/技術提案の列を表示。未評価は「—」、3ヶ月未更新は行をオレンジで強調。</div>
+      </section>
+
+      <!-- Invoice -->
+      <section id="invoice" class="view" style="display:none;">
+        <div class="section-title"><h2>請求書一覧</h2><button class="button secondary" onclick="show('dash')">戻る</button></div>
+        <div class="muted">管理者=全員＋再生成/Slack送付活性、社員/インターン=自分のみDL。</div>
+        <table class="table">
+          <thead><tr><th>#</th><th>メンバー</th><th>Boost請求</th><th>SALT2請求</th><th>発行日</th><th>状態</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td>2026-02-001</td><td>山田</td><td>¥150,000</td><td>¥350,000</td><td>2/28</td><td>未送付</td><td><button class="button">DL</button> <button class="button" style="background:#0ea5e9;">Slack送付</button></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Settings -->
+      <section id="settings" class="view" style="display:none;">
+        <div class="section-title"><h2>設定（管理者のみ）</h2><button class="button secondary" onclick="show('dash')">戻る</button></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h4>Slack連携</h4>
+            <div class="muted">Webhook URL, 出勤/退勤チャンネル, 勤怠確認メンション, 請求DM</div>
+            <button class="button" style="margin-top:8px;">接続テスト</button>
+          </div>
+          <div class="card">
+            <h4>社内精算設定</h4>
+            <div class="muted">内部取引相殺 ON/OFF, 支払元=所属会社</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

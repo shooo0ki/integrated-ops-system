@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>画面遷移付き Lo-Fi モック</title>
+  <style>
+    * { box-sizing: border-box; font-family: "Inter", system-ui, -apple-system, sans-serif; }
+    body { margin: 24px; background: #f6f8fb; color: #0f172a; }
+    h2 { margin: 0 0 10px; }
+    h3 { margin: 0 0 6px; }
+    .grid { display: grid; gap: 12px; }
+    .cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .cols-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card { padding: 14px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+    .link { color: #2563eb; text-decoration: underline; cursor: pointer; }
+    .muted { color: #6b7280; font-size: 13px; }
+    .pill { padding: 5px 10px; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-weight: 600; }
+    .button { padding: 9px 12px; border: none; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+    section { margin-bottom: 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 6px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    .tag { padding: 3px 6px; border-radius: 6px; background: #e0f2fe; color: #0369a1; font-size: 12px; }
+    .pill-danger { background: #fee2e2; color: #b91c1c; }
+    .pill-warn { background: #fef3c7; color: #92400e; }
+    .pill-success { background: #dcfce7; color: #166534; }
+    nav { display: flex; gap: 10px; margin-bottom: 10px; }
+    nav .link { font-weight: 600; }
+  </style>
+  <script>
+    let role = 'admin';
+    function go(id) {
+      document.querySelectorAll('section').forEach(sec => sec.style.display = 'none');
+      document.getElementById(id).style.display = 'block';
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+    function setRole(r) {
+      role = r;
+      document.getElementById('role-pill').textContent = `権限: ${r}`;
+      document.getElementById('invoice-note').textContent = r === 'admin' ? '全員＋再生成/送付可' : '自分のみDL可（再生成不可）';
+      document.getElementById('assign-note').textContent = r === 'admin' || r === 'manager'
+        ? '編集可（割当/解除）'
+        : '閲覧のみ';
+    }
+    document.addEventListener('DOMContentLoaded', () => { go('login'); setRole('admin'); });
+  </script>
+</head>
+<body>
+  <div class="row" style="margin-bottom:12px; justify-content: space-between;">
+    <div class="row" style="gap:8px;">
+      <h2 style="margin:0;">統合業務管理 Lo-Fi Flow</h2>
+      <div class="pill">共通UI + 権限切替想定</div>
+    </div>
+    <nav>
+      <span class="link" onclick="setRole('admin')">管理者</span>
+      <span class="link" onclick="setRole('manager')">マネージャー</span>
+      <span class="link" onclick="setRole('employee')">社員</span>
+      <span class="link" onclick="setRole('intern')">インターン</span>
+    </nav>
+  </div>
+
+  <!-- ログイン -->
+  <section id="login" class="card">
+    <h3>ログイン</h3>
+    <div class="row"><button class="button" onclick="go('dash')">Slackでログイン → ダッシュボード</button></div>
+    <div class="row"><span class="muted">Googleでログイン</span></div>
+  </section>
+
+  <!-- ダッシュボード -->
+  <section id="dash" class="card" style="display:none;">
+    <h3>ダッシュボード</h3>
+    <div class="grid cols-3">
+      <div><div class="muted">今日の勤怠</div><span class="link" onclick="go('timeclock')">出勤する / 退勤する</span></div>
+      <div><div class="muted">週スケジュール</div><span class="link" onclick="go('schedule')">予定を見る</span></div>
+      <div><div class="muted">自分の勤怠一覧</div><span class="link" onclick="go('attendance')">一覧へ</span></div>
+    </div>
+    <div class="grid cols-3" style="margin-top:10px;">
+      <div><div class="muted">プロジェクト</div><span class="link" onclick="go('projects')">PJ一覧</span></div>
+      <div><div class="muted">請求</div><span class="link" onclick="go('invoice')">請求書一覧</span></div>
+      <div><div class="muted">設定（管理者）</div><span class="link" onclick="go('settings')">Slack連携設定</span></div>
+    </div>
+  </section>
+
+  <!-- 勤務予定 -->
+  <section id="schedule" class="card" style="display:none;">
+    <h3>勤務予定（週）</h3>
+    <div class="muted">月〜日を入力、前週コピー可。勤務形態（出社/オンライン）。</div>
+    <table>
+      <thead><tr><th>日</th><th>開始</th><th>終了</th><th>形態</th><th>終日休み</th></tr></thead>
+      <tbody>
+        <tr><td>月</td><td>10:00</td><td>19:00</td><td>出社</td><td>☐</td></tr>
+        <tr><td>土</td><td>--</td><td>--</td><td>—</td><td>☑</td></tr>
+        <tr><td>日</td><td>--</td><td>--</td><td>—</td><td>☑</td></tr>
+      </tbody>
+    </table>
+    <div class="row"><button class="button" onclick="go('dash')">戻る</button></div>
+  </section>
+
+  <!-- 打刻 -->
+  <section id="timeclock" class="card" style="display:none;">
+    <h3>打刻</h3>
+    <div class="row"><button class="button" onclick="go('dash')">出勤する</button></div>
+    <div class="muted">退勤後 → 配分入力 → 勤怠一覧へ</div>
+    <div class="row"><button class="button" style="background:#f59e0b;" onclick="go('allocation')">退勤する</button></div>
+  </section>
+
+  <!-- 退勤後配分 -->
+  <section id="allocation" class="card" style="display:none;">
+    <h3>退勤後: PJ配分入力</h3>
+    <table>
+      <thead><tr><th>PJ</th><th>分</th><th>%</th></tr></thead>
+      <tbody>
+        <tr><td>Boost AI基盤</td><td><input value="150"></td><td><input value="30"></td></tr>
+        <tr><td>SALT2 新規SaaS</td><td><input value="350"></td><td><input value="70"></td></tr>
+      </tbody>
+    </table>
+    <div class="muted">%を入れると分を自動計算、合計=実働でバリデーション</div>
+    <div class="row"><button class="button" onclick="go('attendance')">勤怠一覧へ</button></div>
+  </section>
+
+  <!-- 勤怠一覧 -->
+  <section id="attendance" class="card" style="display:none;">
+    <h3>勤怠一覧</h3>
+    <table>
+      <thead><tr><th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>状態</th><th>承認</th></tr></thead>
+      <tbody>
+        <tr><td>2/18</td><td>10:05</td><td>19:10</td><td>60</td><td>8h05m</td><td>承認待ち</td><td><button class="button" style="background:#10b981;">OK</button></td></tr>
+        <tr><td>2/17</td><td>10:00</td><td>19:00</td><td>60</td><td>8h00m</td><td>承認済</td><td><span class="muted">—</span></td></tr>
+      </tbody>
+    </table>
+    <div class="muted">自分の勤怠を表示。管理者/担当Mgrは承認ボタン活性。</div>
+    <div class="row"><button class="button" onclick="go('dash')">ダッシュボードへ</button></div>
+  </section>
+
+  <!-- プロジェクト一覧 -->
+  <section id="projects" class="card" style="display:none;">
+    <h3>プロジェクト一覧</h3>
+    <div class="grid cols-3">
+      <div><span class="link" onclick="go('project-detail')">Boost AI基盤</span></div>
+      <div><span class="link" onclick="go('project-detail')">SALT2 新規SaaS</span></div>
+      <div><span class="link" onclick="go('project-detail')">Boost R&D</span></div>
+    </div>
+    <div class="row" style="margin-top:10px;"><button class="button" onclick="go('dash')">戻る</button></div>
+  </section>
+
+  <!-- プロジェクト詳細 → アサイン管理 -->
+  <section id="project-detail" class="card" style="display:none;">
+    <h3>プロジェクト詳細</h3>
+    <div class="row"><span class="muted">アサインを見る/編集</span><span class="link" onclick="go('assign')">アサイン管理へ</span></div>
+    <table>
+      <thead><tr><th>ポジション</th><th>担当</th><th>工数%</th><th>期間</th></tr></thead>
+      <tbody>
+        <tr><td>PM</td><td>佐藤</td><td>50%</td><td>1/1-3/31</td></tr>
+        <tr><td>メインエンジニア</td><td>山田</td><td>70%</td><td>1/1-3/31</td></tr>
+      </tbody>
+    </table>
+    <div class="row"><button class="button" onclick="go('projects')">PJ一覧へ戻る</button></div>
+  </section>
+
+  <!-- アサイン管理 -->
+  <section id="assign" class="card" style="display:none;">
+    <h3>アサイン管理</h3>
+    <div class="muted">必要スキル表示＋候補→割当。管理者/担当Mgrのみ編集可。</div>
+    <div class="row"><span>ポジション</span><span class="pill">メインエンジニア</span></div>
+    <div class="row" id="assign-note">編集可（割当/解除）</div>
+    <table>
+      <thead><tr><th>候補</th><th>適合</th><th>現在工数</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>鈴木</td><td><span class="tag">✅充足</span></td><td>40%</td><td><button class="button">割当</button></td></tr>
+        <tr><td>山田</td><td><span class="tag pill-warn">⚠️不足</span></td><td>70%</td><td><button class="button" style="background:#9ca3af;">割当</button></td></tr>
+      </tbody>
+    </table>
+    <div class="row"><button class="button" onclick="go('project-detail')">戻る</button></div>
+  </section>
+
+  <!-- 請求書一覧 -->
+  <section id="invoice" class="card" style="display:none;">
+    <h3>請求書一覧</h3>
+    <div id="invoice-note" class="muted">全員＋再生成/送付可</div>
+    <table>
+      <thead><tr><th>請求書#</th><th>メンバー</th><th>Boost請求</th><th>SALT2請求</th><th>発行日</th><th>状態</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>2026-02-001</td><td>山田</td><td>¥150,000</td><td>¥350,000</td><td>2/28</td><td>未送付</td><td><button class="button">DL</button> <button class="button" style="background:#0ea5e9;">Slack送付</button></td></tr>
+      </tbody>
+    </table>
+    <div class="row"><button class="button" onclick="go('dash')">戻る</button></div>
+  </section>
+
+  <!-- 設定 -->
+  <section id="settings" class="card" style="display:none;">
+    <h3>設定（管理者のみ）</h3>
+    <div class="muted">Slack Webhook / 勤怠チャンネル / 請求DM設定など</div>
+    <div class="row"><button class="button" onclick="go('dash')">戻る</button></div>
+  </section>
+</body>
+</html>

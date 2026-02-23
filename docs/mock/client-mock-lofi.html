@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>クライアント向け Lo-Fi モック（シンプル版）</title>
+  <style>
+    * { box-sizing: border-box; font-family: "Inter", system-ui, -apple-system, sans-serif; }
+    body { margin: 16px; background: #f6f8fb; color: #0f172a; }
+    h2 { margin: 0 0 10px; }
+    h3 { margin: 0 0 6px; }
+    .card { background: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 6px 16px rgba(0,0,0,0.05); margin-bottom: 12px; }
+    .grid { display: grid; gap: 12px; }
+    .cols-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .cols-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+    .button { padding: 9px 12px; border: none; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 700; cursor: pointer; }
+    .button.gray { background: #e5e7eb; color: #111827; }
+    .link { color: #2563eb; text-decoration: underline; cursor: pointer; }
+    .muted { color: #6b7280; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    .tag { padding: 3px 6px; border-radius: 6px; background: #e0f2fe; color: #075985; font-size: 12px; }
+  </style>
+  <script>
+    function show(id) {
+      document.querySelectorAll('section.view').forEach(sec => sec.style.display = 'none');
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'block';
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+    function login() {
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      show('dash');
+    }
+  </script>
+</head>
+<body>
+  <!-- Login -->
+  <section id="login" class="card" style="max-width:480px; margin:40px auto;">
+    <h2>ログイン</h2>
+    <div class="muted">メールアドレスとパスワードでログインしてください。</div>
+    <div class="row"><span style="width:100px;">メール</span><input style="flex:1;" placeholder="you@example.com"></div>
+    <div class="row"><span style="width:100px;">パスワード</span><input type="password" style="flex:1;" placeholder="********"></div>
+    <button class="button" style="width:100%; margin-top:10px;" onclick="login()">ログイン</button>
+    <div class="muted" style="margin-top:8px;">バックエンド未実装のため、どの入力でも遷移します。</div>
+  </section>
+
+  <div id="app" style="display:none;">
+    <div class="row" style="margin-bottom:12px; flex-wrap: wrap; gap:8px;">
+      <div class="row" style="gap:8px;">
+        <h2 style="margin:0;">SALT2業務管理 Lo-Fi Demo</h2>
+        <span class="tag">共通UI</span>
+      </div>
+      <div class="row" style="gap:8px;">
+        <span class="link" onclick="show('dash')">ダッシュボード</span>
+        <span class="link" onclick="show('timeclock')">打刻</span>
+        <span class="link" onclick="show('schedule')">勤務予定</span>
+        <span class="link" onclick="show('attendance')">勤怠一覧</span>
+        <span class="link" onclick="show('projects')">プロジェクト</span>
+        <span class="link" onclick="show('project-form')">PJ登録</span>
+        <span class="link" onclick="show('assign')">アサイン</span>
+        <span class="link" onclick="show('skills')">スキル</span>
+        <span class="link" onclick="show('invoice')">請求</span>
+        <span class="link" onclick="show('settings')">設定</span>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <section id="dash" class="view">
+      <div class="grid cols-3">
+        <div class="card">
+          <h3>今日の勤怠</h3>
+          <div class="muted">未出勤 / 予定 10:00-19:00</div>
+          <button class="button" style="margin-top:6px;" onclick="show('timeclock')">出勤する</button>
+        </div>
+        <div class="card">
+          <h3>社内精算サマリー</h3>
+          <div class="row"><span>Boost→SALT2</span><strong>¥150,000</strong></div>
+          <div class="row"><span>SALT2→Boost</span><strong>¥0</strong></div>
+          <div class="muted">所属=SALT2, 稼働 Boost30% / SALT2 70%</div>
+        </div>
+        <div class="card">
+          <h3>通知</h3>
+          <div class="row"><span>打刻漏れ</span><span class="tag">2件</span></div>
+          <div class="row"><span>DocuSign署名待ち</span><span class="tag">契約書</span></div>
+        </div>
+      </div>
+      <div class="grid cols-3" style="margin-top:10px;">
+        <div class="card">
+          <h3>週スケジュール</h3>
+          <table>
+            <tr><td>月</td><td>10:00-19:00 出社</td></tr>
+            <tr><td>火</td><td>10:00-19:00 オンライン</td></tr>
+            <tr><td>水</td><td>休み</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3>担当プロジェクト</h3>
+          <div class="row"><span>Boost AI基盤</span><span class="tag">Boost 30%</span></div>
+          <div class="row"><span>SALT2 新規SaaS</span><span class="tag">SALT2 70%</span></div>
+        </div>
+        <div class="card">
+          <h3>ツール/契約（本人/管理者）</h3>
+          <div class="row"><span>Claude Pro</span><span class="tag">¥2,000 / SALT2</span></div>
+          <div class="row"><span>Google Workspace</span><span class="tag">¥900 / Boost</span></div>
+          <div class="row" style="margin-top:6px;"><span>業務委託 NDA</span><span class="tag">契約書締結済み</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Timeclock -->
+    <section id="timeclock" class="view" style="display:none;">
+      <div class="grid cols-2">
+        <div class="card">
+          <h3>出勤前</h3>
+          <div class="muted">現在 09:58</div>
+          <textarea style="width:100%;height:60px;" placeholder="今日やること"></textarea>
+          <button class="button" style="margin-top:8px;">出勤する</button>
+        </div>
+        <div class="card">
+          <h3>退勤前</h3>
+          <div class="muted">出勤 10:02</div>
+          <input style="width:100%; margin:6px 0;" placeholder="休憩(分)" value="60">
+          <textarea style="width:100%;height:60px;" placeholder="今日やったこと"></textarea>
+          <textarea style="width:100%;height:60px;" placeholder="明日やること"></textarea>
+          <button class="button" style="background:#f59e0b; width:100%; margin-top:8px;" onclick="show('allocation')">退勤する</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Allocation -->
+    <section id="allocation" class="view" style="display:none;">
+      <div class="card">
+        <h3>退勤後: PJ配分入力</h3>
+        <table>
+          <tr><th>PJ</th><th>分</th><th>%</th></tr>
+          <tr><td>Boost AI基盤</td><td><input value="150"></td><td><input value="30"></td></tr>
+          <tr><td>SALT2 新規SaaS</td><td><input value="350"></td><td><input value="70"></td></tr>
+        </table>
+        <div class="muted">%入力で分を自動計算、合計=実働でバリデーション</div>
+        <button class="button" style="margin-top:8px;" onclick="show('attendance')">勤怠一覧へ</button>
+      </div>
+    </section>
+
+    <!-- Schedule -->
+    <section id="schedule" class="view" style="display:none;">
+      <div class="card">
+        <h3>勤務予定（週）</h3>
+        <table>
+          <tr><th>日</th><th>開始</th><th>終了</th><th>形態</th><th>終日休み</th></tr>
+          <tr><td>月</td><td>10:00</td><td>19:00</td><td>出社</td><td>☐</td></tr>
+          <tr><td>火</td><td>10:00</td><td>19:00</td><td>オンライン</td><td>☐</td></tr>
+          <tr><td>土</td><td>—</td><td>—</td><td>—</td><td>☑</td></tr>
+          <tr><td>日</td><td>—</td><td>—</td><td>—</td><td>☑</td></tr>
+        </table>
+        <div class="muted">前週コピー / 前日まで編集可（本人）。管理者はいつでも編集可。</div>
+      </div>
+    </section>
+
+    <!-- Attendance -->
+    <section id="attendance" class="view" style="display:none;">
+      <div class="card">
+        <h3>勤怠一覧</h3>
+        <table>
+          <tr><th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>実働</th><th>配分</th><th>状態</th><th>承認</th></tr>
+          <tr><td>2/18</td><td>10:05</td><td>19:10</td><td>60</td><td>8h05m</td><td>Boost150 / SALT2350</td><td>承認待ち</td><td><button class="button">OK</button></td></tr>
+          <tr><td>2/17</td><td>10:00</td><td>19:00</td><td>60</td><td>8h00m</td><td>Boost240 / SALT2270</td><td>承認済</td><td class="muted">—</td></tr>
+        </table>
+        <div class="muted">管理者/担当Mgrのみ承認活性。本人は自分行のみ編集可。</div>
+      </div>
+    </section>
+
+    <!-- Projects -->
+    <section id="projects" class="view" style="display:none;">
+      <div class="card">
+        <h3>プロジェクト一覧</h3>
+        <table>
+          <tr><th>名称</th><th>会社</th><th>ステータス</th><th>期間</th><th></th></tr>
+          <tr><td>Boost AI基盤</td><td>Boost</td><td>進行中</td><td>2026/1-3</td><td><button class="button" onclick="show('project-detail')">詳細</button></td></tr>
+          <tr><td>SALT2 新規SaaS</td><td>SALT2</td><td>準備中</td><td>2026/2-5</td><td><button class="button" onclick="show('project-detail')">詳細</button></td></tr>
+        </table>
+        <div class="link" onclick="show('project-form')">＋ プロジェクト登録</div>
+      </div>
+    </section>
+
+    <!-- Project detail -->
+    <section id="project-detail" class="view" style="display:none;">
+      <div class="grid cols-2">
+        <div class="card">
+          <h3>概要</h3>
+          <div>会社: Boost</div>
+          <div>期間: 2026/1-3</div>
+          <div>契約金額: ¥8,000,000</div>
+        </div>
+        <div class="card">
+          <h3>ポジション</h3>
+          <div class="row"><span>PM</span><span class="muted">佐藤 / 50%</span></div>
+          <div class="row"><span>メインエンジニア</span><span class="muted">山田 / 70%</span></div>
+          <div class="link" onclick="show('assign')">アサイン管理へ</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Assign -->
+    <section id="assign" class="view" style="display:none;">
+      <div class="card">
+        <h3>アサイン管理</h3>
+        <div class="muted">必要スキル: FE>=3, BE>=3, Infra>=2</div>
+        <table>
+          <tr><th>候補</th><th>適合</th><th>現在工数</th><th>操作</th></tr>
+          <tr><td>鈴木</td><td><span class="tag">✅充足</span></td><td>40%</td><td><button class="button">割当</button></td></tr>
+          <tr><td>山田</td><td><span class="tag">⚠️不足</span></td><td>70%</td><td><button class="button gray">割当</button></td></tr>
+        </table>
+        <div class="muted">管理者/担当Mgrのみ編集可。その他ロールは閲覧のみ。</div>
+      </div>
+    </section>
+
+    <!-- Project form -->
+    <section id="project-form" class="view" style="display:none;">
+      <div class="card">
+        <h3>プロジェクト登録/編集</h3>
+        <div class="grid cols-2">
+          <div>
+            <div class="muted">基本情報</div>
+            <div class="row"><span style="width:90px;">名称</span><input value="SALT2 新規SaaS" style="flex:1;"></div>
+            <div class="row"><span style="width:90px;">会社</span><select><option>SALT2</option><option>Boost</option></select></div>
+            <div class="row"><span style="width:90px;">期間</span><input value="2026/02/01" style="flex:1;">〜<input value="2026/05/31" style="flex:1;"></div>
+          </div>
+          <div>
+            <div class="muted">ポジションと必要スキル</div>
+            <table>
+              <tr><th>ポジション</th><th>人数</th><th>必要スキル</th></tr>
+              <tr><td>PM</td><td><input value="1" style="width:40px;"></td><td class="muted">PM力>=3, スライドラ>=3</td></tr>
+              <tr><td>メインエンジニア</td><td><input value="2" style="width:40px;"></td><td class="muted">FE>=3, BE>=3, Infra>=2</td></tr>
+            </table>
+            <div class="link">＋ ポジション追加</div>
+            <div class="muted" style="margin-top:6px;">ここで定義した必要スキルがアサイン管理のフィルタ/適合判定に利用される。</div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px; gap:8px;">
+          <button class="button">保存</button>
+          <button class="button gray" onclick="show('projects')">キャンセル</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Skills -->
+    <section id="skills" class="view" style="display:none;">
+      <div class="card">
+        <h3>スキルマトリクス</h3>
+        <div class="row" style="gap:6px;"><span class="tag">Dev</span><span class="tag gray">Biz</span><span class="muted">カテゴリ/レベル/会社でフィルタ</span></div>
+        <table>
+          <tr><th>メンバー</th><th>FE</th><th>BE</th><th>Infra</th><th>DS</th><th>LLM</th></tr>
+          <tr><td>田中</td><td>3</td><td>4</td><td>3</td><td>2</td><td>2</td></tr>
+          <tr><td>佐藤</td><td>2</td><td>3</td><td>4</td><td>3</td><td>1</td></tr>
+        </table>
+        <div class="muted">Bizタブに切替でPM力/営業力/スライドラ/提案力/技術理解/技術提案を表示。未評価は「—」、3ヶ月未更新は行を強調。</div>
+      </div>
+    </section>
+
+    <!-- Invoice -->
+    <section id="invoice" class="view" style="display:none;">
+      <div class="card">
+        <h3>請求書一覧</h3>
+        <div class="muted">管理者=全員＋再生成/Slack送付活性。社員/インターン=自分のみDL。</div>
+        <table>
+          <tr><th>#</th><th>メンバー</th><th>Boost</th><th>SALT2</th><th>発行日</th><th>状態</th><th>操作</th></tr>
+          <tr><td>2026-02-001</td><td>山田</td><td>¥150,000</td><td>¥350,000</td><td>2/28</td><td>未送付</td><td><button class="button">DL</button> <button class="button" style="background:#0ea5e9;">Slack送付</button></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="settings" class="view" style="display:none;">
+      <div class="grid cols-2">
+        <div class="card">
+          <h3>Slack連携</h3>
+          <div class="muted">Webhook / 出勤・退勤チャンネル / 勤怠確認メンション / 請求DM</div>
+          <button class="button" style="margin-top:6px;">接続テスト</button>
+        </div>
+        <div class="card">
+          <h3>社内精算設定</h3>
+          <div class="muted">内部取引相殺 ON/OFF, 支払元=所属会社</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Intern 管理ビュー (管理者)</title>
+  <style>
+    * { box-sizing: border-box; font-family: "Inter", system-ui, -apple-system, sans-serif; }
+    body { margin: 24px; background: #f8fafc; color: #0f172a; }
+    h2 { margin: 0 0 12px; }
+    h3 { margin: 0 0 6px; }
+    .card { background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 4px 14px rgba(0,0,0,0.05); margin-bottom: 14px; }
+    .row { display: flex; justify-content: space-between; align-items: center; margin: 4px 0; }
+    .pill { padding: 5px 10px; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-weight: 600; }
+    .badge { padding: 3px 8px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-size: 12px; }
+    .muted { color: #64748b; font-size: 13px; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 8px 6px; border-bottom: 1px solid #e5e7eb; font-size: 13px; text-align: left; }
+    .grid { display: grid; gap: 12px; }
+    .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+    .button { padding: 9px 12px; border: none; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <h2>インターン管理ダッシュボード（管理者）</h2>
+    <div class="pill">管理者</div>
+  </div>
+
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>インターン稼働サマリー（今月）</h3>
+      <table class="table">
+        <thead><tr><th>名前</th><th>Boost 分/％</th><th>SALT2 分/％</th><th>実働</th><th>状態</th></tr></thead>
+        <tbody>
+          <tr><td>山田</td><td>300 / 40%</td><td>450 / 60%</td><td>750</td><td><span class="badge">提出済</span></td></tr>
+          <tr><td>佐藤</td><td>0 / 0%</td><td>680 / 100%</td><td>680</td><td><span class="badge" style="background:#fef3c7;color:#92400e;">配分未入力</span></td></tr>
+          <tr><td>鈴木</td><td>420 / 70%</td><td>180 / 30%</td><td>600</td><td><span class="badge">提出済</span></td></tr>
+          <tr><td>李</td><td>0 / 0%</td><td>520 / 100%</td><td>520</td><td><span class="badge" style="background:#fee2e2;color:#b91c1c;">未打刻</span></td></tr>
+        </tbody>
+      </table>
+      <div class="muted">日々の配分入力を集計。未入力がある場合は黄色で表示。</div>
+    </div>
+
+    <div class="card">
+      <h3>インターン × プロジェクト配分</h3>
+      <table class="table">
+        <thead><tr><th>インターン</th><th>PJ</th><th>分</th><th>%</th><th>週</th></tr></thead>
+        <tbody>
+          <tr><td>山田</td><td>SALT2 新規SaaS</td><td>450</td><td>60%</td><td>2/3週</td></tr>
+          <tr><td>山田</td><td>Boost AI基盤</td><td>300</td><td>40%</td><td>2/3週</td></tr>
+          <tr><td>佐藤</td><td>SALT2 Ops</td><td>680</td><td>100%</td><td>2/3週</td></tr>
+          <tr><td>鈴木</td><td>Boost R&D</td><td>420</td><td>70%</td><td>2/3週</td></tr>
+          <tr><td>鈴木</td><td>SALT2 CS補佐</td><td>180</td><td>30%</td><td>2/3週</td></tr>
+          <tr><td>李</td><td>SALT2 オンボーディング</td><td>520</td><td>100%</td><td>2/3週</td></tr>
+        </tbody>
+      </table>
+      <div class="muted">列を週次に切替表示も可。分と%は双方向計算を反映。</div>
+    </div>
+  </div>
+
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>勤怠ステータス（インターンのみ）</h3>
+      <table class="table">
+        <thead><tr><th>名前</th><th>未打刻</th><th>未承認</th><th>配分未入力</th></tr></thead>
+        <tbody>
+          <tr><td>山田</td><td>0</td><td>1</td><td>0</td></tr>
+          <tr><td>佐藤</td><td>2</td><td>0</td><td>3</td></tr>
+          <tr><td>鈴木</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>李</td><td>3</td><td>0</td><td>2</td></tr>
+        </tbody>
+      </table>
+      <div class="muted">配分未入力を検知してリマインド可能。</div>
+    </div>
+
+    <div class="card">
+      <h3>プロジェクト別インターン稼働</h3>
+      <table class="table">
+        <thead><tr><th>PJ</th><th>インターン</th><th>分</th><th>%</th></tr></thead>
+        <tbody>
+          <tr><td>SALT2 新規SaaS</td><td>山田</td><td>450</td><td>60%</td></tr>
+          <tr><td>Boost AI基盤</td><td>山田</td><td>300</td><td>40%</td></tr>
+          <tr><td>SALT2 Ops</td><td>佐藤</td><td>680</td><td>100%</td></tr>
+          <tr><td>Boost R&D</td><td>鈴木</td><td>420</td><td>70%</td></tr>
+          <tr><td>SALT2 CS補佐</td><td>鈴木</td><td>180</td><td>30%</td></tr>
+          <tr><td>SALT2 オンボーディング</td><td>李</td><td>520</td><td>100%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>アクション</h3>
+    <div class="row"><button class="button">配分未入力にリマインド</button><span class="muted">未入力メンバー全員へSlack</span></div>
+    <div class="row"><button class="button" style="background:#16a34a;">承認待ちを一括承認</button><span class="muted">管理者のみ</span></div>
+    <div class="row"><button class="button" style="background:#0ea5e9;">CSVエクスポート</button><span class="muted">インターン配分のみ</span></div>
+  </div>
+</body>
+</html>
