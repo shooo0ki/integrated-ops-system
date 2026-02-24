@@ -1,29 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Wrench, Plus, TrendingUp, Edit2, Trash2 } from "lucide-react";
-import {
-  SAAS_TOOLS, MEMBERS, formatCurrency, formatDate,
-  type Company, type SaasTool,
-} from "@/lib/mock-data";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input, Select } from "@/components/ui/input";
+import { formatCurrency, formatDate } from "@/lib/utils";
+
+interface ToolEntry {
+  id: string;
+  memberId: string;
+  memberName: string;
+  memberCompany: string;
+  toolName: string;
+  plan: string | null;
+  monthlyCost: number;
+  companyLabel: string;
+  note: string | null;
+  updatedAt: string;
+}
+
+interface MemberOption {
+  id: string;
+  name: string;
+  company: string;
+}
+
+type Company = "boost" | "salt2";
 
 export default function ToolsPage() {
   const [companyFilter, setCompanyFilter] = useState<Company | "ALL">("ALL");
   const [memberFilter, setMemberFilter] = useState<string>("ALL");
   const [toolFilter, setToolFilter] = useState<string>("ALL");
-  const [addOpen, setAddOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<SaasTool | null>(null);
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-  const [form, setForm] = useState({ toolName: "", plan: "", monthlyCost: "", companyLabel: "Boost" as Company, memberId: "", note: "" });
 
-  const tools = SAAS_TOOLS.filter((t) => !deletedIds.has(t.id));
-  const toolNames = Array.from(new Set(SAAS_TOOLS.map((t) => t.toolName))).sort();
+  const [tools, setTools] = useState<ToolEntry[]>([]);
+  const [members, setMembers] = useState<MemberOption[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<ToolEntry | null>(null);
+  const [form, setForm] = useState({ toolName: "", plan: "", monthlyCost: "", companyLabel: "boost" as Company, memberId: "", note: "" });
+  const [editForm, setEditForm] = useState({ plan: "", monthlyCost: "", note: "" });
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadTools = useCallback(async () => {
+    setLoading(true);
+    const [toolsRes, membersRes] = await Promise.all([
+      fetch("/api/tools"),
+      fetch("/api/members"),
+    ]);
+    if (toolsRes.ok) setTools(await toolsRes.json());
+    if (membersRes.ok) {
+      const data = await membersRes.json();
+      setMembers((data.members ?? data).map((m: { id: string; name: string; company: string }) => ({ id: m.id, name: m.name, company: m.company })));
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadTools(); }, [loadTools]);
+
+  const toolNames = Array.from(new Set(tools.map((t) => t.toolName))).sort();
 
   const filtered = tools.filter((t) => {
     const matchCompany = companyFilter === "ALL" || t.companyLabel === companyFilter;
@@ -32,12 +71,10 @@ export default function ToolsPage() {
     return matchCompany && matchMember && matchTool;
   });
 
-  // KPIs
   const totalCost = filtered.reduce((s, t) => s + t.monthlyCost, 0);
-  const boostCost = tools.filter((t) => t.companyLabel === "Boost").reduce((s, t) => s + t.monthlyCost, 0);
-  const salt2Cost = tools.filter((t) => t.companyLabel === "SALT2").reduce((s, t) => s + t.monthlyCost, 0);
+  const boostCost = tools.filter((t) => t.companyLabel === "boost").reduce((s, t) => s + t.monthlyCost, 0);
+  const salt2Cost = tools.filter((t) => t.companyLabel === "salt2").reduce((s, t) => s + t.monthlyCost, 0);
 
-  // Group by tool name for summary
   const toolSummary = filtered.reduce<Record<string, { count: number; totalCost: number }>>((acc, t) => {
     if (!acc[t.toolName]) acc[t.toolName] = { count: 0, totalCost: 0 };
     acc[t.toolName].count++;
@@ -45,14 +82,61 @@ export default function ToolsPage() {
     return acc;
   }, {});
 
-  function handleAdd() {
-    setAddOpen(false);
-    setForm({ toolName: "", plan: "", monthlyCost: "", companyLabel: "Boost", memberId: "", note: "" });
+  async function handleAdd() {
+    if (!form.memberId || !form.toolName || !form.companyLabel) return;
+    setSubmitting(true);
+    const res = await fetch("/api/tools", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        memberId: form.memberId,
+        toolName: form.toolName,
+        plan: form.plan || undefined,
+        monthlyCost: form.monthlyCost ? Number(form.monthlyCost) : 0,
+        companyLabel: form.companyLabel,
+        note: form.note || undefined,
+      }),
+    });
+    if (res.ok) {
+      const newTool = await res.json();
+      setTools((prev) => [...prev, newTool]);
+      setAddOpen(false);
+      setForm({ toolName: "", plan: "", monthlyCost: "", companyLabel: "boost", memberId: "", note: "" });
+    }
+    setSubmitting(false);
   }
 
-  function handleDelete(id: string) {
-    setDeletedIds((prev) => new Set(Array.from(prev).concat(id)));
+  async function handleEditSave() {
+    if (!editTarget) return;
+    setSubmitting(true);
+    const res = await fetch(`/api/members/${editTarget.memberId}/tools/${editTarget.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toolName: editTarget.toolName,
+        plan: editForm.plan || null,
+        monthlyCost: editForm.monthlyCost ? Number(editForm.monthlyCost) : editTarget.monthlyCost,
+        companyLabel: editTarget.companyLabel,
+        note: editForm.note || null,
+      }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setTools((prev) => prev.map((t) => (t.id === editTarget.id ? { ...t, ...updated, memberName: editTarget.memberName, memberCompany: editTarget.memberCompany } : t)));
+      setEditTarget(null);
+    }
+    setSubmitting(false);
   }
+
+  async function handleDelete(tool: ToolEntry) {
+    if (!confirm(`「${tool.toolName}」を削除しますか？`)) return;
+    const res = await fetch(`/api/members/${tool.memberId}/tools/${tool.id}`, { method: "DELETE" });
+    if (res.ok) {
+      setTools((prev) => prev.filter((t) => t.id !== tool.id));
+    }
+  }
+
+  const companyLabelDisplay = (c: string) => c === "boost" ? "Boost" : "SALT2";
 
   return (
     <div className="space-y-6">
@@ -102,6 +186,9 @@ export default function ToolsPage() {
                 <span className="ml-2 font-semibold text-blue-700">{formatCurrency(tc)}/月</span>
               </div>
             ))}
+          {Object.keys(toolSummary).length === 0 && (
+            <p className="text-sm text-slate-400">該当なし</p>
+          )}
         </div>
       </Card>
 
@@ -113,9 +200,7 @@ export default function ToolsPage() {
           className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="ALL">全ツール</option>
-          {toolNames.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
+          {toolNames.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
         <select
           value={companyFilter}
@@ -123,8 +208,8 @@ export default function ToolsPage() {
           className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="ALL">全社</option>
-          <option value="Boost">Boost</option>
-          <option value="SALT2">SALT2</option>
+          <option value="boost">Boost</option>
+          <option value="salt2">SALT2</option>
         </select>
         <select
           value={memberFilter}
@@ -132,84 +217,85 @@ export default function ToolsPage() {
           className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="ALL">全メンバー</option>
-          {MEMBERS.map((m) => (
-            <option key={m.id} value={m.id}>{m.name}</option>
-          ))}
+          {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </div>
 
       {/* Table */}
-      <Card noPadding>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 bg-slate-50">
-              <tr className="text-xs text-slate-500">
-                <th className="px-4 py-3 text-left font-medium">メンバー</th>
-                <th className="px-4 py-3 text-left font-medium">ツール名</th>
-                <th className="px-4 py-3 text-left font-medium">プラン</th>
-                <th className="px-4 py-3 text-right font-medium">月額</th>
-                <th className="px-4 py-3 text-left font-medium">請求先</th>
-                <th className="px-4 py-3 text-left font-medium">備考</th>
-                <th className="px-4 py-3 text-left font-medium">更新日</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((tool) => (
-                <tr key={tool.id} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="px-4 py-2.5">
-                    {tool.memberId === "mSALT2" ? (
-                      <span className="font-medium text-slate-600">{tool.memberName}</span>
-                    ) : (
+      {loading ? (
+        <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
+      ) : (
+        <Card noPadding>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-100 bg-slate-50">
+                <tr className="text-xs text-slate-500">
+                  <th className="px-4 py-3 text-left font-medium">メンバー</th>
+                  <th className="px-4 py-3 text-left font-medium">ツール名</th>
+                  <th className="px-4 py-3 text-left font-medium">プラン</th>
+                  <th className="px-4 py-3 text-right font-medium">月額</th>
+                  <th className="px-4 py-3 text-left font-medium">請求先</th>
+                  <th className="px-4 py-3 text-left font-medium">備考</th>
+                  <th className="px-4 py-3 text-left font-medium">更新日</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((tool) => (
+                  <tr key={tool.id} className="border-b border-slate-50 hover:bg-slate-50">
+                    <td className="px-4 py-2.5">
                       <Link href={`/members/${tool.memberId}`} className="font-medium text-slate-700 hover:text-blue-600">
                         {tool.memberName}
                       </Link>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 font-medium text-slate-800">{tool.toolName}</td>
-                  <td className="px-4 py-2.5 text-slate-500">{tool.plan}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    {tool.monthlyCost === 0 ? (
-                      <span className="text-slate-400">無料</span>
-                    ) : (
-                      <span className="font-semibold text-slate-800">{formatCurrency(tool.monthlyCost)}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <Badge variant={tool.companyLabel === "Boost" ? "boost" : "salt2"}>
-                      {tool.companyLabel}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-slate-500 max-w-[120px] truncate">{tool.note ?? "—"}</td>
-                  <td className="px-4 py-2.5 text-xs text-slate-400">{formatDate(tool.updatedAt)}</td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => setEditTarget(tool)}
-                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(tool.id)}
-                        className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {filtered.length === 0 && (
-          <div className="py-12 text-center text-sm text-slate-400">
-            <Wrench size={24} className="mx-auto mb-2 text-slate-300" />
-            該当するツールがありません
+                    </td>
+                    <td className="px-4 py-2.5 font-medium text-slate-800">{tool.toolName}</td>
+                    <td className="px-4 py-2.5 text-slate-500">{tool.plan ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      {tool.monthlyCost === 0 ? (
+                        <span className="text-slate-400">無料</span>
+                      ) : (
+                        <span className="font-semibold text-slate-800">{formatCurrency(tool.monthlyCost)}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <Badge variant={tool.companyLabel === "boost" ? "boost" : "salt2"}>
+                        {companyLabelDisplay(tool.companyLabel)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500 max-w-[120px] truncate">{tool.note ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-400">{formatDate(tool.updatedAt)}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => {
+                            setEditTarget(tool);
+                            setEditForm({ plan: tool.plan ?? "", monthlyCost: String(tool.monthlyCost), note: tool.note ?? "" });
+                          }}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(tool)}
+                          className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </Card>
+          {filtered.length === 0 && (
+            <div className="py-12 text-center text-sm text-slate-400">
+              <Wrench size={24} className="mx-auto mb-2 text-slate-300" />
+              該当するツールがありません
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Add modal */}
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="ツール追加">
@@ -220,21 +306,21 @@ export default function ToolsPage() {
             onChange={(e) => setForm((f) => ({ ...f, memberId: e.target.value }))}
           >
             <option value="">選択してください</option>
-            {MEMBERS.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
+            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
           </Select>
           <Input id="toolName" label="ツール名 *" value={form.toolName} onChange={(e) => setForm((f) => ({ ...f, toolName: e.target.value }))} placeholder="Claude" />
           <Input id="plan" label="プラン" value={form.plan} onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))} placeholder="Pro" />
           <Input id="monthlyCost" type="number" label="月額（円）" value={form.monthlyCost} onChange={(e) => setForm((f) => ({ ...f, monthlyCost: e.target.value }))} placeholder="3200" />
           <Select id="companyLabel" label="請求先 *" value={form.companyLabel} onChange={(e) => setForm((f) => ({ ...f, companyLabel: e.target.value as Company }))}>
-            <option value="Boost">Boost</option>
-            <option value="SALT2">SALT2</option>
+            <option value="boost">Boost</option>
+            <option value="salt2">SALT2</option>
           </Select>
           <Input id="note" label="備考" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} placeholder="用途など" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setAddOpen(false)}>キャンセル</Button>
-            <Button variant="primary" onClick={handleAdd}>追加（デモ）</Button>
+            <Button variant="primary" onClick={handleAdd} disabled={submitting || !form.memberId || !form.toolName}>
+              {submitting ? "追加中..." : "追加"}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -246,13 +332,12 @@ export default function ToolsPage() {
             <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
               メンバー: <span className="font-medium">{editTarget.memberName}</span>
             </div>
-            <Input id="editPlan" label="プラン" defaultValue={editTarget.plan} />
-            <Input id="editCost" type="number" label="月額（円）" defaultValue={String(editTarget.monthlyCost)} />
-            <Input id="editNote" label="備考" defaultValue={editTarget.note ?? ""} />
-            <p className="text-xs text-amber-600">※ デモのため実際には保存されません</p>
+            <Input id="editPlan" label="プラン" value={editForm.plan} onChange={(e) => setEditForm((f) => ({ ...f, plan: e.target.value }))} />
+            <Input id="editCost" type="number" label="月額（円）" value={editForm.monthlyCost} onChange={(e) => setEditForm((f) => ({ ...f, monthlyCost: e.target.value }))} />
+            <Input id="editNote" label="備考" value={editForm.note} onChange={(e) => setEditForm((f) => ({ ...f, note: e.target.value }))} />
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setEditTarget(null)}>キャンセル</Button>
-              <Button variant="primary" onClick={() => setEditTarget(null)}>保存（デモ）</Button>
+              <Button variant="primary" onClick={handleEditSave} disabled={submitting}>{submitting ? "保存中..." : "保存"}</Button>
             </div>
           </div>
         )}

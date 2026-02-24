@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Settings, Slack, Building2, Info, Save, CheckCircle, XCircle, Loader2 } from "lucide-react";
-import { SYSTEM_SETTINGS } from "@/lib/mock-data";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,42 +10,78 @@ import { notFound } from "next/navigation";
 
 type Tab = "slack" | "company" | "system";
 
+const DEFAULT_FORM = {
+  slack_webhook_url: "",
+  slack_attendance_channel: "#attendance",
+  slack_closing_notify_day: "25",
+  company_name_primary: "",
+  company_name_secondary: "",
+  fiscal_year_start: "4",
+  overtime_threshold: "160",
+};
+
 export default function SettingsPage() {
   const { role } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("slack");
-  const [form, setForm] = useState({ ...SYSTEM_SETTINGS });
+  const [form, setForm] = useState(DEFAULT_FORM);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [slackTestStatus, setSlackTestStatus] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [webhookError, setWebhookError] = useState("");
 
-  if (role !== "admin") return notFound();
+  useEffect(() => {
+    fetch("/api/system-configs")
+      .then((r) => r.ok ? r.json() : {})
+      .then((data: Record<string, string>) => {
+        setForm((prev) => ({ ...prev, ...data }));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-  function handleChange(key: keyof typeof form, value: string | number) {
+  function handleChange(key: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
-    if (key === "slackWebhookUrl") setWebhookError("");
+    if (key === "slack_webhook_url") setWebhookError("");
   }
 
-  function handleSave() {
-    // Validation
-    if (!form.slackWebhookUrl.startsWith("https://hooks.slack.com/")) {
+  async function handleSave() {
+    if (form.slack_webhook_url && !form.slack_webhook_url.startsWith("https://hooks.slack.com/")) {
       setWebhookError("有効な Slack Webhook URL を入力してください");
       setActiveTab("slack");
       return;
     }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaving(true);
+    const configs = Object.entries(form).map(([key, value]) => ({ key, value: String(value) }));
+    const res = await fetch("/api/system-configs", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ configs }),
+    });
+    if (res.ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    }
+    setSaving(false);
   }
 
   async function handleSlackTest() {
-    if (!form.slackWebhookUrl.startsWith("https://hooks.slack.com/")) {
+    if (!form.slack_webhook_url.startsWith("https://hooks.slack.com/")) {
       setWebhookError("有効な Slack Webhook URL を入力してください");
       return;
     }
     setSlackTestStatus("testing");
-    // Simulate network call
-    await new Promise((r) => setTimeout(r, 1200));
-    setSlackTestStatus("ok");
+    try {
+      const res = await fetch("/api/slack/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookUrl: form.slack_webhook_url }),
+      });
+      setSlackTestStatus(res.ok ? "ok" : "fail");
+    } catch {
+      setSlackTestStatus("fail");
+    }
     setTimeout(() => setSlackTestStatus("idle"), 4000);
   }
 
@@ -56,6 +91,9 @@ export default function SettingsPage() {
     { id: "system", label: "システム情報", icon: <Info size={15} /> },
   ];
 
+  if (role !== "admin") return notFound();
+  if (loading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -63,9 +101,9 @@ export default function SettingsPage() {
           <h1 className="text-xl font-bold text-slate-800">システム設定</h1>
           <p className="text-sm text-slate-500">Slack 連携・会社情報などの管理者設定</p>
         </div>
-        <Button variant="primary" size="sm" onClick={handleSave}>
+        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
           {saved ? <CheckCircle size={15} className="text-white" /> : <Save size={15} />}
-          {saved ? "保存済み" : "保存"}
+          {saved ? "保存済み" : saving ? "保存中..." : "保存"}
         </Button>
       </div>
 
@@ -102,14 +140,12 @@ export default function SettingsPage() {
                 </label>
                 <Input
                   type="url"
-                  value={form.slackWebhookUrl}
-                  onChange={(e) => handleChange("slackWebhookUrl", e.target.value)}
+                  value={form.slack_webhook_url}
+                  onChange={(e) => handleChange("slack_webhook_url", e.target.value)}
                   placeholder="https://hooks.slack.com/services/..."
                   className={webhookError ? "border-red-400" : ""}
                 />
-                {webhookError && (
-                  <p className="mt-1 text-xs text-red-600">{webhookError}</p>
-                )}
+                {webhookError && <p className="mt-1 text-xs text-red-600">{webhookError}</p>}
               </div>
 
               <div>
@@ -118,8 +154,8 @@ export default function SettingsPage() {
                 </label>
                 <Input
                   type="text"
-                  value={form.attendanceChannel}
-                  onChange={(e) => handleChange("attendanceChannel", e.target.value)}
+                  value={form.slack_attendance_channel}
+                  onChange={(e) => handleChange("slack_attendance_channel", e.target.value)}
                   placeholder="#attendance"
                 />
               </div>
@@ -133,8 +169,8 @@ export default function SettingsPage() {
                     type="number"
                     min={1}
                     max={28}
-                    value={form.closingNotifyDay}
-                    onChange={(e) => handleChange("closingNotifyDay", Number(e.target.value))}
+                    value={form.slack_closing_notify_day}
+                    onChange={(e) => handleChange("slack_closing_notify_day", e.target.value)}
                     className="w-24"
                   />
                   <span className="text-sm text-slate-500">日</span>
@@ -187,52 +223,43 @@ export default function SettingsPage() {
                 <Input
                   type="text"
                   maxLength={50}
-                  value={form.companyNamePrimary}
-                  onChange={(e) => handleChange("companyNamePrimary", e.target.value)}
+                  value={form.company_name_primary}
+                  onChange={(e) => handleChange("company_name_primary", e.target.value)}
                   placeholder="ブーストコンサルティング株式会社"
                 />
               </div>
-
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                  会社名（子会社）
-                </label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">会社名（子会社）</label>
                 <Input
                   type="text"
                   maxLength={50}
-                  value={form.companyNameSecondary}
-                  onChange={(e) => handleChange("companyNameSecondary", e.target.value)}
+                  value={form.company_name_secondary}
+                  onChange={(e) => handleChange("company_name_secondary", e.target.value)}
                   placeholder="SALT2株式会社"
                 />
               </div>
-
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                  会計年度開始月
-                </label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">会計年度開始月</label>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     min={1}
                     max={12}
-                    value={form.fiscalYearStart}
-                    onChange={(e) => handleChange("fiscalYearStart", Number(e.target.value))}
+                    value={form.fiscal_year_start}
+                    onChange={(e) => handleChange("fiscal_year_start", e.target.value)}
                     className="w-24"
                   />
                   <span className="text-sm text-slate-500">月</span>
                 </div>
               </div>
-
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                  残業判定時間
-                </label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">残業判定時間</label>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     min={1}
-                    value={form.overtimeThreshold}
-                    onChange={(e) => handleChange("overtimeThreshold", Number(e.target.value))}
+                    value={form.overtime_threshold}
+                    onChange={(e) => handleChange("overtime_threshold", e.target.value)}
                     className="w-24"
                   />
                   <span className="text-sm text-slate-500">時間 / 月</span>
@@ -278,10 +305,9 @@ export default function SettingsPage() {
               { label: "バージョン", value: "v1.0.0" },
               { label: "フレームワーク", value: "Next.js 15 (App Router)" },
               { label: "UI ライブラリ", value: "Tailwind CSS / shadcn/ui" },
-              { label: "データベース", value: "PostgreSQL + Prisma ORM (予定)" },
+              { label: "データベース", value: "PostgreSQL + Prisma ORM" },
               { label: "認証", value: "OAuth 2.0 (Slack / Google)" },
               { label: "対応会社", value: "Boost / SALT2" },
-              { label: "最終更新", value: "2026-02-21" },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                 <span className="text-sm text-slate-600">{item.label}</span>

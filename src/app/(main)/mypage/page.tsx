@@ -1,58 +1,112 @@
 "use client";
 
-import { useState } from "react";
-import { User, Mail, Phone, Calendar, Bell, Shield, Edit2, CheckCircle, ClipboardList } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useState, useEffect } from "react";
 import {
-  getMemberProjects, formatCurrency, formatDate, ATTENDANCE_RECORDS,
-  SELF_REPORTS, PROJECTS, type SelfReportAllocation,
-} from "@/lib/mock-data";
+  User, Mail, Phone, Calendar, Bell, Shield, ClipboardList, CheckCircle,
+} from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatDate, buildMonths } from "@/lib/utils";
+
+const TARGET_MONTH = buildMonths(1)[0];
 
 const roleLabel: Record<string, string> = {
   admin: "管理者",
   manager: "マネージャー",
-  member: "メンバー",
   employee: "社員",
   intern: "インターン",
 };
 
+interface MemberDetail {
+  id: string;
+  name: string;
+  phone: string | null;
+  status: string;
+  company: string;
+  salaryType: string;
+  salaryAmount: number;
+  joinedAt: string;
+  email: string;
+  role: string;
+  skills: { id: string; skillId: string; skillName: string; categoryName: string; level: number }[];
+}
+
+interface TodayAttendance {
+  clockIn: string | null;
+  clockOut: string | null;
+  breakMinutes: number;
+  status: string;
+}
+
+interface MyProject {
+  projectId: string;
+  projectName: string;
+  role: string;
+  workloadHours: number;
+}
+
+interface SelfReport {
+  projectId: string;
+  projectName: string;
+  reportedHours: number;
+  submittedAt: string | null;
+}
+
 export default function MyPage() {
-  const { member, role } = useAuth();
+  const { memberId, role } = useAuth();
+  const [memberDetail, setMemberDetail] = useState<MemberDetail | null>(null);
+  const [todayAtt, setTodayAtt] = useState<TodayAttendance | null>(null);
+  const [myProjects, setMyProjects] = useState<MyProject[]>([]);
+  const [selfReports, setSelfReports] = useState<SelfReport[]>([]);
+  const [reportAllocations, setReportAllocations] = useState<{ projectId: string; projectName: string; reportedHours: number }[]>([]);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
   const [notifySlack, setNotifySlack] = useState(true);
   const [notifyEmail, setNotifyEmail] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // 自己申告 (2026-02 当月) — hooks must be before any early return
-  const TARGET_MONTH = "2026-02";
-  const selfReport = member
-    ? SELF_REPORTS.find((r) => r.memberId === member.id && r.targetMonth === TARGET_MONTH)
-    : undefined;
-  const activeProjects = member
-    ? PROJECTS.filter((p) => p.status === "active" && p.assignments.some((a) => a.memberId === member.id))
-    : [];
-  const initAllocations: SelfReportAllocation[] = activeProjects.map((p) => ({
-    projectId: p.id,
-    projectName: p.name,
-    reportedHours: selfReport?.allocations.find((a) => a.projectId === p.id)?.reportedHours ?? 0,
-  }));
-  const [reportAllocations, setReportAllocations] = useState<SelfReportAllocation[]>(initAllocations);
-  const [reportSubmitted, setReportSubmitted] = useState(selfReport?.status === "submitted");
-  const totalReported = reportAllocations.reduce((s, a) => s + a.reportedHours, 0);
-  const actualHours = selfReport?.actualHours ?? 0;
+  useEffect(() => {
+    if (!memberId) return;
+    Promise.all([
+      fetch(`/api/members/${memberId}`).then((r) => r.ok ? r.json() : null),
+      fetch("/api/attendances/today").then((r) => r.ok ? r.json() : null),
+      fetch("/api/dashboard").then((r) => r.ok ? r.json() : null),
+      fetch(`/api/self-reports?month=${TARGET_MONTH}`).then((r) => r.ok ? r.json() : []),
+    ]).then(([detail, att, dash, reports]) => {
+      setMemberDetail(detail);
+      setTodayAtt(att);
+      const projects: MyProject[] = dash?.myProjects ?? [];
+      setMyProjects(projects);
+      const existing: SelfReport[] = reports ?? [];
+      setSelfReports(existing);
+      // Init allocation input from existing reports or from projects
+      const allocs = projects.map((p) => {
+        const found = existing.find((r) => r.projectId === p.projectId);
+        return { projectId: p.projectId, projectName: p.projectName, reportedHours: found?.reportedHours ?? 0 };
+      });
+      setReportAllocations(allocs);
+      setReportSubmitted(existing.length > 0 && existing.every((r) => r.submittedAt));
+      setLoading(false);
+    });
+  }, [memberId]);
 
-  if (!member) return null;
-
-  const myProjects = getMemberProjects(member.id);
-  const myAttendance = ATTENDANCE_RECORDS.filter((a) => a.memberId === member.id);
-  const todayRecord = myAttendance.find((a) => a.date === "2026-02-20");
-
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  async function handleSubmitReport() {
+    const res = await fetch("/api/self-reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetMonth: TARGET_MONTH,
+        allocations: reportAllocations.map((a) => ({ projectId: a.projectId, reportedHours: a.reportedHours })),
+      }),
+    });
+    if (res.ok) setReportSubmitted(true);
   }
+
+  const totalReported = reportAllocations.reduce((s, a) => s + a.reportedHours, 0);
+
+  if (loading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
+  if (!memberDetail) return null;
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -65,57 +119,41 @@ export default function MyPage() {
       <Card>
         <CardHeader>
           <CardTitle>プロフィール</CardTitle>
-          <Button variant="outline" size="sm">
-            <Edit2 size={14} />
-            編集（デモ）
-          </Button>
         </CardHeader>
         <div className="flex items-start gap-5">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-3xl font-bold text-blue-600 shrink-0">
-            {member.name.charAt(0)}
+            {memberDetail.name.charAt(0)}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-bold text-slate-800">{member.name}</h2>
-              <Badge variant={member.company === "Boost" ? "boost" : "salt2"}>
-                {member.company}
+              <h2 className="text-xl font-bold text-slate-800">{memberDetail.name}</h2>
+              <Badge variant={memberDetail.company === "boost" ? "boost" : "salt2"}>
+                {memberDetail.company === "boost" ? "Boost" : "SALT2"}
               </Badge>
-              <Badge variant="default">{roleLabel[role]}</Badge>
+              <Badge variant="default">{roleLabel[role ?? "employee"]}</Badge>
             </div>
-            <p className="text-sm text-slate-500 mt-0.5">{member.nameKana}</p>
-            <p className="mt-1 text-sm text-slate-600">{member.department} | {member.position}</p>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <Mail size={14} className="text-slate-400" />
-            {member.email}
+            {memberDetail.email}
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <Phone size={14} className="text-slate-400" />
-            {member.phone}
-          </div>
+          {memberDetail.phone && (
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <Phone size={14} className="text-slate-400" />
+              {memberDetail.phone}
+            </div>
+          )}
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <Calendar size={14} className="text-slate-400" />
-            入社日: {formatDate(member.joinDate)}
+            入社日: {formatDate(memberDetail.joinedAt)}
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <User size={14} className="text-slate-400" />
-            {member.contractType}
-            {member.monthlyRate && (
-              <span className="text-blue-600 font-medium">{formatCurrency(member.monthlyRate)}/月</span>
-            )}
-            {member.hourlyRate && (
-              <span className="text-blue-600 font-medium">{formatCurrency(member.hourlyRate)}/時</span>
-            )}
+            {memberDetail.salaryType === "monthly" ? "月給制" : "時給制"}
           </div>
-          {member.slackId && (
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="text-slate-400">#</span>
-              Slack: {member.slackId}
-            </div>
-          )}
         </div>
       </Card>
 
@@ -124,25 +162,19 @@ export default function MyPage() {
         <CardHeader>
           <CardTitle>本日の勤怠</CardTitle>
         </CardHeader>
-        {todayRecord ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
+        {todayAtt ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 text-sm">
             <div className="rounded-lg bg-slate-50 px-3 py-2">
               <p className="text-xs text-slate-400">出勤時刻</p>
-              <p className="font-medium text-slate-800">{todayRecord.clockIn ?? "—"}</p>
+              <p className="font-medium text-slate-800">{todayAtt.clockIn ?? "—"}</p>
             </div>
             <div className="rounded-lg bg-slate-50 px-3 py-2">
               <p className="text-xs text-slate-400">退勤時刻</p>
-              <p className="font-medium text-slate-800">{todayRecord.clockOut ?? "—"}</p>
+              <p className="font-medium text-slate-800">{todayAtt.clockOut ?? (todayAtt.status === "working" ? "勤務中" : "—")}</p>
             </div>
             <div className="rounded-lg bg-slate-50 px-3 py-2">
               <p className="text-xs text-slate-400">休憩</p>
-              <p className="font-medium text-slate-800">{todayRecord.breakMinutes}分</p>
-            </div>
-            <div className="rounded-lg bg-slate-50 px-3 py-2">
-              <p className="text-xs text-slate-400">実働</p>
-              <p className="font-medium text-slate-800">
-                {todayRecord.actualHours ? `${todayRecord.actualHours}h` : "集計中"}
-              </p>
+              <p className="font-medium text-slate-800">{todayAtt.breakMinutes}分</p>
             </div>
           </div>
         ) : (
@@ -159,28 +191,22 @@ export default function MyPage() {
           <p className="text-sm text-slate-500">担当プロジェクトはありません。</p>
         ) : (
           <div className="space-y-2">
-            {myProjects.map((pj) => {
-              const assign = pj.assignments.find((a) => a.memberId === member.id);
-              return (
-                <div key={pj.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={pj.company === "Boost" ? "boost" : "salt2"}>{pj.company}</Badge>
-                      <span className="text-sm font-medium text-slate-800">{pj.name}</span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      役割: {assign?.role} | 稼働: {assign?.monthlyHours}h/月
-                    </p>
-                  </div>
+            {myProjects.map((pj) => (
+              <div key={pj.projectId} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <div>
+                  <span className="text-sm font-medium text-slate-800">{pj.projectName}</span>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    役割: {pj.role} | 稼働: {pj.workloadHours}h/月
+                  </p>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
       </Card>
 
       {/* Monthly self-report */}
-      {activeProjects.length > 0 && (
+      {myProjects.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>
@@ -210,7 +236,7 @@ export default function MyPage() {
                   ))}
                 </tbody>
               </table>
-              <p className="text-xs text-slate-400 text-right">合計: {totalReported}h / 打刻実績: {actualHours}h</p>
+              <p className="text-xs text-slate-400 text-right">合計: {totalReported}h</p>
               <div className="flex justify-end">
                 <Button variant="outline" size="sm" onClick={() => setReportSubmitted(false)}>修正する</Button>
               </div>
@@ -247,14 +273,10 @@ export default function MyPage() {
                 </tbody>
               </table>
               <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-600">
-                  合計: <span className={`font-bold ${Math.abs(totalReported - actualHours) > 8 ? "text-amber-600" : "text-slate-800"}`}>{totalReported}h</span>
-                  <span className="ml-2 text-xs text-slate-400">（打刻実績: {actualHours}h）</span>
-                  {Math.abs(totalReported - actualHours) > 8 && (
-                    <span className="ml-2 text-xs text-amber-600">※ 実績との差が大きいです</span>
-                  )}
-                </div>
-                <Button variant="primary" size="sm" onClick={() => setReportSubmitted(true)}>申告する</Button>
+                <span className="text-sm text-slate-600">
+                  合計: <span className="font-bold text-slate-800">{totalReported}h</span>
+                </span>
+                <Button variant="primary" size="sm" onClick={handleSubmitReport}>申告する</Button>
               </div>
             </div>
           )}
@@ -262,27 +284,29 @@ export default function MyPage() {
       )}
 
       {/* Skills summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>スキルサマリー</CardTitle>
-        </CardHeader>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {member.skills.map((skill) => (
-            <div key={skill.skillId} className="rounded-md bg-slate-50 px-3 py-2">
-              <p className="text-xs text-slate-500">{skill.category}</p>
-              <p className="text-sm font-medium text-slate-800">{skill.skillName}</p>
-              <div className="mt-0.5 flex gap-0.5">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <div
-                    key={n}
-                    className={`h-1.5 w-4 rounded-full ${n <= skill.level ? "bg-blue-500" : "bg-slate-200"}`}
-                  />
-                ))}
+      {memberDetail.skills.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>スキルサマリー</CardTitle>
+          </CardHeader>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {memberDetail.skills.map((skill) => (
+              <div key={skill.id} className="rounded-md bg-slate-50 px-3 py-2">
+                <p className="text-xs text-slate-500">{skill.categoryName}</p>
+                <p className="text-sm font-medium text-slate-800">{skill.skillName}</p>
+                <div className="mt-0.5 flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <div
+                      key={n}
+                      className={`h-1.5 w-4 rounded-full ${n <= skill.level ? "bg-blue-500" : "bg-slate-200"}`}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Notification settings */}
       <Card>
@@ -318,14 +342,6 @@ export default function MyPage() {
             </button>
           </label>
         </div>
-        <div className="mt-4 flex items-center justify-end gap-3">
-          {saved && (
-            <span className="flex items-center gap-1 text-sm text-green-600">
-              <CheckCircle size={14} /> 保存しました（デモ）
-            </span>
-          )}
-          <Button variant="primary" size="sm" onClick={handleSave}>保存</Button>
-        </div>
       </Card>
 
       {/* Security */}
@@ -340,16 +356,14 @@ export default function MyPage() {
           <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
             <div>
               <p className="font-medium text-slate-800">パスワード変更</p>
-              <p className="text-xs text-slate-500">最終変更: 2025年12月1日</p>
+              <p className="text-xs text-slate-500">認証プロバイダー（Slack / Google）で管理されます</p>
             </div>
-            <Button variant="outline" size="sm">変更（デモ）</Button>
           </div>
           <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
             <div>
               <p className="font-medium text-slate-800">二段階認証</p>
-              <p className="text-xs text-slate-500">現在: 無効</p>
+              <p className="text-xs text-slate-500">認証プロバイダーの設定をご確認ください</p>
             </div>
-            <Button variant="outline" size="sm">設定（デモ）</Button>
           </div>
         </div>
       </Card>
