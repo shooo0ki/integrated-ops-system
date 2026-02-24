@@ -252,6 +252,11 @@ Cookie: session=<encrypted-session>  // HttpOnly / Secure / SameSite=Lax
 | CT-1 | POST | `/api/contracts/send` | 契約書送信（テンプレ差し込み→DocuSign送信） | admin |
 | CT-2 | POST | `/api/contracts/webhook` | DocuSign 完了Webhook受信 | public (検証必須) |
 | CT-3 | GET | `/api/contracts/:id/download-url` | 署名済PDFの署名付きURL取得 | admin/本人 |
+| **人事評価（M7）** |
+| EV-1 | GET | `/api/evaluations?month=YYYY-MM` | 評価一覧取得（admin:全員, その他:自分のみ） | requireAuth |
+| EV-2 | GET | `/api/evaluations/:memberId` | メンバー別評価履歴（管理者またはメンバー本人） | requireAuth |
+| EV-3 | POST | `/api/evaluations` | 評価新規作成（upsert: 同月があれば上書き） | admin |
+| EV-4 | PUT | `/api/evaluations/:id` | 評価更新 | admin |
 
 ---
 
@@ -2183,13 +2188,142 @@ prisma.$use(async (params, next) => {
 
 ---
 
+---
+
+## 14. API詳細: 人事評価（M7）
+
+### EV-1: GET /api/evaluations?month=YYYY-MM
+
+**認可:** requireAuth（admin: 全員, 社員/インターン: 自分のみ）
+
+**Query:**
+- `month` (必須): 対象月 `YYYY-MM`
+
+**Response 200 (admin):**
+```json
+[
+  {
+    "id": "uuid-ev-1",
+    "memberId": "uuid-m-1",
+    "memberName": "鈴木一郎",
+    "memberCompany": "boost",
+    "targetPeriod": "2026-02",
+    "scoreP": 4,
+    "scoreA": 3,
+    "scoreS": 4,
+    "totalAvg": 3.67,
+    "comment": "今月は〇〇が改善された",
+    "evaluatorName": "佐藤管理者",
+    "updatedAt": "2026-02-24T10:00:00+09:00"
+  }
+]
+```
+
+**Response 200 (社員: 自分のみ):**
+```json
+[{ ...自分の1件 }]
+```
+
+---
+
+### EV-2: GET /api/evaluations/:memberId
+
+**認可:** admin または memberId 本人
+
+**Response 200:**
+```json
+[
+  {
+    "id": "uuid-ev-1",
+    "targetPeriod": "2026-02",
+    "scoreP": 4, "scoreA": 3, "scoreS": 4, "totalAvg": 3.67,
+    "comment": "...",
+    "evaluatorName": "佐藤管理者",
+    "updatedAt": "2026-02-24T10:00:00+09:00"
+  },
+  {
+    "id": "uuid-ev-0",
+    "targetPeriod": "2026-01",
+    "scoreP": 3, "scoreA": 3, "scoreS": 3, "totalAvg": 3.0,
+    "comment": null,
+    "evaluatorName": "佐藤管理者",
+    "updatedAt": "2026-01-28T10:00:00+09:00"
+  }
+]
+```
+- `targetPeriod DESC` でソート（新しい順）
+
+---
+
+### EV-3: POST /api/evaluations（upsert）
+
+**認可:** admin のみ
+
+**Request:**
+```json
+{
+  "memberId": "uuid-m-1",
+  "targetPeriod": "2026-02",
+  "scoreP": 4,
+  "scoreA": 3,
+  "scoreS": 4,
+  "comment": "今月は〇〇が改善された"
+}
+```
+
+**バリデーション:**
+- `memberId`, `targetPeriod`, `scoreP`, `scoreA`, `scoreS` は必須
+- `scoreP/A/S` は 1〜5 の整数
+- `targetPeriod` は未来月不可（当月以前）
+- 同月評価が存在する場合は UPDATE（upsert）
+
+**Response 201（新規） / 200（更新）:**
+```json
+{
+  "id": "uuid-ev-1",
+  "memberId": "uuid-m-1",
+  "targetPeriod": "2026-02",
+  "scoreP": 4, "scoreA": 3, "scoreS": 4, "totalAvg": 3.67,
+  "comment": "今月は〇〇が改善された",
+  "updatedAt": "2026-02-24T10:00:00+09:00"
+}
+```
+
+**エラー:**
+- 400: バリデーションエラー（スコア範囲外、未来月など）
+- 403: admin 以外
+- 404: memberId が存在しない
+
+---
+
+### EV-4: PUT /api/evaluations/:id
+
+**認可:** admin のみ
+
+**Request:** POST と同様（memberId と targetPeriod は変更不可）
+
+**Response 200:** 更新後の評価オブジェクト
+
+---
+
+### ページ↔API対応（M7追記）
+
+| ページ | 主要API |
+|--------|---------|
+| M7-01 評価一覧 | EV-1, EV-3（inline評価入力） |
+| M7-02 評価入力モーダル | EV-2（前回値取得）, EV-3/EV-4 |
+| M1-02 メンバー詳細 | EV-2（評価サマリーとして表示） |
+| C-04 マイページ | EV-1?mine=true（自分の最新評価） |
+
+---
+
 > **Design完了**
 >
 > 設計フェーズ（`/flow-design` → `/design-db` → `/design-requirements-v2` → `/design-api`）がすべて完了しました。
 >
 > **成果物一覧:**
-> - `docs/requirements/database/database-design.md` — DB設計（20テーブル）
-> - `docs/requirements/requirements-v2/*.md` — 画面要件定義 v2（26画面）
+> - `docs/requirements/database/database-design.md` — DB設計（21テーブル）
+> - `docs/requirements/requirements-v2/*.md` — 画面要件定義 v2（28画面）
 > - `docs/requirements/api/api-design.md` — API設計（本ドキュメント）
 >
 > 次のステップは **`/flow-build`** です。

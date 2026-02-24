@@ -332,3 +332,50 @@
 ---
 
 次は `/design-db` でDB設計書（テーブル定義・ER図）を作成してください。
+
+---
+
+## PERSONNEL_EVALUATION（人事評価 PAS）
+
+> 月次の PAS（Professional / Appearance / Skill）人事考課を管理するテーブル。  
+> 1メンバー × 1ヶ月 = 1レコード（同月評価は upsert で上書き）。  
+> スキルマトリクス（MEMBER_SKILL）とは独立した高レベルの人事評価。
+
+| 論理名 | 物理名 | 型 | 必須 | 制約 | 例 | 出所 | 利用先 | PII | 備考 |
+|--------|--------|-----|------|------|----|------|--------|-----|------|
+| 評価ID | id | UUID | ○ | PK | `uuid-xxxx` | システム | — | — | |
+| 被評価メンバーID | member_id | UUID | ○ | FK → MEMBER.id | — | 入力 | M7-01/02 | — | |
+| 評価者ID | evaluator_id | UUID | ○ | FK → USER_ACCOUNT.id | — | セッション | M7-01 | — | admin ロールのみ |
+| 対象月 | target_period | CHAR(7) | ○ | UNIQUE(member_id, target_period), 形式: YYYY-MM | `2026-02` | 入力 | M7-01/02 | — | |
+| P スコア | score_p | INTEGER | ○ | CHECK 1〜5 | `4` | 入力 | M7-01 | — | Professional |
+| A スコア | score_a | INTEGER | ○ | CHECK 1〜5 | `3` | 入力 | M7-01 | — | Appearance |
+| S スコア | score_s | INTEGER | ○ | CHECK 1〜5 | `4` | 入力 | M7-01 | — | Skill |
+| 評価コメント | comment | TEXT | — | 最大1000文字 | `期限厳守、来月はX面の改善が期待` | 入力 | M7-01 | — | |
+| 作成日時 | created_at | TIMESTAMPTZ | ○ | DEFAULT NOW() | — | システム | — | — | |
+| 更新日時 | updated_at | TIMESTAMPTZ | ○ | ON UPDATE NOW() | — | システム | — | — | |
+
+### スコア定義
+
+| 値 | ラベル | 表示色 |
+|----|--------|--------|
+| 1 | 要改善 | 赤（red） |
+| 2 | 普通以下 | オレンジ |
+| 3 | 標準 | 黄 |
+| 4 | 優秀 | 緑（green） |
+| 5 | 卓越 | 青（blue） |
+
+### 評価軸（PAS）
+
+| 軸 | 正式名称 | 評価観点 |
+|----|----------|---------|
+| P | Professional（プロフェッショナル） | 責任感・締め切り厳守・報連相・チームへの貢献・主体性 |
+| A | Appearance（アピアランス） | 清潔感・身だしなみ・立ち居振る舞い・対外的な印象 |
+| S | Skill（スキル） | 専門技術力・業務遂行能力・成長速度・アウトプット品質 |
+
+### 算出項目（DB保存なし）
+
+| 論理名 | 算出方法 | 例 |
+|--------|---------|-----|
+| 総合スコア | (score_p + score_a + score_s) / 3 | `3.67` |
+| 前月比 | 当月totalAvg − 前月totalAvg | `+0.33` |
+

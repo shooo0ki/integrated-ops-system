@@ -29,6 +29,7 @@
 | 18 | attendance_allocations | 勤怠PJ配分 | トランザクション | 退勤時の自己申告PJ別実働配分（分） |
 | 19 | intra_company_settlements | 社内精算 | トランザクション | Boost↔SALT2の月次社内精算レコード |
 | 20 | monthly_self_reports | 月次自己申告 | トランザクション | メンバーのPJ別実働申告（月次） |
+| 21 | personnel_evaluations | 人事評価（PAS） | トランザクション | P/A/S 3軸月次人事考課、1メンバー×1ヶ月=1レコード |
 
 ---
 
@@ -46,6 +47,7 @@ MEMBERS ──── 1:N ──── MEMBER_SKILLS
         ──── 1:N ──── INVOICES
         ──── 1:N ──── MEMBER_TOOLS
         ──── 1:N ──── MEMBER_CONTRACTS
+        ──── 1:N ──── PERSONNEL_EVALUATIONS (被評価者)
 
 SKILL_CATEGORIES ──── 1:N ──── SKILLS
 SKILLS ──── 1:N ──── MEMBER_SKILLS
@@ -784,6 +786,58 @@ CREATE TABLE monthly_self_reports (
 | member_skills | (member_id, skill_id, evaluated_at DESC) | 最新評価高速取得 |
 | pl_records | UNIQUE(project_id, target_month, record_type) | PL/CF重複防止 |
 | monthly_self_reports | UNIQUE(member_id, target_month, project_id) | 月次自己申告重複防止 |
+| personnel_evaluations | UNIQUE(member_id, target_period) | 1メンバー×1月=1評価 |
+
+---
+
+## 21. personnel_evaluations（人事評価 PAS）
+
+### 目的
+メンバーに対する月次人事考課（PAS評価）を管理する。
+スキルマトリクス（M2: 個別技術スキル）とは独立した、高レベルの人事評価テーブル。
+
+### テーブル定義
+
+| カラム | 型 | 制約 | 説明 |
+|--------|-----|------|------|
+| id | UUID | PK, default=gen_random_uuid() | 評価ID |
+| member_id | UUID | FK → members(id), NOT NULL | 被評価メンバー |
+| evaluator_id | UUID | FK → user_accounts(id), NOT NULL | 評価者（管理者の UserAccount.id） |
+| target_period | CHAR(7) | NOT NULL | 対象月 'YYYY-MM' |
+| score_p | INTEGER | NOT NULL, CHECK(1-5) | Professional スコア |
+| score_a | INTEGER | NOT NULL, CHECK(1-5) | Appearance スコア |
+| score_s | INTEGER | NOT NULL, CHECK(1-5) | Skill スコア |
+| comment | TEXT | nullable | 評価コメント（最大1000文字） |
+| created_at | TIMESTAMP | NOT NULL, default=now() | 作成日時 |
+| updated_at | TIMESTAMP | NOT NULL, on update=now() | 更新日時 |
+
+### インデックス
+| インデックス | 目的 |
+|------------|------|
+| UNIQUE(member_id, target_period) | 1メンバー×1月=1評価 (upsert基準) |
+| INDEX(member_id, target_period DESC) | メンバー別履歴取得 |
+
+### スコア定義
+
+| 値 | ラベル |
+|----|--------|
+| 1 | 要改善 |
+| 2 | 普通以下 |
+| 3 | 標準 |
+| 4 | 優秀 |
+| 5 | 卓越 |
+
+### ER リレーション
+```
+MEMBERS ──── 1:N ──── PERSONNEL_EVALUATIONS
+USER_ACCOUNTS ──── 1:N ──── PERSONNEL_EVALUATIONS (evaluator_id)
+```
+
+### 特記事項
+- 1メンバー × 1ヶ月 = 1レコード（UNIQUE制約）。既存月の再評価は UPDATE（upsert）
+- evaluator_id は必ず admin ロールの UserAccount.id であること（API側でチェック）
+- score_p / score_a / score_s の合計平均を「総合スコア」として API が算出して返却（DB保存は不要）
+- PII 非対象（氏名等は含まない）
 
 ---
 

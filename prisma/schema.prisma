@@ -26,12 +26,13 @@ model UserAccount {
 
   // Relations
   member             Member              @relation(fields: [memberId], references: [id])
-  createdProjects    Project[]           @relation("ProjectCreatedBy")
-  createdAssignments ProjectAssignment[] @relation("AssignmentCreatedBy")
-  evaluatedSkills    MemberSkill[]       @relation("SkillEvaluatedBy")
-  createdPLRecords   PLRecord[]          @relation("PLCreatedBy")
-  updatedConfigs     SystemConfig[]      @relation("ConfigUpdatedBy")
-  auditLogs          AuditLog[]          @relation("AuditOperator")
+  createdProjects       Project[]              @relation("ProjectCreatedBy")
+  createdAssignments    ProjectAssignment[]    @relation("AssignmentCreatedBy")
+  evaluatedSkills       MemberSkill[]          @relation("SkillEvaluatedBy")
+  createdPLRecords      PLRecord[]             @relation("PLCreatedBy")
+  updatedConfigs        SystemConfig[]         @relation("ConfigUpdatedBy")
+  auditLogs             AuditLog[]             @relation("AuditOperator")
+  submittedEvaluations  PersonnelEvaluation[]  @relation("EvaluationEvaluator")
 
   @@map("user_accounts")
 }
@@ -67,9 +68,10 @@ model Member {
   workSchedules WorkSchedule[]
   attendances   Attendance[]
   invoices      Invoice[]
-  tools         MemberTool[]
-  contracts     MemberContract[]
-  selfReports   MonthlySelfReport[]
+  tools               MemberTool[]
+  contracts           MemberContract[]
+  selfReports         MonthlySelfReport[]
+  personnelEvaluations PersonnelEvaluation[]
 
   @@map("members")
 }
@@ -477,4 +479,27 @@ model MonthlySelfReport {
 
   @@unique([memberId, targetMonth, projectId])
   @@map("monthly_self_reports")
+}
+
+// ─────────────────────────────────────────────
+// 21. personnel_evaluations（人事評価 PAS）
+// ─────────────────────────────────────────────
+model PersonnelEvaluation {
+  id            String   @id @default(uuid())
+  memberId      String   @map("member_id")
+  evaluatorId   String   @map("evaluator_id") // UserAccount.id（adminのみ）
+  targetPeriod  String   @map("target_period") @db.Char(7) // 'YYYY-MM'
+  scoreP        Int      @map("score_p") // 1〜5: Professional
+  scoreA        Int      @map("score_a") // 1〜5: Appearance
+  scoreS        Int      @map("score_s") // 1〜5: Skill
+  comment       String?  @db.VarChar(1000)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  member    Member      @relation(fields: [memberId], references: [id])
+  evaluator UserAccount @relation("EvaluationEvaluator", fields: [evaluatorId], references: [id])
+
+  @@unique([memberId, targetPeriod])
+  @@map("personnel_evaluations")
 }
