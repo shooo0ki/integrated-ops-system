@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronRight, Save, CheckCircle, User } from "lucide-react";
@@ -53,9 +53,9 @@ const today = new Date().toISOString().slice(0, 10);
 export default function SkillEvaluationPage({
   params,
 }: {
-  params: Promise<{ memberId: string }>;
+  params: { memberId: string };
 }) {
-  const { memberId } = use(params);
+  const { memberId } = params;
   const router = useRouter();
   const { role } = useAuth();
   const canEdit = role === "admin" || role === "manager";

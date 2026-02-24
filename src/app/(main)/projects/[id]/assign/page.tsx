@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -47,8 +47,8 @@ interface MemberOption {
 
 // ─── ページ ───────────────────────────────────────────────
 
-export default function AssignPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function AssignPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const { role } = useAuth();
   const canManage = role === "admin" || role === "manager";
 

@@ -20,33 +20,39 @@ import {
   BarChart2,
   Settings,
   Wallet,
+  Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
+const ALL = ["admin", "manager", "employee", "intern"];
+const STAFF = ["admin", "manager", "employee"];
+const PRIVILEGED = ["admin", "manager"];
+
 const navItems = [
-  { href: "/dashboard",       label: "ダッシュボード",   icon: LayoutDashboard, roles: ["admin", "manager", "member"] },
-  { href: "/members",         label: "メンバー",         icon: Users,           roles: ["admin", "manager"] },
-  { href: "/skills",          label: "スキルマトリクス",  icon: Star,            roles: ["admin", "manager", "member"] },
-  { href: "/attendance",      label: "打刻",             icon: Clock,           roles: ["admin", "manager", "member"] },
-  { href: "/calendar",        label: "カレンダー",        icon: CalendarDays,    roles: ["admin", "manager", "member"] },
-  { href: "/schedule",        label: "勤務予定",          icon: CalendarClock,   roles: ["admin", "manager", "member"] },
-  { href: "/attendance/list", label: "勤怠一覧",          icon: ClipboardList,   roles: ["admin", "manager", "member"] },
-  { href: "/projects",        label: "プロジェクト",      icon: FolderOpen,      roles: ["admin", "manager", "member"] },
-  { href: "/workload",        label: "工数管理",          icon: BarChart2,       roles: ["admin", "manager"] },
-  { href: "/tools",           label: "ツール管理",        icon: Wrench,          roles: ["admin", "manager"] },
+  { href: "/dashboard",       label: "ダッシュボード",   icon: LayoutDashboard, roles: ALL },
+  { href: "/members",         label: "メンバー",         icon: Users,           roles: PRIVILEGED },
+  { href: "/skills",          label: "スキルマトリクス",  icon: Star,            roles: ALL },
+  { href: "/attendance",      label: "打刻",             icon: Clock,           roles: ALL },
+  { href: "/calendar",        label: "カレンダー",        icon: CalendarDays,    roles: ALL },
+  { href: "/schedule",        label: "勤務予定",          icon: CalendarClock,   roles: ALL },
+  { href: "/attendance/list", label: "勤怠一覧",          icon: ClipboardList,   roles: ALL },
+  { href: "/projects",        label: "プロジェクト",      icon: FolderOpen,      roles: ALL },
+  { href: "/workload",        label: "工数管理",          icon: BarChart2,       roles: PRIVILEGED },
+  { href: "/tools",           label: "ツール管理",        icon: Wrench,          roles: PRIVILEGED },
   { href: "/contracts",       label: "契約管理",          icon: FileCheck,       roles: ["admin"] },
   { href: "/closing",         label: "月末締め",          icon: CalendarClock,   roles: ["admin"] },
-  { href: "/invoices",        label: "請求書管理",        icon: FileText,        roles: ["admin", "manager", "member"] },
-  { href: "/pl/summary",      label: "PL サマリー",       icon: TrendingUp,      roles: ["admin", "manager", "member"] },
+  { href: "/invoices",        label: "請求書管理",        icon: FileText,        roles: ALL },
+  { href: "/pl/summary",      label: "PL サマリー",       icon: TrendingUp,      roles: STAFF },
   { href: "/pl/cashflow",     label: "キャッシュフロー",  icon: Wallet,          roles: ["admin"] },
-  { href: "/mypage",          label: "マイページ",        icon: User,            roles: ["admin", "manager", "member"] },
+  { href: "/evaluation",      label: "人事評価",          icon: Award,           roles: ALL },
+  { href: "/mypage",          label: "マイページ",        icon: User,            roles: ALL },
   { href: "/settings",        label: "設定",              icon: Settings,        roles: ["admin"] },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { role, member } = useAuth();
+  const { role, company } = useAuth();
 
   const visibleItems = navItems.filter((item) =>
     item.roles.includes(role)
@@ -59,7 +65,7 @@ export function Sidebar() {
         <Building2 size={20} className="text-blue-600" />
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-slate-800">統合業務管理</p>
-          <p className="text-xs text-slate-500">{member?.company ?? "—"}</p>
+          <p className="text-xs text-slate-500">{company ?? "—"}</p>
         </div>
       </div>
 

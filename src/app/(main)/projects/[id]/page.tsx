@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Users, Calendar, DollarSign, UserPlus } from "lucide-react";
@@ -66,8 +66,8 @@ function formatCurrency(n: number): string {
 
 // ─── ページ ───────────────────────────────────────────────
 
-export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ProjectDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const router = useRouter();
   const { role } = useAuth();
   const canManage = role === "admin" || role === "manager";

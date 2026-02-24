@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { RoleSwitcher } from "./role-switcher";
 
 export function Header() {
-  const { member, logout } = useAuth();
+  const { name, logout } = useAuth();
   const router = useRouter();
 
   function handleLogout() {
@@ -28,7 +28,7 @@ export function Header() {
             <User size={14} />
           </div>
           <span className="text-sm font-medium text-slate-700">
-            {member?.name ?? "ゲスト"}
+            {name ?? "ゲスト"}
           </span>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -81,9 +81,9 @@ const companyDisplay = (c: string) => c === "boost" ? "Boost" : c === "salt2" ? 
 export default function MemberDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const router = useRouter();
   const { role: myRole } = useAuth();
   const canEdit = myRole === "admin" || myRole === "manager";
