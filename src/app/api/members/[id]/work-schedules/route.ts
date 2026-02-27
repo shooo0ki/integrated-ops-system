@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { sendSlack } from "@/lib/slack";
 
 function unauthorized() {
   return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "ログインが必要です" } }, { status: 401 });
@@ -96,5 +97,33 @@ export async function POST(req: NextRequest, { params }: Params) {
     })
   );
 
-  return NextResponse.json({ saved: results.filter(Boolean).length });
+  const saved = results.filter(Boolean);
+  const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
+  const LOCATION_JA: Record<string, string> = { office: "出社", remote: "リモート" };
+  type ScheduleItem = { date: string; startTime?: string | null; endTime?: string | null; isOff?: boolean; locationType?: string };
+  const workDays: ScheduleItem[] = (body as ScheduleItem[])
+    .filter((item) => item.date && !item.isOff)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (saved.length > 0 && workDays.length > 0) {
+    const firstDate = new Date(workDays[0].date);
+    const dow = firstDate.getDay();
+    const weekStart = new Date(firstDate);
+    weekStart.setDate(weekStart.getDate() + (dow === 0 ? -6 : 1 - dow));
+    const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+    const lines = [
+      `*${user.name}*  週間予定を受け付けました（週開始: ${weekStartStr}）\n`,
+      ...workDays.map((item) => {
+        const d = new Date(item.date);
+        const dayName = WEEKDAYS_JA[d.getDay()];
+        const time = item.startTime && item.endTime ? `${item.startTime}-${item.endTime}` : "終日";
+        const loc = LOCATION_JA[item.locationType ?? "office"] ?? item.locationType ?? "";
+        return `• ${dayName}: ${time} ${loc}`;
+      }),
+    ];
+    await sendSlack(lines.join("\n"), "schedule");
+  }
+
+  return NextResponse.json({ saved: saved.length });
 }
