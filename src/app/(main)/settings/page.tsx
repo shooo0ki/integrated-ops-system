@@ -117,11 +117,6 @@ export default function SettingsPage() {
               <Slack size={16} className="text-slate-400" />
             </CardHeader>
             <div className="space-y-4">
-              <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                Slack 連携は環境変数（<code className="font-mono">SLACK_BOT_TOKEN</code> / <code className="font-mono">SLACK_CHANNEL_*</code>）で設定します。
-                Vercel のダッシュボード → Settings → Environment Variables から更新してください。
-              </div>
-
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   月末締め通知日

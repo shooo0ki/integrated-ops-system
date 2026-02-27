@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { sendSlack } from "@/lib/slack";
+import { getSlackUserId, sendSlackDM } from "@/lib/slack";
 
 export async function PATCH(
   req: NextRequest,
@@ -25,7 +25,7 @@ export async function PATCH(
   const [member, attendances] = await Promise.all([
     prisma.member.findUnique({
       where: { id: params.memberId },
-      select: { name: true },
+      select: { name: true, userAccount: { select: { email: true } } },
     }),
     prisma.attendance.findMany({
       where: {
@@ -66,7 +66,10 @@ export async function PATCH(
     "勤怠ページから確認・申請してください。",
   ];
 
-  await sendSlack(lines.join("\n"));
+  const slackUserId = member.userAccount?.email
+    ? await getSlackUserId(member.userAccount.email)
+    : null;
+  await sendSlackDM(slackUserId, lines.join("\n"));
 
   await prisma.attendance.updateMany({
     where: {
