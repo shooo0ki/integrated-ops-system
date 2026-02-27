@@ -62,10 +62,11 @@ async function calcAutoFields(targetMonth: string, company: Company) {
       : Promise.resolve({ _sum: { amount: 0 } }),
   ]);
 
+  const invoiceSum = invoiceAgg._sum as { amountBoost?: number | null; amountSalt2?: number | null };
   const cashInClient =
     company === "boost"
-      ? (invoiceAgg._sum.amountBoost ?? 0)
-      : (invoiceAgg._sum.amountSalt2 ?? 0);
+      ? (invoiceSum.amountBoost ?? 0)
+      : (invoiceSum.amountSalt2 ?? 0);
   const cashOutFixed = toolAgg._sum.monthlyCost ?? 0;
   const cashOutSalary = salaryAgg._sum.salaryAmount ?? 0;
   const cashOutExpense = expenseAgg._sum.amount ?? 0;
