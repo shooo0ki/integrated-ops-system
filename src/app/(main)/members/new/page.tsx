@@ -73,7 +73,15 @@ export default function MemberNewPage() {
       setCreated({ name: data.name, email: data.email });
     } else {
       const data = await res.json();
-      setError(data.error?.message ?? "登録に失敗しました");
+      const details = data.error?.details?.fieldErrors;
+      if (details) {
+        const msgs = Object.entries(details)
+          .map(([field, errs]) => `${field}: ${(errs as string[]).join(", ")}`)
+          .join(" / ");
+        setError(msgs);
+      } else {
+        setError(data.error?.message ?? "登録に失敗しました");
+      }
     }
   }
 
