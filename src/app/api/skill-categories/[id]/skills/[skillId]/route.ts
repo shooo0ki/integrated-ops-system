@@ -57,14 +57,11 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { skillId } = await params;
 
-  const evalCount = await prisma.memberSkill.count({ where: { skillId } });
-  if (evalCount > 0) {
-    return NextResponse.json(
-      { error: { code: "CONFLICT", message: "評価データが存在するため削除できません" } },
-      { status: 409 }
-    );
-  }
+  // 評価データを先に削除してからスキルを削除
+  await prisma.$transaction([
+    prisma.memberSkill.deleteMany({ where: { skillId } }),
+    prisma.skill.delete({ where: { id: skillId } }),
+  ]);
 
-  await prisma.skill.delete({ where: { id: skillId } });
   return NextResponse.json({ ok: true });
 }

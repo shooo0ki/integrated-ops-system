@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { type Company } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 
@@ -9,17 +10,80 @@ function forbidden() {
   return NextResponse.json({ error: { code: "FORBIDDEN", message: "権限がありません" } }, { status: 403 });
 }
 
-// GET /api/cashflow?company=boost|salt2&months=YYYY-MM,...
-// or: GET /api/cashflow?company=boost|salt2&month=YYYY-MM
+// 自動計算: 会社別の入出金を取得
+async function calcAutoFields(targetMonth: string, company: Company) {
+  // 当該会社に属するプロジェクトIDを取得（経費計算用）
+  const companyProjects = await prisma.project.findMany({
+    where: { company, deletedAt: null },
+    select: { id: true },
+  });
+  const projectIds = companyProjects.map((p) => p.id);
+
+  const [invoiceAgg, toolAgg, salaryAgg, expenseAgg] = await Promise.all([
+    // Boost入金 / クライアント入金: 送付済み・確認済み請求書から自動集計
+    prisma.invoice.aggregate({
+      where: { targetMonth, status: { in: ["sent", "confirmed"] } },
+      _sum: company === "boost" ? { amountBoost: true } : { amountSalt2: true },
+    }),
+    // 固定費: 該当会社のツールコスト合計
+    prisma.memberTool.aggregate({
+      where: { companyLabel: company },
+      _sum: { monthlyCost: true },
+    }),
+    // 給与支払い: 月給制メンバー合計
+    prisma.member.aggregate({
+      where: { deletedAt: null, salaryType: "monthly" },
+      _sum: { salaryAmount: true },
+    }),
+    // 経費精算:
+    //   boost : 当社プロジェクトに紐づく非課税明細のみ
+    //   salt2 : 当社プロジェクト紐づき + linkedProjectId: null（プロジェクト外経費）も計上
+    company === "salt2"
+      ? prisma.invoiceItem.aggregate({
+          where: {
+            taxable: false,
+            OR: [
+              ...(projectIds.length > 0 ? [{ linkedProjectId: { in: projectIds } }] : []),
+              { linkedProjectId: null },
+            ],
+            invoice: { targetMonth },
+          },
+          _sum: { amount: true },
+        })
+      : projectIds.length > 0
+      ? prisma.invoiceItem.aggregate({
+          where: {
+            taxable: false,
+            linkedProjectId: { in: projectIds },
+            invoice: { targetMonth },
+          },
+          _sum: { amount: true },
+        })
+      : Promise.resolve({ _sum: { amount: 0 } }),
+  ]);
+
+  const cashInClient =
+    company === "boost"
+      ? (invoiceAgg._sum.amountBoost ?? 0)
+      : (invoiceAgg._sum.amountSalt2 ?? 0);
+  const cashOutFixed = toolAgg._sum.monthlyCost ?? 0;
+  const cashOutSalary = salaryAgg._sum.salaryAmount ?? 0;
+  const cashOutExpense = expenseAgg._sum.amount ?? 0;
+
+  return { cashInClient, cashOutFixed, cashOutSalary, cashOutExpense };
+}
+
+// GET /api/cashflow?month=YYYY-MM&company=boost|salt2
+// or: GET /api/cashflow?months=YYYY-MM,...&company=boost|salt2
 export async function GET(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
   if (user.role !== "admin") return forbidden();
 
   const url = new URL(req.url);
-  const company = url.searchParams.get("company") ?? "boost";
   const monthsParam = url.searchParams.get("months");
   const monthParam = url.searchParams.get("month");
+  const company = (url.searchParams.get("company") ?? "boost") as Company;
 
   const targetMonths = monthsParam
     ? monthsParam.split(",").map((m) => m.trim()).filter((m) => /^\d{4}-\d{2}$/.test(m))
@@ -34,29 +98,31 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // 月次給与自動計算（当該会社の月給制メンバー合計）
-  const salaryAgg = await prisma.member.aggregate({
-    where: { company, deletedAt: null, salaryType: "monthly" },
-    _sum: { salaryAmount: true },
-  });
-  const autoSalary = salaryAgg._sum.salaryAmount ?? 0;
-
   const records = await Promise.all(
     targetMonths.map(async (targetMonth) => {
-      const rec = await prisma.pLRecord.findFirst({
-        where: { recordType: "cf", targetMonth, memo: company },
-      });
+      const [rec, auto] = await Promise.all([
+        prisma.pLRecord.findFirst({
+          where: { recordType: "cf", targetMonth, cfCompany: company },
+        }),
+        calcAutoFields(targetMonth, company),
+      ]);
+
+      const cashIn = auto.cashInClient + (rec?.cfCashInOther ?? 0);
+      const cashOut = auto.cashOutSalary + auto.cashOutFixed + auto.cashOutExpense + (rec?.cfCashOutOther ?? 0);
+      const openingBalance = rec?.cfBalancePrev ?? 0;
+      const cfBalanceCurrent = openingBalance + cashIn - cashOut;
+
       return {
         month: targetMonth,
         company,
-        openingBalance: rec?.cfBalancePrev ?? 0,
-        cashInClient: rec?.cfCashInClient ?? 0,
+        openingBalance,
+        cashInClient: auto.cashInClient,
         cashInOther: rec?.cfCashInOther ?? 0,
-        cashOutSalary: autoSalary,
-        cashOutFreelance: rec?.cfCashOutOutsourcing ?? 0,
-        cashOutFixed: rec?.cfCashOutFixed ?? 0,
+        cashOutSalary: auto.cashOutSalary,
+        cashOutFixed: auto.cashOutFixed,
+        cashOutExpense: auto.cashOutExpense,
         cashOutOther: rec?.cfCashOutOther ?? 0,
-        cfBalanceCurrent: rec?.cfBalanceCurrent ?? 0,
+        cfBalanceCurrent,
       };
     })
   );
@@ -65,36 +131,36 @@ export async function GET(req: NextRequest) {
 }
 
 // PUT /api/cashflow
-// Body: { month, company, cashInClient, cashInOther, cashOutFreelance, cashOutFixed, cashOutOther, openingBalance }
+// Body: { month, company, cashInOther, cashOutOther, openingBalance }
+// ※ cashInClient / cashOutFixed / cashOutSalary は自動計算のため手動入力不可
 export async function PUT(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
   if (user.role !== "admin") return forbidden();
 
   const body = await req.json().catch(() => null);
-  const { month, company, cashInClient, cashInOther, cashOutFreelance, cashOutFixed, cashOutOther, openingBalance } =
-    body ?? {};
+  const { month, company = "boost", cashInOther, cashOutOther, openingBalance } = body ?? {};
 
-  if (!month || !company) {
+  if (!month) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "month, company は必須です" } },
+      { error: { code: "VALIDATION_ERROR", message: "month は必須です" } },
       { status: 400 }
     );
   }
 
-  // 月次給与自動計算
-  const salaryAgg = await prisma.member.aggregate({
-    where: { company, deletedAt: null, salaryType: "monthly" },
-    _sum: { salaryAmount: true },
-  });
-  const autoSalary = salaryAgg._sum.salaryAmount ?? 0;
+  const cfCompany = company as Company;
+  const auto = await calcAutoFields(month, cfCompany);
 
-  const cashIn = (cashInClient ?? 0) + (cashInOther ?? 0);
-  const cashOut = autoSalary + (cashOutFreelance ?? 0) + (cashOutFixed ?? 0) + (cashOutOther ?? 0);
-  const cfBalanceCurrent = (openingBalance ?? 0) + cashIn - cashOut;
+  const inOther = cashInOther ?? 0;
+  const outOther = cashOutOther ?? 0;
+  const prevBalance = openingBalance ?? 0;
+
+  const cashIn = auto.cashInClient + inOther;
+  const cashOut = auto.cashOutSalary + auto.cashOutFixed + auto.cashOutExpense + outOther;
+  const cfBalanceCurrent = prevBalance + cashIn - cashOut;
 
   const existing = await prisma.pLRecord.findFirst({
-    where: { recordType: "cf", targetMonth: month, memo: company },
+    where: { recordType: "cf", targetMonth: month, cfCompany },
   });
 
   let record;
@@ -102,13 +168,12 @@ export async function PUT(req: NextRequest) {
     record = await prisma.pLRecord.update({
       where: { id: existing.id },
       data: {
-        cfCashInClient: cashInClient ?? 0,
-        cfCashInOther: cashInOther ?? 0,
-        cfCashOutSalary: autoSalary,
-        cfCashOutOutsourcing: cashOutFreelance ?? 0,
-        cfCashOutFixed: cashOutFixed ?? 0,
-        cfCashOutOther: cashOutOther ?? 0,
-        cfBalancePrev: openingBalance ?? 0,
+        cfCashInClient: auto.cashInClient,
+        cfCashInOther: inOther,
+        cfCashOutSalary: auto.cashOutSalary,
+        cfCashOutFixed: auto.cashOutFixed,
+        cfCashOutOther: outOther,
+        cfBalancePrev: prevBalance,
         cfBalanceCurrent,
       },
     });
@@ -116,15 +181,14 @@ export async function PUT(req: NextRequest) {
     record = await prisma.pLRecord.create({
       data: {
         recordType: "cf",
+        cfCompany,
         targetMonth: month,
-        memo: company,
-        cfCashInClient: cashInClient ?? 0,
-        cfCashInOther: cashInOther ?? 0,
-        cfCashOutSalary: autoSalary,
-        cfCashOutOutsourcing: cashOutFreelance ?? 0,
-        cfCashOutFixed: cashOutFixed ?? 0,
-        cfCashOutOther: cashOutOther ?? 0,
-        cfBalancePrev: openingBalance ?? 0,
+        cfCashInClient: auto.cashInClient,
+        cfCashInOther: inOther,
+        cfCashOutSalary: auto.cashOutSalary,
+        cfCashOutFixed: auto.cashOutFixed,
+        cfCashOutOther: outOther,
+        cfBalancePrev: prevBalance,
         cfBalanceCurrent,
         createdBy: user.id,
       },
@@ -133,13 +197,13 @@ export async function PUT(req: NextRequest) {
 
   return NextResponse.json({
     month: record.targetMonth,
-    company,
+    company: cfCompany,
     openingBalance: record.cfBalancePrev ?? 0,
-    cashInClient: record.cfCashInClient,
+    cashInClient: auto.cashInClient,
     cashInOther: record.cfCashInOther,
-    cashOutSalary: autoSalary,
-    cashOutFreelance: record.cfCashOutOutsourcing,
-    cashOutFixed: record.cfCashOutFixed,
+    cashOutSalary: auto.cashOutSalary,
+    cashOutFixed: auto.cashOutFixed,
+    cashOutExpense: auto.cashOutExpense,
     cashOutOther: record.cfCashOutOther,
     cfBalanceCurrent: record.cfBalanceCurrent,
   });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
+import { type UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { createMemberSchema } from "@/lib/validations/member";
@@ -25,13 +26,11 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl;
   const q = searchParams.get("q") ?? "";
-  const company = searchParams.get("company") ?? "";
   const role = searchParams.get("role") ?? "";
 
   const members = await prisma.member.findMany({
     where: {
       deletedAt: null,
-      ...(company ? { company } : {}),
       ...(q
         ? {
             OR: [
@@ -40,7 +39,7 @@ export async function GET(req: NextRequest) {
             ],
           }
         : {}),
-      ...(role ? { userAccount: { role } } : {}),
+      ...(role ? { userAccount: { role: role as UserRole } } : {}),
     },
     include: {
       userAccount: { select: { email: true, role: true } },
@@ -53,7 +52,6 @@ export async function GET(req: NextRequest) {
       id: m.id,
       name: m.name,
       status: m.status,
-      company: m.company,
       salaryType: m.salaryType,
       salaryAmount: m.salaryAmount,
       joinedAt: m.joinedAt,
@@ -110,7 +108,6 @@ export async function POST(req: NextRequest) {
         name: data.name,
         phone: data.phone,
         status: data.status,
-        company: data.company,
         salaryType: data.salaryType,
         salaryAmount: data.salaryAmount,
         joinedAt: new Date(data.joinedAt),

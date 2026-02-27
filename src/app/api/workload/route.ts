@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   // アクティブなプロジェクト
   const projects = await prisma.project.findMany({
     where: { status: "active", deletedAt: null },
-    select: { id: true, name: true, company: true, status: true },
+    select: { id: true, name: true, status: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -35,12 +35,12 @@ export async function GET(req: NextRequest) {
       OR: [{ endDate: null }, { endDate: { gte: monthStart } }],
     },
     include: {
-      member: { select: { id: true, name: true, company: true } },
+      member: { select: { id: true, name: true } },
     },
   });
 
   // メンバー一覧（重複排除）
-  const memberMap = new Map<string, { id: string; name: string; company: string }>();
+  const memberMap = new Map<string, { id: string; name: string }>();
   for (const a of assignments) {
     if (!memberMap.has(a.memberId)) memberMap.set(a.memberId, a.member);
   }

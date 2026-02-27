@@ -9,7 +9,6 @@ import { buildMonths } from "@/lib/utils";
 type EvalRow = {
   memberId: string;
   memberName: string;
-  memberCompany: string;
   evaluated: boolean;
   id?: string;
   targetPeriod?: string;
@@ -105,7 +104,6 @@ function EditModal({
       onSaved({
         memberId: form.memberId,
         memberName: initial.memberName,
-        memberCompany: "",
         evaluated: true,
         id: data.id,
         targetPeriod: data.targetPeriod,
@@ -236,7 +234,7 @@ export default function EvaluationPage() {
   }, [loadRows, loadOwn]);
 
   // Hooks must be called before early returns
-  if (role !== "admin" && role !== "manager" && role !== "member" && role !== "employee" && role !== "intern") {
+  if (role !== "admin" && role !== "manager" && role !== "member") {
     return notFound();
   }
 
@@ -257,7 +255,7 @@ export default function EvaluationPage() {
     setRows((prev) =>
       prev.map((r) =>
         r.memberId === updated.memberId
-          ? { ...r, ...updated, memberCompany: r.memberCompany }
+          ? { ...r, ...updated }
           : r
       )
     );
@@ -328,8 +326,6 @@ export default function EvaluationPage() {
   }
 
   // ---- 管理者・マネージャー用ビュー ----
-  const boostRows = rows.filter((r) => r.memberCompany === "boost");
-  const salt2Rows = rows.filter((r) => r.memberCompany === "salt2");
 
   function renderTable(label: string, tableRows: EvalRow[]) {
     return (
@@ -438,8 +434,9 @@ export default function EvaluationPage() {
         <p className="text-sm text-slate-400">読み込み中...</p>
       ) : (
         <div className="space-y-6">
-          {boostRows.length > 0 && renderTable("Boost", boostRows)}
-          {salt2Rows.length > 0 && renderTable("SALT2", salt2Rows)}
+          {rows.length > 0 ? renderTable("全メンバー", rows) : (
+            <p className="text-sm text-slate-400">メンバーが見つかりません</p>
+          )}
         </div>
       )}
 

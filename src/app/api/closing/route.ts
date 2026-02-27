@@ -5,9 +5,8 @@ import { prisma } from "@/lib/db";
 export async function GET(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (user.role !== "admin" && user.role !== "manager") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+
+  const isAdmin = user.role === "admin" || user.role === "manager";
 
   const { searchParams } = new URL(req.url);
   const month = searchParams.get("month"); // YYYY-MM
@@ -20,9 +19,12 @@ export async function GET(req: NextRequest) {
   const monthStart = new Date(year, mon - 1, 1);
   const monthEnd = new Date(year, mon, 0, 23, 59, 59, 999);
 
-  // 対象メンバー（アクティブ）
+  // 対象メンバー：admin/manager は全員、それ以外は自分のみ
   const members = await prisma.member.findMany({
-    where: { deletedAt: null },
+    where: {
+      deletedAt: null,
+      ...(!isAdmin && { id: user.memberId }),
+    },
     select: {
       id: true,
       name: true,
@@ -66,7 +68,7 @@ export async function GET(req: NextRequest) {
       targetMonth: month,
       memberId: { in: members.map((m) => m.id) },
     },
-    select: { memberId: true, amountExclTax: true, workHoursTotal: true, unitPrice: true, slackSentStatus: true, invoiceNumber: true },
+    select: { memberId: true, amountExclTax: true, workHoursTotal: true, unitPrice: true, status: true, invoiceNumber: true },
   });
 
   const result = members.map((m) => {
@@ -116,7 +118,8 @@ export async function GET(req: NextRequest) {
     // 請求書ステータス
     let invoiceStatus: "none" | "generated" | "sent" | "approved" | "accounting_sent" = "none";
     if (inv) {
-      if (inv.slackSentStatus === "sent") invoiceStatus = "sent";
+      if (inv.status === "confirmed") invoiceStatus = "accounting_sent";
+      else if (inv.status === "sent") invoiceStatus = "sent";
       else invoiceStatus = "generated";
     }
 

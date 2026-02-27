@@ -39,12 +39,8 @@ const statusColor: Record<string, string> = {
 const roleLabel: Record<string, string> = {
   admin: "管理者",
   manager: "マネージャー",
-  employee: "社員",
-  intern: "インターン",
+  member: "メンバー",
 };
-
-const companyDisplay = (c: string) =>
-  c === "boost" ? "Boost" : c === "salt2" ? "SALT2" : c;
 
 export default function MembersPage() {
   const { role } = useAuth();
@@ -53,13 +49,11 @@ export default function MembersPage() {
   const [members, setMembers] = useState<MemberListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [companyFilter, setCompanyFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (search) params.set("q", search);
-    if (companyFilter) params.set("company", companyFilter);
     if (roleFilter) params.set("role", roleFilter);
 
     setLoading(true);
@@ -67,7 +61,7 @@ export default function MembersPage() {
       .then((r) => r.json())
       .then((data) => setMembers(data))
       .finally(() => setLoading(false));
-  }, [search, companyFilter, roleFilter]);
+  }, [search, roleFilter]);
 
   return (
     <div className="space-y-6">
@@ -99,15 +93,6 @@ export default function MembersPage() {
           />
         </div>
         <select
-          value={companyFilter}
-          onChange={(e) => setCompanyFilter(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        >
-          <option value="">全社</option>
-          <option value="boost">Boost</option>
-          <option value="salt2">SALT2</option>
-        </select>
-        <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
           className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
@@ -115,8 +100,7 @@ export default function MembersPage() {
           <option value="">全ロール</option>
           <option value="admin">管理者</option>
           <option value="manager">マネージャー</option>
-          <option value="employee">社員</option>
-          <option value="intern">インターン</option>
+          <option value="member">メンバー</option>
         </select>
       </div>
 
@@ -136,7 +120,6 @@ export default function MembersPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-slate-800">{member.name}</span>
-                        <span className="text-xs text-slate-400">{companyDisplay(member.company)}</span>
                       </div>
                       <div className="mt-2 flex items-center gap-2 flex-wrap">
                         <span

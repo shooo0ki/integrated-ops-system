@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Clock, Users, FolderOpen, FileText, TrendingUp,
   AlertTriangle, CheckCircle, Circle, Coffee, ArrowRight
@@ -78,8 +79,15 @@ function formatCurrency(v: number) {
 
 export default function DashboardPage() {
   const { role } = useAuth();
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (role === "member") {
+      router.replace("/mypage");
+    }
+  }, [role, router]);
 
   useEffect(() => {
     fetch("/api/dashboard")

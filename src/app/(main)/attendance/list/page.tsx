@@ -46,7 +46,10 @@ export default function AttendanceListPage() {
 
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
@@ -99,7 +102,7 @@ export default function AttendanceListPage() {
   const base = new Date();
   for (let i = 0; i < 6; i++) {
     const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    monthOptions.push(d.toISOString().slice(0, 7));
+    monthOptions.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
   const targetMember = members.find((m) => m.id === targetMemberId);

@@ -6,9 +6,7 @@ import { prisma } from "@/lib/db";
 export async function GET(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (user.role !== "admin" && user.role !== "manager") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  // 閲覧は全ロールに開放（編集は admin/manager のみ）
 
   const { searchParams } = new URL(req.url);
   const month = searchParams.get("month");
@@ -69,11 +67,11 @@ export async function GET(req: NextRequest) {
   );
 }
 
-// PUT /api/pl-records — admin 手動入力・更新 (upsert)
+// PUT /api/pl-records — admin / manager 手動入力・更新 (upsert)
 export async function PUT(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (user.role !== "admin") {
+  if (user.role !== "admin" && user.role !== "manager") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -144,4 +142,51 @@ export async function PUT(req: NextRequest) {
   });
 
   return NextResponse.json({ id: record.id, grossProfit, grossProfitRate });
+}
+
+// PATCH /api/pl-records — 掛け率・追加売上の部分更新（admin / manager）
+export async function PATCH(req: NextRequest) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (user.role !== "admin" && user.role !== "manager") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const body = await req.json() as { id: string; markupRate?: number; revenueExtra?: number };
+  if (!body.id) {
+    return NextResponse.json({ error: "id は必須です" }, { status: 400 });
+  }
+
+  const current = await prisma.pLRecord.findUnique({ where: { id: body.id } });
+  if (!current) return NextResponse.json({ error: "Not Found" }, { status: 404 });
+
+  const laborCost = current.costLaborMonthly + current.costLaborHourly + current.costOutsourcing;
+
+  // 掛け率が指定された場合は revenueContract を再計算、なければ現状維持
+  const newRevenueContract = typeof body.markupRate === "number"
+    ? Math.round(laborCost * body.markupRate + current.costTools)
+    : current.revenueContract;
+
+  // 追加売上が指定された場合は更新、なければ現状維持
+  const newRevenueExtra = typeof body.revenueExtra === "number" ? body.revenueExtra : current.revenueExtra;
+
+  const newRevenue = newRevenueContract + newRevenueExtra;
+  const grossProfit = newRevenue - laborCost - current.costTools - current.costOther;
+  const grossProfitRate = newRevenue > 0 ? (grossProfit / newRevenue) * 100 : 0;
+
+  const updated = await prisma.pLRecord.update({
+    where: { id: body.id },
+    data: {
+      ...(typeof body.markupRate === "number" ? { markupRate: body.markupRate, revenueContract: newRevenueContract } : {}),
+      revenueExtra: newRevenueExtra,
+      grossProfit,
+      grossProfitRate,
+    },
+  });
+
+  return NextResponse.json({
+    id: updated.id,
+    markupRate: body.markupRate ?? (current.markupRate ? Number(current.markupRate) : null),
+    revenueExtra: newRevenueExtra,
+    revenue: newRevenue,
+    grossProfit,
+  });
 }

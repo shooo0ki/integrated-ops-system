@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
-interface MemberRow { id: string; name: string; company: string }
-interface ProjectCol { id: string; name: string; company: string; status: string }
+interface MemberRow { id: string; name: string }
+interface ProjectCol { id: string; name: string; status: string }
 interface CellData { assignId: string; hours: number }
 
 interface WorkloadData {
@@ -21,7 +20,10 @@ interface WorkloadData {
 // ─── ページ ───────────────────────────────────────────────
 
 export default function WorkloadPage() {
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [data, setData] = useState<WorkloadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -95,7 +97,7 @@ export default function WorkloadPage() {
   const base = new Date();
   for (let i = 0; i < 6; i++) {
     const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    monthOptions.push(d.toISOString().slice(0, 7));
+    monthOptions.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
   const members = data?.members ?? [];
@@ -148,10 +150,7 @@ export default function WorkloadPage() {
                   </th>
                   {projects.map((p) => (
                     <th key={p.id} className="px-3 py-3 text-center text-xs font-medium text-slate-600 min-w-[100px] border-r border-slate-100">
-                      <Badge variant={p.company === "boost" ? "boost" : "salt2"} className="text-xs">
-                        {p.company === "boost" ? "Boost" : "SALT2"}
-                      </Badge>
-                      <p className="mt-0.5 text-slate-700 font-semibold truncate max-w-[90px]">{p.name.slice(0, 10)}</p>
+                      <p className="text-slate-700 font-semibold truncate max-w-[90px]">{p.name.slice(0, 10)}</p>
                     </th>
                   ))}
                   <th className="px-3 py-3 text-center text-xs font-semibold text-slate-700 bg-blue-50 min-w-[80px]">合計</th>

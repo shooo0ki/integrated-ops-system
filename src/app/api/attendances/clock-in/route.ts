@@ -7,7 +7,7 @@ function unauthorized() {
 }
 
 // ─── POST /api/attendances/clock-in ──────────────────────
-// Body: { date: "YYYY-MM-DD", todoToday: string }
+// Body: { date: "YYYY-MM-DD", todoToday: string, locationType?: string }
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const date: string = body?.date;
   const todoToday: string = body?.todoToday ?? "";
+  const locationType: string = body?.locationType ?? "office";
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "date が不正です" } }, { status: 400 });
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
       date: new Date(date),
       clockIn: now,
       todoToday: todoToday || null,
+      locationType,
     },
     update: {
       // 既に出勤済みの場合は上書きしない
@@ -41,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (!attendance.clockIn || attendance.clockIn > now) {
     await prisma.attendance.update({
       where: { id: attendance.id },
-      data: { clockIn: now, todoToday: todoToday || null },
+      data: { clockIn: now, todoToday: todoToday || null, locationType },
     });
   }
 

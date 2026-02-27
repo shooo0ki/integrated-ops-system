@@ -57,19 +57,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
 
-  // カテゴリ内スキルに評価データが存在する場合は削除不可
-  const evalCount = await prisma.memberSkill.count({
-    where: { skill: { categoryId: id } },
-  });
-  if (evalCount > 0) {
-    return NextResponse.json(
-      { error: { code: "CONFLICT", message: "評価データが存在するため削除できません" } },
-      { status: 409 }
-    );
-  }
-
-  // スキルをすべて削除してからカテゴリを削除
+  // 評価データ → スキル → カテゴリの順に削除
   await prisma.$transaction([
+    prisma.memberSkill.deleteMany({ where: { skill: { categoryId: id } } }),
     prisma.skill.deleteMany({ where: { categoryId: id } }),
     prisma.skillCategory.delete({ where: { id } }),
   ]);

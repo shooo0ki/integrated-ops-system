@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = req.nextUrl;
-  const company = searchParams.get("company") ?? "";
   const categoryId = searchParams.get("categoryId") ?? "";
   const minLevel = Number(searchParams.get("minLevel") ?? "0");
 
@@ -28,7 +27,6 @@ export async function GET(req: NextRequest) {
   const members = await prisma.member.findMany({
     where: {
       deletedAt: null,
-      ...(company ? { company } : {}),
     },
     include: {
       skills: {
@@ -67,7 +65,6 @@ export async function GET(req: NextRequest) {
     members: filteredMembers.map((m) => ({
       id: m.id,
       name: m.name,
-      company: m.company,
       role: m.userAccount?.role ?? "",
     })),
     levelMap,

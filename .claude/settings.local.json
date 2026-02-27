@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(head:*)",
+      "Bash(grep:*)",
+      "Bash(tail:*)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(psql postgres:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

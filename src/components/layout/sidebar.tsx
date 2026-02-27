@@ -16,7 +16,6 @@ import {
   Star,
   CalendarClock,
   CalendarDays,
-  ClipboardList,
   BarChart2,
   Settings,
   Wallet,
@@ -25,34 +24,32 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
-const ALL = ["admin", "manager", "employee", "intern"];
-const STAFF = ["admin", "manager", "employee"];
+const ALL = ["admin", "manager", "member"];
+const STAFF = ["admin", "manager"];
 const PRIVILEGED = ["admin", "manager"];
 
 const navItems = [
-  { href: "/dashboard",       label: "ダッシュボード",   icon: LayoutDashboard, roles: ALL },
+  { href: "/dashboard",       label: "ダッシュボード",   icon: LayoutDashboard, roles: PRIVILEGED },
   { href: "/members",         label: "メンバー",         icon: Users,           roles: PRIVILEGED },
-  { href: "/skills",          label: "スキルマトリクス",  icon: Star,            roles: ALL },
+  { href: "/skills",          label: "スキルマトリクス",  icon: Star,            roles: PRIVILEGED },
   { href: "/attendance",      label: "打刻",             icon: Clock,           roles: ALL },
   { href: "/calendar",        label: "カレンダー",        icon: CalendarDays,    roles: ALL },
   { href: "/schedule",        label: "勤務予定",          icon: CalendarClock,   roles: ALL },
-  { href: "/attendance/list", label: "勤怠一覧",          icon: ClipboardList,   roles: ALL },
-  { href: "/projects",        label: "プロジェクト",      icon: FolderOpen,      roles: ALL },
+  { href: "/projects",        label: "プロジェクト",      icon: FolderOpen,      roles: PRIVILEGED },
   { href: "/workload",        label: "工数管理",          icon: BarChart2,       roles: PRIVILEGED },
   { href: "/tools",           label: "ツール管理",        icon: Wrench,          roles: PRIVILEGED },
   { href: "/contracts",       label: "契約管理",          icon: FileCheck,       roles: ["admin"] },
-  { href: "/closing",         label: "月末締め",          icon: CalendarClock,   roles: ["admin"] },
-  { href: "/invoices",        label: "請求書管理",        icon: FileText,        roles: ALL },
-  { href: "/pl/summary",      label: "PL サマリー",       icon: TrendingUp,      roles: STAFF },
+  { href: "/closing",         label: "請求管理",          icon: FileText,        roles: ALL },
+  { href: "/pl/summary",      label: "PL サマリー",       icon: TrendingUp,      roles: ALL },
   { href: "/pl/cashflow",     label: "キャッシュフロー",  icon: Wallet,          roles: ["admin"] },
-  { href: "/evaluation",      label: "人事評価",          icon: Award,           roles: ALL },
+  { href: "/evaluation",      label: "人事評価",          icon: Award,           roles: PRIVILEGED },
   { href: "/mypage",          label: "マイページ",        icon: User,            roles: ALL },
   { href: "/settings",        label: "設定",              icon: Settings,        roles: ["admin"] },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { role, company } = useAuth();
+  const { role } = useAuth();
 
   const visibleItems = navItems.filter((item) =>
     item.roles.includes(role)
@@ -65,7 +62,6 @@ export function Sidebar() {
         <Building2 size={20} className="text-blue-600" />
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-slate-800">統合業務管理</p>
-          <p className="text-xs text-slate-500">{company ?? "—"}</p>
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Clock, CheckCircle, Coffee, Building2, Monitor } from "lucide-react";
+import { Clock, CheckCircle, Coffee, Building2, Monitor, ClipboardEdit, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,13 +24,16 @@ interface TodayRecord {
   status: AttendanceStatus;
 }
 
-interface TeamRecord {
+interface CorrectionRecord {
   id: string;
   memberId: string;
   memberName: string;
-  status: string;
+  date: string;
   clockIn: string | null;
   clockOut: string | null;
+  breakMinutes: number;
+  actualHours: number | null;
+  confirmStatus: string;
 }
 
 // ─── スタイル ────────────────────────────────────────────
@@ -54,15 +57,17 @@ export default function AttendancePage() {
 
   const [myRecord, setMyRecord] = useState<TodayRecord | null>(null);
   const [myStatus, setMyStatus] = useState<AttendanceStatus>("not_started");
-  const [teamRecords, setTeamRecords] = useState<TeamRecord[]>([]);
-  const [loadingTeam, setLoadingTeam] = useState(false);
+  const [corrections, setCorrections] = useState<CorrectionRecord[]>([]);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [corrToast, setCorrToast] = useState<string | null>(null);
 
   // フォーム
   const [workLocation, setWorkLocation] = useState<"オフィス" | "オンライン" | "">("");
+  const locationTypeMap: Record<string, string> = { "オフィス": "office", "オンライン": "online" };
   const [todayPlan, setTodayPlan] = useState("");
   const [todayDone, setTodayDone] = useState("");
   const [tomorrowPlan, setTomorrowPlan] = useState("");
-  const [breakMinutes, setBreakMinutes] = useState("60");
+  const [breakMinutes, setBreakMinutes] = useState("0");
   const [clockInError, setClockInError] = useState("");
   const [actionLog, setActionLog] = useState<string[]>([]);
 
@@ -83,22 +88,20 @@ export default function AttendancePage() {
     }
   }, []);
 
-  // チームの今日の記録（admin/manager のみ）
-  const loadTeam = useCallback(async () => {
+  // 修正申請一覧の取得（admin/manager のみ）
+  const loadCorrections = useCallback(async () => {
     if (!isAdmin) return;
-    setLoadingTeam(true);
-    const res = await fetch(`/api/attendances?month=${todayStr.slice(0, 7)}`);
+    const res = await fetch("/api/attendances/corrections");
     if (res.ok) {
-      // 本来はチーム全員の今日分を取得するAPIが必要だが、
-      // 簡易実装として自分の月次データから代用。チーム一覧は別途実装。
+      const data = await res.json();
+      setCorrections(Array.isArray(data) ? data : []);
     }
-    setLoadingTeam(false);
-  }, [isAdmin, todayStr]);
+  }, [isAdmin]);
 
   useEffect(() => {
     loadToday();
-    if (isAdmin) loadTeam();
-  }, [loadToday, loadTeam, isAdmin]);
+    if (isAdmin) loadCorrections();
+  }, [loadToday, loadCorrections, isAdmin]);
 
   async function clockIn() {
     if (!workLocation) { setClockInError("勤務場所を選択してください"); return; }
@@ -107,7 +110,7 @@ export default function AttendancePage() {
     const res = await fetch("/api/attendances/clock-in", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: todayStr, todoToday: todayPlan }),
+      body: JSON.stringify({ date: todayStr, todoToday: todayPlan, locationType: locationTypeMap[workLocation] ?? "office" }),
     });
     if (res.ok) {
       setMyStatus("working");
@@ -131,7 +134,7 @@ export default function AttendancePage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        date: todayStr,
+        date: myRecord?.date ?? todayStr,
         doneToday: todayDone,
         todoTomorrow: tomorrowPlan,
         breakMinutes: Number(breakMinutes),
@@ -146,8 +149,31 @@ export default function AttendancePage() {
     }
   }
 
+  async function handleApprove(id: string) {
+    setApprovingId(id);
+    const res = await fetch(`/api/attendances/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmStatus: "confirmed" }),
+    });
+    if (res.ok) {
+      setCorrections((prev) => prev.filter((c) => c.id !== id));
+      setCorrToast("修正を承認しました");
+      setTimeout(() => setCorrToast(null), 3000);
+    }
+    setApprovingId(null);
+  }
+
   return (
     <div className="space-y-6">
+      {/* Toast */}
+      {corrToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg bg-slate-800 px-5 py-3 text-sm text-white shadow-lg">
+          <CheckCircle size={15} className="text-green-400" />
+          {corrToast}
+        </div>
+      )}
+
       <div>
         <h1 className="text-xl font-bold text-slate-800">打刻</h1>
         <p className="text-sm text-slate-500">{todayLabel}</p>
@@ -178,7 +204,7 @@ export default function AttendancePage() {
               <div>
                 <p className="mb-2 text-sm font-medium text-slate-700">勤務場所 <span className="text-red-500">*</span></p>
                 <div className="flex gap-2">
-                  {(["オフィス", "オンライン"] as const).map((loc) => (
+                  {(["オフィス", "オンライン"] as const).map((loc: "オフィス" | "オンライン") => (
                     <button
                       key={loc}
                       type="button"
@@ -297,19 +323,67 @@ export default function AttendancePage() {
         </div>
       </Card>
 
-      {/* チームステータス（admin/manager） */}
+      {/* 勤怠修正申請 承認セクション（admin/manager） */}
       {isAdmin && (
         <Card>
           <CardHeader>
-            <CardTitle>チーム勤怠状況（本日）</CardTitle>
+            <CardTitle>
+              <ClipboardEdit size={16} className="inline mr-1" />
+              勤怠修正申請の承認
+            </CardTitle>
           </CardHeader>
-          {loadingTeam ? (
-            <p className="text-sm text-slate-400">読み込み中...</p>
+
+          {corrections.length === 0 ? (
+            <p className="text-sm text-slate-400">承認待ちの修正申請はありません。</p>
           ) : (
-            <p className="text-sm text-slate-400">
-              ※ チーム一覧は勤怠一覧ページで確認できます。
-              <Link href="/attendance/list" className="ml-1 text-blue-600 hover:underline">勤怠一覧へ →</Link>
-            </p>
+            <>
+              <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <AlertCircle size={14} className="shrink-0" />
+                {corrections.length}件 の修正申請が承認待ちです
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-slate-100 bg-slate-50">
+                    <tr className="text-xs text-slate-500">
+                      <th className="px-3 py-2 text-left font-medium">メンバー</th>
+                      <th className="px-3 py-2 text-left font-medium">日付</th>
+                      <th className="px-3 py-2 text-center font-medium">出勤</th>
+                      <th className="px-3 py-2 text-center font-medium">退勤</th>
+                      <th className="px-3 py-2 text-center font-medium">休憩</th>
+                      <th className="px-3 py-2 text-right font-medium">実働</th>
+                      <th className="px-3 py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {corrections.map((c) => (
+                      <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50">
+                        <td className="px-3 py-2 font-medium text-slate-800">{c.memberName}</td>
+                        <td className="px-3 py-2 text-slate-600">
+                          {c.date.replace(/-/g, "/")}
+                        </td>
+                        <td className="px-3 py-2 text-center text-slate-600">{c.clockIn ?? "—"}</td>
+                        <td className="px-3 py-2 text-center text-slate-600">{c.clockOut ?? "—"}</td>
+                        <td className="px-3 py-2 text-center text-slate-500 text-xs">{c.breakMinutes}分</td>
+                        <td className="px-3 py-2 text-right text-slate-700">
+                          {c.actualHours != null ? `${c.actualHours.toFixed(1)}h` : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => handleApprove(c.id)}
+                            disabled={approvingId === c.id}
+                          >
+                            <CheckCircle size={13} />
+                            承認
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </Card>
       )}

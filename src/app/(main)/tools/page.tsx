@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Wrench, Plus, TrendingUp, Edit2, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input, Select } from "@/components/ui/input";
@@ -14,11 +13,9 @@ interface ToolEntry {
   id: string;
   memberId: string;
   memberName: string;
-  memberCompany: string;
   toolName: string;
   plan: string | null;
   monthlyCost: number;
-  companyLabel: string;
   note: string | null;
   updatedAt: string;
 }
@@ -26,13 +23,9 @@ interface ToolEntry {
 interface MemberOption {
   id: string;
   name: string;
-  company: string;
 }
 
-type Company = "boost" | "salt2";
-
 export default function ToolsPage() {
-  const [companyFilter, setCompanyFilter] = useState<Company | "ALL">("ALL");
   const [memberFilter, setMemberFilter] = useState<string>("ALL");
   const [toolFilter, setToolFilter] = useState<string>("ALL");
 
@@ -42,7 +35,7 @@ export default function ToolsPage() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ToolEntry | null>(null);
-  const [form, setForm] = useState({ toolName: "", plan: "", monthlyCost: "", companyLabel: "boost" as Company, memberId: "", note: "" });
+  const [form, setForm] = useState({ toolName: "", plan: "", monthlyCost: "", memberId: "", note: "" });
   const [editForm, setEditForm] = useState({ plan: "", monthlyCost: "", note: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,7 +48,7 @@ export default function ToolsPage() {
     if (toolsRes.ok) setTools(await toolsRes.json());
     if (membersRes.ok) {
       const data = await membersRes.json();
-      setMembers((data.members ?? data).map((m: { id: string; name: string; company: string }) => ({ id: m.id, name: m.name, company: m.company })));
+      setMembers((data.members ?? data).map((m: { id: string; name: string }) => ({ id: m.id, name: m.name })));
     }
     setLoading(false);
   }, []);
@@ -65,15 +58,12 @@ export default function ToolsPage() {
   const toolNames = Array.from(new Set(tools.map((t) => t.toolName))).sort();
 
   const filtered = tools.filter((t) => {
-    const matchCompany = companyFilter === "ALL" || t.companyLabel === companyFilter;
     const matchMember = memberFilter === "ALL" || t.memberId === memberFilter;
     const matchTool = toolFilter === "ALL" || t.toolName === toolFilter;
-    return matchCompany && matchMember && matchTool;
+    return matchMember && matchTool;
   });
 
   const totalCost = filtered.reduce((s, t) => s + t.monthlyCost, 0);
-  const boostCost = tools.filter((t) => t.companyLabel === "boost").reduce((s, t) => s + t.monthlyCost, 0);
-  const salt2Cost = tools.filter((t) => t.companyLabel === "salt2").reduce((s, t) => s + t.monthlyCost, 0);
 
   const toolSummary = filtered.reduce<Record<string, { count: number; totalCost: number }>>((acc, t) => {
     if (!acc[t.toolName]) acc[t.toolName] = { count: 0, totalCost: 0 };
@@ -83,7 +73,7 @@ export default function ToolsPage() {
   }, {});
 
   async function handleAdd() {
-    if (!form.memberId || !form.toolName || !form.companyLabel) return;
+    if (!form.memberId || !form.toolName) return;
     setSubmitting(true);
     const res = await fetch("/api/tools", {
       method: "POST",
@@ -93,7 +83,6 @@ export default function ToolsPage() {
         toolName: form.toolName,
         plan: form.plan || undefined,
         monthlyCost: form.monthlyCost ? Number(form.monthlyCost) : 0,
-        companyLabel: form.companyLabel,
         note: form.note || undefined,
       }),
     });
@@ -101,7 +90,7 @@ export default function ToolsPage() {
       const newTool = await res.json();
       setTools((prev) => [...prev, newTool]);
       setAddOpen(false);
-      setForm({ toolName: "", plan: "", monthlyCost: "", companyLabel: "boost", memberId: "", note: "" });
+      setForm({ toolName: "", plan: "", monthlyCost: "", memberId: "", note: "" });
     }
     setSubmitting(false);
   }
@@ -116,13 +105,12 @@ export default function ToolsPage() {
         toolName: editTarget.toolName,
         plan: editForm.plan || null,
         monthlyCost: editForm.monthlyCost ? Number(editForm.monthlyCost) : editTarget.monthlyCost,
-        companyLabel: editTarget.companyLabel,
         note: editForm.note || null,
       }),
     });
     if (res.ok) {
       const updated = await res.json();
-      setTools((prev) => prev.map((t) => (t.id === editTarget.id ? { ...t, ...updated, memberName: editTarget.memberName, memberCompany: editTarget.memberCompany } : t)));
+      setTools((prev) => prev.map((t) => (t.id === editTarget.id ? { ...t, ...updated, memberName: editTarget.memberName } : t)));
       setEditTarget(null);
     }
     setSubmitting(false);
@@ -135,8 +123,6 @@ export default function ToolsPage() {
       setTools((prev) => prev.filter((t) => t.id !== tool.id));
     }
   }
-
-  const companyLabelDisplay = (c: string) => c === "boost" ? "Boost" : "SALT2";
 
   return (
     <div className="space-y-6">
@@ -151,18 +137,10 @@ export default function ToolsPage() {
       </div>
 
       {/* KPI */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4">
         <Card>
           <p className="text-xs text-slate-500">表示中合計/月</p>
           <p className="mt-1 text-xl font-bold text-slate-800">{formatCurrency(totalCost)}</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-slate-500">Boost 月額合計</p>
-          <p className="mt-1 text-xl font-bold text-blue-700">{formatCurrency(boostCost)}</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-slate-500">SALT2 月額合計</p>
-          <p className="mt-1 text-xl font-bold text-green-700">{formatCurrency(salt2Cost)}</p>
         </Card>
         <Card>
           <p className="text-xs text-slate-500">ツール種別数</p>
@@ -203,15 +181,6 @@ export default function ToolsPage() {
           {toolNames.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
         <select
-          value={companyFilter}
-          onChange={(e) => setCompanyFilter(e.target.value as Company | "ALL")}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        >
-          <option value="ALL">全社</option>
-          <option value="boost">Boost</option>
-          <option value="salt2">SALT2</option>
-        </select>
-        <select
           value={memberFilter}
           onChange={(e) => setMemberFilter(e.target.value)}
           className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
@@ -234,7 +203,6 @@ export default function ToolsPage() {
                   <th className="px-4 py-3 text-left font-medium">ツール名</th>
                   <th className="px-4 py-3 text-left font-medium">プラン</th>
                   <th className="px-4 py-3 text-right font-medium">月額</th>
-                  <th className="px-4 py-3 text-left font-medium">請求先</th>
                   <th className="px-4 py-3 text-left font-medium">備考</th>
                   <th className="px-4 py-3 text-left font-medium">更新日</th>
                   <th className="px-4 py-3" />
@@ -256,11 +224,6 @@ export default function ToolsPage() {
                       ) : (
                         <span className="font-semibold text-slate-800">{formatCurrency(tool.monthlyCost)}</span>
                       )}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <Badge variant={tool.companyLabel === "boost" ? "boost" : "salt2"}>
-                        {companyLabelDisplay(tool.companyLabel)}
-                      </Badge>
                     </td>
                     <td className="px-4 py-2.5 text-xs text-slate-500 max-w-[120px] truncate">{tool.note ?? "—"}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-400">{formatDate(tool.updatedAt)}</td>
@@ -311,10 +274,6 @@ export default function ToolsPage() {
           <Input id="toolName" label="ツール名 *" value={form.toolName} onChange={(e) => setForm((f) => ({ ...f, toolName: e.target.value }))} placeholder="Claude" />
           <Input id="plan" label="プラン" value={form.plan} onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))} placeholder="Pro" />
           <Input id="monthlyCost" type="number" label="月額（円）" value={form.monthlyCost} onChange={(e) => setForm((f) => ({ ...f, monthlyCost: e.target.value }))} placeholder="3200" />
-          <Select id="companyLabel" label="請求先 *" value={form.companyLabel} onChange={(e) => setForm((f) => ({ ...f, companyLabel: e.target.value as Company }))}>
-            <option value="boost">Boost</option>
-            <option value="salt2">SALT2</option>
-          </Select>
           <Input id="note" label="備考" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} placeholder="用途など" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setAddOpen(false)}>キャンセル</Button>

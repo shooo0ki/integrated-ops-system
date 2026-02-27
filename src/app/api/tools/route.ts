@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { type Company } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 
@@ -22,12 +23,12 @@ export async function GET(req: NextRequest) {
 
   const tools = await prisma.memberTool.findMany({
     where: {
-      ...(company ? { companyLabel: company } : {}),
+      ...(company ? { companyLabel: company as Company } : {}),
       ...(memberId ? { memberId } : {}),
       ...(toolName ? { toolName } : {}),
       member: { deletedAt: null },
     },
-    include: { member: { select: { name: true, company: true } } },
+    include: { member: { select: { name: true } } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -36,7 +37,6 @@ export async function GET(req: NextRequest) {
       id: t.id,
       memberId: t.memberId,
       memberName: t.member.name,
-      memberCompany: t.member.company,
       toolName: t.toolName,
       plan: t.plan,
       monthlyCost: t.monthlyCost,
@@ -55,11 +55,11 @@ export async function POST(req: NextRequest) {
   if (!["admin", "manager"].includes(user.role)) return forbidden();
 
   const body = await req.json().catch(() => null);
-  const { memberId, toolName, plan, monthlyCost, companyLabel, note } = body ?? {};
+  const { memberId, toolName, plan, monthlyCost, note } = body ?? {};
 
-  if (!memberId || !toolName || !companyLabel) {
+  if (!memberId || !toolName) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "memberId, toolName, companyLabel は必須です" } },
+      { error: { code: "VALIDATION_ERROR", message: "memberId, toolName は必須です" } },
       { status: 400 }
     );
   }
@@ -78,10 +78,10 @@ export async function POST(req: NextRequest) {
       toolName,
       plan: plan || null,
       monthlyCost: monthlyCost ?? 0,
-      companyLabel,
+      companyLabel: "salt2",
       note: note || null,
     },
-    include: { member: { select: { name: true, company: true } } },
+    include: { member: { select: { name: true } } },
   });
 
   return NextResponse.json(
@@ -89,7 +89,6 @@ export async function POST(req: NextRequest) {
       id: tool.id,
       memberId: tool.memberId,
       memberName: tool.member.name,
-      memberCompany: tool.member.company,
       toolName: tool.toolName,
       plan: tool.plan,
       monthlyCost: tool.monthlyCost,

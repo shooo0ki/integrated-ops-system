@@ -18,6 +18,38 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// ─── 固定 UUID（UUID v4 互換形式） ──────────────────────────────────────────
+// 形式: xxxxxxxx-xxxx-4xxx-axxx-xxxxxxxxxxxx（Zod .uuid() 通過済み）
+const ID = {
+  // members
+  memberSato:   "00000000-0000-4000-a000-000000000001",
+  memberTanaka: "00000000-0000-4000-a000-000000000002",
+  memberSuzuki: "00000000-0000-4000-a000-000000000003",
+  memberYamada: "00000000-0000-4000-a000-000000000004",
+  // user_accounts
+  userSato:     "10000000-0000-4000-a000-000000000001",
+  userTanaka:   "10000000-0000-4000-a000-000000000002",
+  userSuzuki:   "10000000-0000-4000-a000-000000000003",
+  userYamada:   "10000000-0000-4000-a000-000000000004",
+  // skill_categories
+  catEng:       "20000000-0000-4000-a000-000000000001",
+  catAI:        "20000000-0000-4000-a000-000000000002",
+  catBiz:       "20000000-0000-4000-a000-000000000003",
+  // skills
+  skillFE:      "30000000-0000-4000-a000-000000000001",
+  skillBE:      "30000000-0000-4000-a000-000000000002",
+  skillDB:      "30000000-0000-4000-a000-000000000003",
+  skillML:      "30000000-0000-4000-a000-000000000004",
+  skillPrompt:  "30000000-0000-4000-a000-000000000005",
+  skillRAG:     "30000000-0000-4000-a000-000000000006",
+  skillPM:      "30000000-0000-4000-a000-000000000007",
+  skillSales:   "30000000-0000-4000-a000-000000000008",
+  skillDoc:     "30000000-0000-4000-a000-000000000009",
+  // projects
+  project1:     "40000000-0000-4000-a000-000000000001",
+  project2:     "40000000-0000-4000-a000-000000000002",
+};
+
 async function main() {
   console.log("🌱 Seeding database...");
 
@@ -25,13 +57,12 @@ async function main() {
   console.log("  Creating members...");
 
   const memberSato = await prisma.member.upsert({
-    where: { id: "seed-member-sato-0000-000000000001" },
+    where: { id: ID.memberSato },
     update: {},
     create: {
-      id: "seed-member-sato-0000-000000000001",
+      id: ID.memberSato,
       name: "佐藤 健太",
       status: "executive",
-      company: "boost",
       salaryType: "monthly",
       salaryAmount: 500000,
       joinedAt: new Date("2023-04-01"),
@@ -39,13 +70,12 @@ async function main() {
   });
 
   const memberTanaka = await prisma.member.upsert({
-    where: { id: "seed-member-tanaka-000-000000000002" },
+    where: { id: ID.memberTanaka },
     update: {},
     create: {
-      id: "seed-member-tanaka-000-000000000002",
+      id: ID.memberTanaka,
       name: "田中 一郎",
       status: "employee",
-      company: "boost",
       salaryType: "monthly",
       salaryAmount: 350000,
       joinedAt: new Date("2024-01-15"),
@@ -53,13 +83,12 @@ async function main() {
   });
 
   const memberSuzuki = await prisma.member.upsert({
-    where: { id: "seed-member-suzuki-00-000000000003" },
+    where: { id: ID.memberSuzuki },
     update: {},
     create: {
-      id: "seed-member-suzuki-00-000000000003",
+      id: ID.memberSuzuki,
       name: "鈴木 花子",
       status: "employee",
-      company: "salt2",
       salaryType: "monthly",
       salaryAmount: 300000,
       joinedAt: new Date("2024-06-01"),
@@ -67,13 +96,12 @@ async function main() {
   });
 
   const memberYamada = await prisma.member.upsert({
-    where: { id: "seed-member-yamada-00-000000000004" },
+    where: { id: ID.memberYamada },
     update: {},
     create: {
-      id: "seed-member-yamada-00-000000000004",
+      id: ID.memberYamada,
       name: "山田 さくら",
       status: "intern_training",
-      company: "boost",
       salaryType: "hourly",
       salaryAmount: 1500,
       joinedAt: new Date("2026-01-06"),
@@ -93,7 +121,7 @@ async function main() {
     where: { email: "sato@example.com" },
     update: {},
     create: {
-      id: "seed-user-sato-0000-000000000001",
+      id: ID.userSato,
       email: "sato@example.com",
       passwordHash: defaultPassword,
       role: "admin",
@@ -105,7 +133,7 @@ async function main() {
     where: { email: "tanaka@example.com" },
     update: {},
     create: {
-      id: "seed-user-tanaka-000-000000000002",
+      id: ID.userTanaka,
       email: "tanaka@example.com",
       passwordHash: defaultPassword,
       role: "manager",
@@ -117,22 +145,22 @@ async function main() {
     where: { email: "suzuki@example.com" },
     update: {},
     create: {
-      id: "seed-user-suzuki-00-000000000003",
+      id: ID.userSuzuki,
       email: "suzuki@example.com",
       passwordHash: defaultPassword,
-      role: "employee",
+      role: "manager",
       memberId: memberSuzuki.id,
     },
   });
 
-  const userYamada = await prisma.userAccount.upsert({
+  await prisma.userAccount.upsert({
     where: { email: "yamada@example.com" },
     update: {},
     create: {
-      id: "seed-user-yamada-00-000000000004",
+      id: ID.userYamada,
       email: "yamada@example.com",
       passwordHash: defaultPassword,
-      role: "intern",
+      role: "member",
       memberId: memberYamada.id,
     },
   });
@@ -146,7 +174,7 @@ async function main() {
     where: { name: "エンジニアリング" },
     update: {},
     create: {
-      id: "seed-cat-eng-000000-000000000001",
+      id: ID.catEng,
       name: "エンジニアリング",
       description: "ソフトウェア開発スキル",
       displayOrder: 1,
@@ -157,7 +185,7 @@ async function main() {
     where: { name: "AIスキル" },
     update: {},
     create: {
-      id: "seed-cat-ai-0000000-000000000002",
+      id: ID.catAI,
       name: "AIスキル",
       description: "機械学習・データサイエンス",
       displayOrder: 2,
@@ -168,7 +196,7 @@ async function main() {
     where: { name: "ビジネス" },
     update: {},
     create: {
-      id: "seed-cat-biz-000000-000000000003",
+      id: ID.catBiz,
       name: "ビジネス",
       description: "ビジネス・マネジメントスキル",
       displayOrder: 3,
@@ -179,51 +207,51 @@ async function main() {
   const skillFE = await prisma.skill.upsert({
     where: { categoryId_name: { categoryId: catEng.id, name: "フロントエンド" } },
     update: {},
-    create: { id: "seed-skill-fe-000000-000000000001", categoryId: catEng.id, name: "フロントエンド", displayOrder: 1 },
+    create: { id: ID.skillFE, categoryId: catEng.id, name: "フロントエンド", displayOrder: 1 },
   });
   const skillBE = await prisma.skill.upsert({
     where: { categoryId_name: { categoryId: catEng.id, name: "バックエンド" } },
     update: {},
-    create: { id: "seed-skill-be-000000-000000000002", categoryId: catEng.id, name: "バックエンド", displayOrder: 2 },
+    create: { id: ID.skillBE, categoryId: catEng.id, name: "バックエンド", displayOrder: 2 },
   });
   const skillDB = await prisma.skill.upsert({
     where: { categoryId_name: { categoryId: catEng.id, name: "DB設計" } },
     update: {},
-    create: { id: "seed-skill-db-000000-000000000003", categoryId: catEng.id, name: "DB設計", displayOrder: 3 },
+    create: { id: ID.skillDB, categoryId: catEng.id, name: "DB設計", displayOrder: 3 },
   });
 
   // スキル（AIスキル）
   const skillML = await prisma.skill.upsert({
     where: { categoryId_name: { categoryId: catAI.id, name: "機械学習" } },
     update: {},
-    create: { id: "seed-skill-ml-000000-000000000004", categoryId: catAI.id, name: "機械学習", displayOrder: 1 },
+    create: { id: ID.skillML, categoryId: catAI.id, name: "機械学習", displayOrder: 1 },
   });
   const skillPrompt = await prisma.skill.upsert({
     where: { categoryId_name: { categoryId: catAI.id, name: "プロンプトエンジニアリング" } },
     update: {},
-    create: { id: "seed-skill-pe-000000-000000000005", categoryId: catAI.id, name: "プロンプトエンジニアリング", displayOrder: 2 },
+    create: { id: ID.skillPrompt, categoryId: catAI.id, name: "プロンプトエンジニアリング", displayOrder: 2 },
   });
   const skillRAG = await prisma.skill.upsert({
     where: { categoryId_name: { categoryId: catAI.id, name: "RAG構築" } },
     update: {},
-    create: { id: "seed-skill-rag-000000-000000000006", categoryId: catAI.id, name: "RAG構築", displayOrder: 3 },
+    create: { id: ID.skillRAG, categoryId: catAI.id, name: "RAG構築", displayOrder: 3 },
   });
 
   // スキル（ビジネス）
   const skillPM = await prisma.skill.upsert({
     where: { categoryId_name: { categoryId: catBiz.id, name: "プロジェクト管理" } },
     update: {},
-    create: { id: "seed-skill-pm-000000-000000000007", categoryId: catBiz.id, name: "プロジェクト管理", displayOrder: 1 },
+    create: { id: ID.skillPM, categoryId: catBiz.id, name: "プロジェクト管理", displayOrder: 1 },
   });
   const skillSales = await prisma.skill.upsert({
     where: { categoryId_name: { categoryId: catBiz.id, name: "営業" } },
     update: {},
-    create: { id: "seed-skill-sales-0000-000000000008", categoryId: catBiz.id, name: "営業", displayOrder: 2 },
+    create: { id: ID.skillSales, categoryId: catBiz.id, name: "営業", displayOrder: 2 },
   });
   const skillDoc = await prisma.skill.upsert({
     where: { categoryId_name: { categoryId: catBiz.id, name: "ドキュメント作成" } },
     update: {},
-    create: { id: "seed-skill-doc-000000-000000000009", categoryId: catBiz.id, name: "ドキュメント作成", displayOrder: 3 },
+    create: { id: ID.skillDoc, categoryId: catBiz.id, name: "ドキュメント作成", displayOrder: 3 },
   });
 
   console.log("  ✓ 3 skill categories, 9 skills created");
@@ -231,7 +259,6 @@ async function main() {
   // ─── スキル評価（追記型：最新 = created_at MAX） ─────────────────────────────
   console.log("  Creating member skill evaluations...");
 
-  const adminUserId = "seed-user-sato-0000-000000000001";
   const evalDate = new Date("2026-01-15");
 
   const skillEvals = [
@@ -261,7 +288,7 @@ async function main() {
         level: eval_.level,
         evaluatedAt: evalDate,
         memo: "初期評価",
-        evaluatedBy: adminUserId,
+        evaluatedBy: ID.userSato,
       },
     });
   }
@@ -273,8 +300,8 @@ async function main() {
 
   await prisma.memberTool.createMany({
     data: [
-      { memberId: memberSato.id, toolName: "Claude", plan: "Pro", monthlyCost: 6800, companyLabel: "boost" },
-      { memberId: memberSato.id, toolName: "Notion", plan: "Plus", monthlyCost: 1600, companyLabel: "boost" },
+      { memberId: memberSato.id,   toolName: "Claude", plan: "Pro", monthlyCost: 6800, companyLabel: "boost" },
+      { memberId: memberSato.id,   toolName: "Notion", plan: "Plus", monthlyCost: 1600, companyLabel: "boost" },
       { memberId: memberTanaka.id, toolName: "Claude", plan: "Pro", monthlyCost: 6800, companyLabel: "boost" },
       { memberId: memberSuzuki.id, toolName: "Claude", plan: "Pro", monthlyCost: 6800, companyLabel: "salt2" },
       { memberId: memberYamada.id, toolName: "Claude", plan: "Pro", monthlyCost: 6800, companyLabel: "boost" },
@@ -286,71 +313,65 @@ async function main() {
   // ─── デモ用プロジェクト ─────────────────────────────────────────────────────
   console.log("  Creating demo projects...");
 
-  const adminUser = await prisma.userAccount.findUnique({
-    where: { email: "sato@example.com" },
+  const project1 = await prisma.project.upsert({
+    where: { id: ID.project1 },
+    update: {},
+    create: {
+      id: ID.project1,
+      name: "〇〇社AI開発支援",
+      description: "LLMを活用した業務効率化システムの開発",
+      status: "active",
+      company: "boost",
+      projectType: "boost_dispatch",
+      startDate: new Date("2026-01-01"),
+      endDate: new Date("2026-06-30"),
+      clientName: "株式会社〇〇",
+      contractType: "quasi_mandate",
+      monthlyContractAmount: 600000,
+      createdBy: ID.userSato,
+    },
   });
 
-  if (adminUser) {
-    const project1 = await prisma.project.upsert({
-      where: { id: "seed-project-ai-0000-000000000001" },
-      update: {},
-      create: {
-        id: "seed-project-ai-0000-000000000001",
-        name: "〇〇社AI開発支援",
-        description: "LLMを活用した業務効率化システムの開発",
-        status: "active",
-        company: "boost",
-        projectType: "boost_dispatch",
-        startDate: new Date("2026-01-01"),
-        endDate: new Date("2026-06-30"),
-        clientName: "株式会社〇〇",
-        contractType: "quasi_mandate",
-        monthlyContractAmount: 600000,
-        createdBy: adminUser.id,
-      },
-    });
+  await prisma.project.upsert({
+    where: { id: ID.project2 },
+    update: {},
+    create: {
+      id: ID.project2,
+      name: "社内業務管理システム（自社）",
+      description: "SALT2の社内業務効率化プロジェクト",
+      status: "active",
+      company: "salt2",
+      projectType: "salt2_own",
+      startDate: new Date("2025-10-01"),
+      clientName: null,
+      contractType: "in_house",
+      monthlyContractAmount: 0,
+      createdBy: ID.userSato,
+    },
+  });
 
-    await prisma.project.upsert({
-      where: { id: "seed-project-own-000-000000000002" },
-      update: {},
-      create: {
-        id: "seed-project-own-000-000000000002",
-        name: "社内業務管理システム（自社）",
-        description: "SALT2の社内業務効率化プロジェクト",
-        status: "active",
-        company: "salt2",
-        projectType: "salt2_own",
-        startDate: new Date("2025-10-01"),
-        clientName: null,
-        contractType: "in_house",
-        monthlyContractAmount: 0,
-        createdBy: adminUser.id,
-      },
-    });
+  // プロジェクトポジション
+  const pos1 = await prisma.projectPosition.create({
+    data: {
+      projectId: project1.id,
+      positionName: "フロントエンドエンジニア",
+      requiredCount: 2,
+    },
+  });
 
-    // プロジェクトポジション
-    const pos1 = await prisma.projectPosition.create({
-      data: {
-        projectId: project1.id,
-        positionName: "フロントエンドエンジニア",
-        requiredCount: 2,
-      },
-    });
+  // アサイン
+  await prisma.projectAssignment.create({
+    data: {
+      projectId: project1.id,
+      positionId: pos1.id,
+      memberId: memberTanaka.id,
+      workloadHours: 80,
+      startDate: new Date("2026-01-01"),
+      createdBy: ID.userSato,
+    },
+  });
 
-    // アサイン
-    await prisma.projectAssignment.create({
-      data: {
-        projectId: project1.id,
-        positionId: pos1.id,
-        memberId: memberTanaka.id,
-        workloadHours: 80,
-        startDate: new Date("2026-01-01"),
-        createdBy: adminUser.id,
-      },
-    });
-
-    console.log("  ✓ 2 demo projects, 1 position, 1 assignment created");
-  }
+  console.log("  ✓ 2 demo projects, 1 position, 1 assignment created");
 
   // ─── 勤務予定（山田・今週分） ────────────────────────────────────────────────
   console.log("  Creating work schedules for Yamada...");

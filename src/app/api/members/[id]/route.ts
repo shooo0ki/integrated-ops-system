@@ -55,12 +55,20 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }
   const latestSkills = Object.values(latestSkillMap);
 
+  // 住所・口座は本人またはadminのみ返す
+  const isSelf = user.memberId === id;
+  const isAdmin = user.role === "admin";
+
   return NextResponse.json({
     id: member.id,
     name: member.name,
     phone: member.phone,
+    address: (isSelf || isAdmin) ? member.address : undefined,
+    bankName: (isSelf || isAdmin) ? member.bankName : undefined,
+    bankBranch: (isSelf || isAdmin) ? member.bankBranch : undefined,
+    bankAccountNumber: (isSelf || isAdmin) ? member.bankAccountNumber : undefined,
+    bankAccountHolder: (isSelf || isAdmin) ? member.bankAccountHolder : undefined,
     status: member.status,
-    company: member.company,
     salaryType: member.salaryType,
     salaryAmount: member.salaryAmount,
     joinedAt: member.joinedAt,
@@ -133,8 +141,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
       data: {
         ...(memberData.name !== undefined && { name: memberData.name }),
         ...(memberData.phone !== undefined && { phone: memberData.phone }),
+        ...(memberData.address !== undefined && { address: memberData.address }),
+        ...(memberData.bankName !== undefined && { bankName: memberData.bankName }),
+        ...(memberData.bankBranch !== undefined && { bankBranch: memberData.bankBranch }),
+        ...(memberData.bankAccountNumber !== undefined && { bankAccountNumber: memberData.bankAccountNumber }),
+        ...(memberData.bankAccountHolder !== undefined && { bankAccountHolder: memberData.bankAccountHolder }),
         ...(memberData.status !== undefined && { status: memberData.status }),
-        ...(memberData.company !== undefined && { company: memberData.company }),
         ...(memberData.salaryType !== undefined && { salaryType: memberData.salaryType }),
         ...(memberData.salaryAmount !== undefined && { salaryAmount: memberData.salaryAmount }),
       },

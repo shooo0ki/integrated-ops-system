@@ -10,7 +10,6 @@ interface AuthState {
   memberId: string | null;  // Member.id (UUID)
   role: string;
   name: string | null;      // 表示用: SessionUser.name（モックデータ不要）
-  company: string | null;   // 表示用: SessionUser.company
   member: Member | null;    // 後方互換（mock-data依存コンポーネント向け）
 }
 
@@ -35,9 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoggedIn: false,
     userId: null,
     memberId: null,
-    role: "employee",
+    role: "member",
     name: null,
-    company: null,
     member: null,
   });
 
@@ -53,7 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             memberId: data.user.memberId,
             role: data.user.role,
             name: data.user.name,
-            company: data.user.company,
             member: findMockMember(data.user),
           });
         }
@@ -81,7 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       memberId: user.memberId,
       role: user.role,
       name: user.name,
-      company: user.company,
       member: findMockMember(user),
     });
     return { success: true };
@@ -89,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function logout(): Promise<void> {
     await fetch("/api/auth/logout", { method: "POST" });
-    setState({ isLoggedIn: false, userId: null, memberId: null, role: "employee", name: null, company: null, member: null });
+    setState({ isLoggedIn: false, userId: null, memberId: null, role: "member", name: null, member: null });
   }
 
   // デモ互換: 実APIでは役割切替を行わない

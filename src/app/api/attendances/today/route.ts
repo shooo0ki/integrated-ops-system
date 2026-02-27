@@ -12,12 +12,25 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) return unauthorized();
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const today = new Date(dateStr); // UTC midnight — clock-in と同じ形式
 
-  const attendance = await prisma.attendance.findUnique({
+  let attendance = await prisma.attendance.findUnique({
     where: { memberId_date: { memberId: user.memberId, date: today } },
   });
+
+  // 今日のレコードがない場合、日をまたいだ継続勤務を確認（昨日の未退勤レコード）
+  if (!attendance) {
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const prev = await prisma.attendance.findUnique({
+      where: { memberId_date: { memberId: user.memberId, date: yesterday } },
+    });
+    if (prev && prev.clockIn && !prev.clockOut) {
+      attendance = prev;
+    }
+  }
 
   if (!attendance) {
     return NextResponse.json(null);
@@ -35,7 +48,7 @@ export async function GET() {
 
   return NextResponse.json({
     id: attendance.id,
-    date: today.toISOString().slice(0, 10),
+    date: attendance.date.toISOString().slice(0, 10), // 日またぎ時は昨日の日付を返す
     clockIn: attendance.clockIn
       ? `${String(attendance.clockIn.getHours()).padStart(2, "0")}:${String(attendance.clockIn.getMinutes()).padStart(2, "0")}`
       : null,
@@ -46,6 +59,7 @@ export async function GET() {
     todoToday: attendance.todoToday,
     doneToday: attendance.doneToday,
     todoTomorrow: attendance.todoTomorrow,
+    locationType: attendance.locationType,
     status,
   });
 }

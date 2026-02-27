@@ -52,12 +52,12 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
     >
       <div
         className={cn(
-          "w-full rounded-xl bg-white shadow-xl",
+          "w-full rounded-xl bg-white shadow-xl flex flex-col max-h-[90vh]",
           sizeStyles[size]
         )}
       >
         {title && (
-          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
             <h2 className="text-base font-semibold text-slate-800">{title}</h2>
             <button
               onClick={onClose}
@@ -67,7 +67,7 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
             </button>
           </div>
         )}
-        <div className="px-6 py-4">{children}</div>
+        <div className="overflow-y-auto px-6 py-4">{children}</div>
       </div>
     </div>
   );

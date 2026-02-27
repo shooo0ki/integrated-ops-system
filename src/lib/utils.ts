@@ -15,10 +15,11 @@ export function formatDate(dateStr: string | Date | null | undefined): string {
   return d.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
+// index 0 = 当月、index n-1 = 最古月（新しい順）
 export function buildMonths(count: number): string[] {
   const months: string[] = [];
   const now = new Date();
-  for (let i = count - 1; i >= 0; i--) {
+  for (let i = 0; i < count; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }

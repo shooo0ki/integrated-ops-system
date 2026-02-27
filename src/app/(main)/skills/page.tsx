@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Star, Settings, ClipboardEdit } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 
@@ -11,7 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 
 interface SkillItem { id: string; name: string }
 interface Category  { id: string; name: string; skills: SkillItem[] }
-interface MemberRow { id: string; name: string; company: string; role: string }
+interface MemberRow { id: string; name: string; role: string }
 
 interface MatrixData {
   categories: Category[];
@@ -33,8 +32,6 @@ const levelBg: Record<number, string> = {
   0: "bg-slate-50", 1: "bg-slate-100", 2: "bg-yellow-50",
   3: "bg-green-50", 4: "bg-blue-50",  5: "bg-purple-50",
 };
-const companyDisplay = (c: string) => c === "boost" ? "Boost" : c === "salt2" ? "SALT2" : c;
-
 function LevelCell({ level }: { level: number | null }) {
   if (level === null) {
     return <td className="border border-slate-100 px-2 py-2 text-center text-xs text-slate-300">—</td>;
@@ -56,7 +53,6 @@ export default function SkillsPage() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [companyFilter, setCompanyFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [minLevel, setMinLevel] = useState(0);
 
@@ -71,7 +67,6 @@ export default function SkillsPage() {
   // マトリクスデータ（フィルタ変更ごとに再取得）
   useEffect(() => {
     const params = new URLSearchParams();
-    if (companyFilter) params.set("company", companyFilter);
     if (categoryFilter) params.set("categoryId", categoryFilter);
     if (minLevel > 0) params.set("minLevel", String(minLevel));
 
@@ -80,7 +75,7 @@ export default function SkillsPage() {
       .then((r) => r.json())
       .then(setData)
       .finally(() => setLoading(false));
-  }, [companyFilter, categoryFilter, minLevel]);
+  }, [categoryFilter, minLevel]);
 
   const allSkills = data?.categories.flatMap((c) =>
     c.skills.map((s) => ({ ...s, categoryId: c.id }))
@@ -122,15 +117,6 @@ export default function SkillsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <select
-          value={companyFilter}
-          onChange={(e) => setCompanyFilter(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        >
-          <option value="">全社</option>
-          <option value="boost">Boost</option>
-          <option value="salt2">SALT2</option>
-        </select>
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
@@ -198,9 +184,6 @@ export default function SkillsPage() {
                         <Link href={`/members/${member.id}`} className="text-slate-700 hover:text-blue-600">
                           {member.name}
                         </Link>
-                        <Badge variant={member.company === "boost" ? "boost" : "salt2"} className="text-[10px] px-1.5">
-                          {companyDisplay(member.company)}
-                        </Badge>
                         {canEval && (
                           <Link
                             href={`/skills/evaluation/${member.id}`}

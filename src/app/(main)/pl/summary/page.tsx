@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, RefreshCw, CheckCircle, AlertCircle, Pencil, Save, X } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
 
 const PLChart = dynamic(
   () => import("@/components/charts/pl-chart").then((m) => m.PLChart),
@@ -26,6 +28,8 @@ interface PLRecord {
   company: string;
   targetMonth: string;
   revenue: number;
+  revenueContract: number;
+  revenueExtra: number;
   laborCost: number;
   toolCost: number;
   otherCost: number;
@@ -47,9 +51,9 @@ function buildMonths(n = 6): string[] {
   const base = new Date();
   for (let i = 0; i < n; i++) {
     const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    months.push(d.toISOString().slice(0, 7));
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
-  return months.reverse();
+  return months;
 }
 
 const MONTHS = buildMonths(6);
@@ -57,10 +61,36 @@ const MONTHS = buildMonths(6);
 // ─── ページ ───────────────────────────────────────────────
 
 export default function PLSummaryPage() {
+  const { role } = useAuth();
+  const canEdit = role === "admin" || role === "manager";
+
   const [tab, setTab] = useState<TabCompany>("合算");
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [allRecords, setAllRecords] = useState<PLRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [genMsg, setGenMsg] = useState<string | null>(null);
+
+  // PL編集 state
+  const [editingMarkup, setEditingMarkup] = useState<string | null>(null); // projectId
+  const [markupInputs, setMarkupInputs] = useState<Record<string, string>>({});
+  const [extraInputs,  setExtraInputs]  = useState<Record<string, string>>({}); // 追加売上
+  const [savingMarkup, setSavingMarkup] = useState<string | null>(null);
+
+  // 申告状況
+  type SelfReportStatus = {
+    memberId: string;
+    memberName: string;
+    submitted: boolean;
+    totalHours: number;
+    submittedAt: string | null;
+    projects: { projectId: string; projectName: string; reportedHours: number }[];
+  };
+  const [selfReports, setSelfReports] = useState<SelfReportStatus[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,7 +101,55 @@ export default function PLSummaryPage() {
     setLoading(false);
   }, []);
 
+  const loadSelfReports = useCallback(async () => {
+    if (!canEdit) return;
+    setReportLoading(true);
+    const res = await fetch(`/api/self-reports?month=${month}`);
+    if (res.ok) setSelfReports(await res.json());
+    setReportLoading(false);
+  }, [canEdit, month]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadSelfReports(); }, [loadSelfReports]);
+
+  async function handleSavePL(pl: PLRecord) {
+    const isDispatch = pl.projectType === "boost_dispatch";
+    const markupVal  = parseFloat(markupInputs[pl.projectId] ?? "");
+    const extraVal   = parseFloat(extraInputs[pl.projectId]  ?? "");
+
+    if (isDispatch && (isNaN(markupVal) || markupVal < 1.0)) return;
+
+    setSavingMarkup(pl.projectId);
+    const body: Record<string, unknown> = { id: pl.id };
+    if (isDispatch && !isNaN(markupVal)) body.markupRate = markupVal;
+    if (!isNaN(extraVal)) body.revenueExtra = extraVal;
+
+    const res = await fetch("/api/pl-records", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      await load();
+      setEditingMarkup(null);
+    }
+    setSavingMarkup(null);
+  }
+
+  async function handleGenerate() {
+    setGenerating(true);
+    setGenMsg(null);
+    const res = await fetch("/api/pl-records/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetMonth: month }),
+    });
+    const data = await res.json();
+    setGenMsg(res.ok ? data.message : (data.error ?? "生成に失敗しました"));
+    if (res.ok) await load();
+    setGenerating(false);
+    setTimeout(() => setGenMsg(null), 5000);
+  }
 
   const currentPL = allRecords.filter((p) => p.targetMonth === month);
   const filteredPL = tab === "合算" ? currentPL : currentPL.filter((p) => p.company === tab);
@@ -82,7 +160,6 @@ export default function PLSummaryPage() {
   const totalRevenue = filteredPL.reduce((s, p) => s + p.revenue, 0);
   const totalLaborCost = filteredPL.reduce((s, p) => s + p.laborCost, 0);
   const totalToolCost = filteredPL.reduce((s, p) => s + p.toolCost, 0);
-  const totalOtherCost = filteredPL.reduce((s, p) => s + p.otherCost, 0);
   const totalGrossProfit = filteredPL.reduce((s, p) => s + p.grossProfit, 0);
   const grossMargin = totalRevenue > 0 ? ((totalGrossProfit / totalRevenue) * 100).toFixed(1) : "0";
 
@@ -103,9 +180,9 @@ export default function PLSummaryPage() {
   const ownProfitTotal = ownPL.reduce((s, p) => s + p.grossProfit, 0);
   const ownMargin = ownRevenueTotal > 0 ? ((ownProfitTotal / ownRevenueTotal) * 100).toFixed(1) : "0";
 
-  // トレンドデータ（6ヶ月）
+  // トレンドデータ（6ヶ月）: 古い月→新しい月（左→右）
   const buildTrendData = (company: "ALL" | "boost" | "salt2") =>
-    MONTHS.map((m) => {
+    [...MONTHS].reverse().map((m) => {
       const recs = allRecords.filter(
         (r) => r.targetMonth === m && (company === "ALL" || r.company === company)
       );
@@ -131,16 +208,30 @@ export default function PLSummaryPage() {
           <h1 className="text-xl font-bold text-slate-800">PL サマリー</h1>
           <p className="text-sm text-slate-500">{month.replace("-", "年")}月 当月実績</p>
         </div>
-        <select
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {MONTHS.slice().reverse().map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {canEdit && (
+            <Button variant="primary" size="sm" onClick={handleGenerate} disabled={generating}>
+              <RefreshCw size={14} className={generating ? "animate-spin" : ""} />
+              {generating ? "集計中..." : "PL自動集計"}
+            </Button>
+          )}
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {MONTHS.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      {genMsg && (
+        <div className={`rounded-lg px-4 py-2.5 text-sm ${genMsg.includes("失敗") || genMsg.includes("エラー") ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+          {genMsg}
+        </div>
+      )}
 
       {/* Tab */}
       <div className="flex gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 w-fit">
@@ -161,6 +252,19 @@ export default function PLSummaryPage() {
         <div className="py-12 text-center text-sm text-slate-400">読み込み中...</div>
       ) : (
         <>
+          {/* データなし案内 */}
+          {currentPL.length === 0 && canEdit && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 flex items-start gap-3">
+              <RefreshCw size={18} className="mt-0.5 text-blue-500 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800">{month} のPLデータがありません</p>
+                <p className="text-xs text-blue-600 mt-0.5">
+                  メンバーが稼働申告を提出後、上の「PL自動集計」ボタンを押すと人件費・ツール費・売上が自動計算されます。
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* ビジネスモデル説明 */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {(tab === "合算" || tab === "boost") && dispatchPL.length > 0 && (
@@ -285,17 +389,28 @@ export default function PLSummaryPage() {
                       <th className="py-2 text-right font-medium">売上 / 請求額</th>
                       <th className="py-2 text-right font-medium">人件費</th>
                       <th className="py-2 text-right font-medium">ツール費</th>
-                      <th className="py-2 text-right font-medium">その他</th>
                       <th className="py-2 text-right font-medium">差益 / 粗利</th>
-                      <th className="py-2 text-right font-medium">掛け率 / 粗利率</th>
+                      <th className="py-2 text-right font-medium min-w-[130px]">掛け率 / 粗利率</th>
+                      {canEdit && <th className="py-2 w-8" />}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPL.map((pl) => {
                       const isDispatch = pl.projectType === "boost_dispatch";
-                      const markup = pl.markupRate ?? 1.2;
+                      const markup     = pl.markupRate ?? 1.2;
+                      const isEditing  = canEdit && editingMarkup === pl.projectId;
+
+                      // シミュレーション
+                      const simRate    = isEditing && isDispatch ? (parseFloat(markupInputs[pl.projectId] ?? "") || markup) : markup;
+                      const simExtra   = isEditing ? (parseFloat(extraInputs[pl.projectId] ?? "") || 0) : pl.revenueExtra;
+                      const simBase    = isDispatch
+                        ? Math.round(pl.laborCost * simRate + pl.toolCost)
+                        : pl.revenueContract;
+                      const simRevenue = simBase + simExtra;
+                      const simProfit  = simRevenue - pl.laborCost - pl.toolCost - pl.otherCost;
+
                       return (
-                        <tr key={pl.projectId} className="border-b border-slate-50 hover:bg-slate-50">
+                        <tr key={pl.projectId} className={`border-b border-slate-50 hover:bg-slate-50 ${isEditing ? "bg-orange-50/30" : ""}`}>
                           <td className="py-2 font-medium text-slate-800">{pl.projectName}</td>
                           <td className="py-2">
                             {isDispatch ? (
@@ -304,22 +419,118 @@ export default function PLSummaryPage() {
                               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">SALT2自社</span>
                             )}
                           </td>
-                          <td className="py-2 text-right text-slate-700">{formatCurrency(pl.revenue)}</td>
-                          <td className="py-2 text-right text-amber-700">{formatCurrency(pl.laborCost)}</td>
-                          <td className="py-2 text-right text-slate-500">{formatCurrency(pl.toolCost)}</td>
-                          <td className="py-2 text-right text-slate-500">{formatCurrency(pl.otherCost)}</td>
-                          <td className={`py-2 text-right font-semibold ${pl.grossProfit >= 0 ? "text-green-700" : "text-red-600"}`}>
-                            {formatCurrency(pl.grossProfit)}
-                          </td>
-                          <td className="py-2 text-right">
-                            {isDispatch ? (
-                              <span className="text-xs font-medium text-orange-700">×{markup.toFixed(2)}</span>
+
+                          {/* 売上 */}
+                          <td className="py-2 text-right text-slate-700">
+                            {isEditing ? (
+                              <span className={`text-xs ${simRevenue !== pl.revenue ? "font-semibold text-orange-600" : ""}`}>
+                                {formatCurrency(simRevenue)}
+                                {simRevenue !== pl.revenue && (
+                                  <span className="block text-[10px] text-slate-400 line-through">{formatCurrency(pl.revenue)}</span>
+                                )}
+                              </span>
                             ) : (
-                              <span className={`text-xs font-medium ${pl.grossMargin >= 30 ? "text-green-600" : pl.grossMargin >= 20 ? "text-amber-600" : "text-red-600"}`}>
-                                {pl.grossMargin.toFixed(1)}%
+                              <span>
+                                {formatCurrency(pl.revenue)}
+                                {pl.revenueExtra > 0 && (
+                                  <span className="block text-[10px] text-slate-400">追加 +{formatCurrency(pl.revenueExtra)}</span>
+                                )}
                               </span>
                             )}
                           </td>
+
+                          <td className="py-2 text-right text-amber-700">{formatCurrency(pl.laborCost)}</td>
+                          <td className="py-2 text-right text-slate-500">{formatCurrency(pl.toolCost)}</td>
+
+                          {/* 差益 / 粗利 */}
+                          <td className={`py-2 text-right font-semibold ${simProfit >= 0 ? "text-green-700" : "text-red-600"}`}>
+                            {isEditing ? (
+                              <span>
+                                {formatCurrency(simProfit)}
+                                {simProfit !== pl.grossProfit && (
+                                  <span className="block text-[10px] font-normal text-slate-400 line-through">{formatCurrency(pl.grossProfit)}</span>
+                                )}
+                              </span>
+                            ) : formatCurrency(pl.grossProfit)}
+                          </td>
+
+                          {/* 掛け率 / 粗利率 + 編集UI */}
+                          <td className="py-2 text-right">
+                            {isEditing ? (
+                              <div className="flex flex-col items-end gap-1.5">
+                                {/* 掛け率（dispatch のみ） */}
+                                {isDispatch && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[10px] text-slate-400">掛け率</span>
+                                    <span className="text-xs text-orange-700">×</span>
+                                    <input
+                                      type="number" step="0.01" min="1.00" max="3.00"
+                                      value={markupInputs[pl.projectId] ?? ""}
+                                      onChange={(e) => setMarkupInputs(prev => ({ ...prev, [pl.projectId]: e.target.value }))}
+                                      className="w-16 rounded border border-orange-300 bg-white px-1.5 py-0.5 text-xs text-orange-700 text-right focus:outline-none focus:ring-1 focus:ring-orange-400"
+                                      autoFocus={isDispatch}
+                                    />
+                                  </div>
+                                )}
+                                {/* 追加売上 */}
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-slate-400">追加売上</span>
+                                  <span className="text-xs text-slate-500">¥</span>
+                                  <input
+                                    type="number" step="1000" min="0"
+                                    value={extraInputs[pl.projectId] ?? ""}
+                                    onChange={(e) => setExtraInputs(prev => ({ ...prev, [pl.projectId]: e.target.value }))}
+                                    placeholder="0"
+                                    className="w-24 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-slate-700 text-right focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    autoFocus={!isDispatch}
+                                  />
+                                </div>
+                                {/* 保存・キャンセル */}
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => handleSavePL(pl)}
+                                    disabled={savingMarkup === pl.projectId}
+                                    className="flex items-center gap-0.5 rounded bg-green-600 px-2 py-0.5 text-[10px] text-white hover:bg-green-700 disabled:opacity-50"
+                                  >
+                                    <Save size={10} /> 保存
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingMarkup(null)}
+                                    className="flex items-center gap-0.5 rounded border border-slate-200 px-2 py-0.5 text-[10px] text-slate-500 hover:bg-slate-50"
+                                  >
+                                    <X size={10} /> 戻す
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              isDispatch ? (
+                                <span className="text-xs font-medium text-orange-700">×{markup.toFixed(2)}</span>
+                              ) : (
+                                <span className={`text-xs font-medium ${pl.grossMargin >= 30 ? "text-green-600" : pl.grossMargin >= 20 ? "text-amber-600" : "text-red-600"}`}>
+                                  {pl.grossMargin.toFixed(1)}%
+                                </span>
+                              )
+                            )}
+                          </td>
+
+                          {/* 編集ボタン */}
+                          {canEdit && (
+                            <td className="py-2 text-right">
+                              {!isEditing && (
+                                <button
+                                  onClick={() => {
+                                    setMarkupInputs(prev => ({ ...prev, [pl.projectId]: markup.toFixed(2) }));
+                                    setExtraInputs(prev => ({ ...prev, [pl.projectId]: String(pl.revenueExtra || "") }));
+                                    setEditingMarkup(pl.projectId);
+                                  }}
+                                  className="p-1 text-slate-300 hover:text-orange-500"
+                                  title="編集"
+                                >
+                                  <Pencil size={12} />
+                                </button>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -330,9 +541,9 @@ export default function PLSummaryPage() {
                       <td className="py-2 text-right font-bold text-slate-800">{formatCurrency(totalRevenue)}</td>
                       <td className="py-2 text-right font-bold text-amber-700">{formatCurrency(totalLaborCost)}</td>
                       <td className="py-2 text-right font-bold text-slate-500">{formatCurrency(totalToolCost)}</td>
-                      <td className="py-2 text-right font-bold text-slate-500">{formatCurrency(totalOtherCost)}</td>
                       <td className="py-2 text-right font-bold text-green-700">{formatCurrency(totalGrossProfit)}</td>
                       <td className="py-2 text-right font-bold text-blue-700">{grossMargin}%</td>
+                      {canEdit && <td />}
                     </tr>
                   </tfoot>
                 </table>
@@ -389,6 +600,79 @@ export default function PLSummaryPage() {
               );
             })}
           </div>
+
+          {/* 稼働申告状況（管理者のみ） */}
+          {canEdit && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>稼働申告状況（{month}）</CardTitle>
+                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                    {!reportLoading && (
+                      <>
+                        <span className="flex items-center gap-1 text-green-600">
+                          <CheckCircle size={12} />
+                          申告済み {selfReports.filter((r) => r.submitted).length}名
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <AlertCircle size={12} />
+                          未申告 {selfReports.filter((r) => !r.submitted).length}名
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              {reportLoading ? (
+                <p className="text-sm text-slate-400">読み込み中...</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-slate-100">
+                      <tr className="text-xs text-slate-500">
+                        <th className="py-2 text-left font-medium">メンバー</th>
+                        <th className="py-2 text-center font-medium">申告状況</th>
+                        <th className="py-2 text-right font-medium">合計時間</th>
+                        <th className="py-2 text-left font-medium">申告プロジェクト</th>
+                        <th className="py-2 text-right font-medium">提出日時</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {selfReports.map((r) => (
+                        <tr key={r.memberId} className={`${!r.submitted ? "bg-amber-50" : ""}`}>
+                          <td className="py-2.5 font-medium text-slate-800">{r.memberName}</td>
+                          <td className="py-2.5 text-center">
+                            {r.submitted ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                                <CheckCircle size={11} /> 申告済み
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                <AlertCircle size={11} /> 未申告
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 text-right text-slate-600">
+                            {r.submitted ? `${r.totalHours}h` : "—"}
+                          </td>
+                          <td className="py-2.5 text-slate-500 text-xs">
+                            {r.projects.length > 0
+                              ? r.projects.map((p) => `${p.projectName}(${p.reportedHours}h)`).join("、")
+                              : "—"}
+                          </td>
+                          <td className="py-2.5 text-right text-xs text-slate-400">
+                            {r.submittedAt
+                              ? new Date(r.submittedAt).toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
         </>
       )}
     </div>

@@ -62,6 +62,8 @@ export default function AssignPage({ params }: { params: { id: string } }) {
 
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({ memberId: "", positionId: "", workloadHours: "80", startDate: today });
+  const [positionMode, setPositionMode] = useState<"existing" | "new">("existing");
+  const [newPositionName, setNewPositionName] = useState("");
 
   const loadProject = useCallback(async () => {
     const res = await fetch(`/api/projects/${id}`);
@@ -83,17 +85,46 @@ export default function AssignPage({ params }: { params: { id: string } }) {
   }, [loadProject]);
 
   async function handleAdd() {
-    if (!form.memberId || !form.positionId || !form.startDate) {
-      setError("メンバー・ポジション・開始日を選択してください");
+    if (!form.memberId || !form.startDate) {
+      setError("メンバーと開始日を入力してください");
       return;
     }
+    if (positionMode === "existing" && !form.positionId) {
+      setError("ポジションを選択してください");
+      return;
+    }
+    if (positionMode === "new" && !newPositionName.trim()) {
+      setError("新規ポジション名を入力してください");
+      return;
+    }
+
     setSaving(true);
     setError("");
+
+    let positionId = form.positionId;
+
+    // 新規ポジション作成
+    if (positionMode === "new") {
+      const posRes = await fetch(`/api/projects/${id}/positions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ positionName: newPositionName.trim(), requiredCount: 1 }),
+      });
+      if (!posRes.ok) {
+        const data = await posRes.json();
+        setError(data.error?.message ?? "ポジション作成に失敗しました");
+        setSaving(false);
+        return;
+      }
+      const newPos = await posRes.json();
+      positionId = newPos.id;
+    }
+
     const res = await fetch(`/api/projects/${id}/assignments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        positionId: form.positionId,
+        positionId,
         memberId: form.memberId,
         workloadHours: Number(form.workloadHours),
         startDate: form.startDate,
@@ -104,6 +135,8 @@ export default function AssignPage({ params }: { params: { id: string } }) {
       await loadProject();
       setAddOpen(false);
       setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: today });
+      setPositionMode("existing");
+      setNewPositionName("");
     } else {
       const data = await res.json();
       setError(data.error?.message ?? "登録に失敗しました");
@@ -132,7 +165,13 @@ export default function AssignPage({ params }: { params: { id: string } }) {
           <h1 className="text-xl font-bold text-slate-800">アサイン管理 — {project.name}</h1>
         </div>
         {canManage && (
-          <Button variant="primary" size="sm" onClick={() => { setError(""); setAddOpen(true); }}>
+          <Button variant="primary" size="sm" onClick={() => {
+            setError("");
+            setPositionMode(project.positions.length > 0 ? "existing" : "new");
+            setNewPositionName("");
+            setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: today });
+            setAddOpen(true);
+          }}>
             <Plus size={14} /> アサイン追加
           </Button>
         )}
@@ -205,7 +244,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
       </Card>
 
       {/* Add modal */}
-      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="アサイン追加">
+      <Modal isOpen={addOpen} onClose={() => { setAddOpen(false); setError(""); }} title="アサイン追加">
         <div className="space-y-3">
           {error && <p className="text-xs text-red-600">{error}</p>}
           <Select id="memberId" label="メンバー *" value={form.memberId} onChange={(e) => setForm((f) => ({ ...f, memberId: e.target.value }))}>
@@ -214,10 +253,56 @@ export default function AssignPage({ params }: { params: { id: string } }) {
               <option key={m.id} value={m.id}>{m.name} ({m.company === "boost" ? "Boost" : "SALT2"})</option>
             ))}
           </Select>
-          <Select id="positionId" label="ポジション *" value={form.positionId} onChange={(e) => setForm((f) => ({ ...f, positionId: e.target.value }))}>
-            <option value="">選択してください</option>
-            {project.positions.map((p) => <option key={p.id} value={p.id}>{p.positionName}</option>)}
-          </Select>
+
+          {/* ポジション選択 or 新規作成 */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">ポジション *</label>
+            <div className="mb-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPositionMode("existing")}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  positionMode === "existing"
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                既存から選択
+              </button>
+              <button
+                type="button"
+                onClick={() => setPositionMode("new")}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  positionMode === "new"
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                ＋ 新規作成
+              </button>
+            </div>
+            {positionMode === "existing" ? (
+              project.positions.length > 0 ? (
+                <Select id="positionId" label="" value={form.positionId} onChange={(e) => setForm((f) => ({ ...f, positionId: e.target.value }))}>
+                  <option value="">選択してください</option>
+                  {project.positions.map((p) => <option key={p.id} value={p.id}>{p.positionName}</option>)}
+                </Select>
+              ) : (
+                <p className="text-xs text-slate-400 border border-dashed border-slate-200 rounded-md p-3 text-center">
+                  ポジションがありません。「新規作成」で追加してください。
+                </p>
+              )
+            ) : (
+              <Input
+                id="newPositionName"
+                label=""
+                placeholder="ポジション名（例: バックエンドエンジニア）"
+                value={newPositionName}
+                onChange={(e) => setNewPositionName(e.target.value)}
+              />
+            )}
+          </div>
+
           <Input id="workloadHours" type="number" label="月間工数（時間）" value={form.workloadHours} onChange={(e) => setForm((f) => ({ ...f, workloadHours: e.target.value }))} />
           <Input id="startDate" type="date" label="開始日 *" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-2">

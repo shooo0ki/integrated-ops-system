@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const assignments = await prisma.projectAssignment.findMany({
     where: { projectId },
     include: {
-      member: { select: { id: true, name: true, company: true } },
+      member: { select: { id: true, name: true } },
       position: { select: { id: true, positionName: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -33,7 +33,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
       id: a.id,
       memberId: a.memberId,
       memberName: a.member.name,
-      memberCompany: a.member.company,
       positionId: a.positionId,
       positionName: a.position.positionName,
       workloadHours: a.workloadHours,
@@ -67,21 +66,30 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const { endDate, ...data } = parsed.data;
 
-  const assignment = await prisma.projectAssignment.create({
-    data: {
-      projectId,
-      positionId: data.positionId,
-      memberId: data.memberId,
-      workloadHours: data.workloadHours,
-      startDate: new Date(data.startDate),
-      endDate: endDate ? new Date(endDate) : null,
-      createdBy: user.id,
-    },
-    include: {
-      member: { select: { id: true, name: true } },
-      position: { select: { positionName: true } },
-    },
-  });
+  let assignment;
+  try {
+    assignment = await prisma.projectAssignment.create({
+      data: {
+        projectId,
+        positionId: data.positionId,
+        memberId: data.memberId,
+        workloadHours: data.workloadHours,
+        startDate: new Date(data.startDate),
+        endDate: endDate ? new Date(endDate) : null,
+        createdBy: user.id,
+      },
+      include: {
+        member: { select: { id: true, name: true } },
+        position: { select: { positionName: true } },
+      },
+    });
+  } catch (e) {
+    console.error("Assignment create error:", e);
+    return NextResponse.json(
+      { error: { code: "DB_ERROR", message: "登録に失敗しました。再ログイン後に再試行してください。" } },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json(
     {

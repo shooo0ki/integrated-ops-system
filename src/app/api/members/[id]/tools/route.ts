@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const tool = await prisma.memberTool.create({
-    data: { memberId: id, ...parsed.data },
+    data: { memberId: id, companyLabel: "salt2", ...parsed.data },
   });
 
   return NextResponse.json(tool, { status: 201 });

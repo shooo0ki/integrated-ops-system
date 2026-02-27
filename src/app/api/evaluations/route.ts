@@ -37,18 +37,18 @@ export async function GET(req: NextRequest) {
       ...(isAdmin || isManager ? {} : { memberId: user.memberId }),
     },
     include: {
-      member: { select: { id: true, name: true, company: true } },
+      member: { select: { id: true, name: true } },
       evaluator: { select: { id: true } },
     },
-    orderBy: [{ member: { company: "asc" } }, { member: { name: "asc" } }],
+    orderBy: [{ member: { name: "asc" } }],
   });
 
   // 管理者向け：全メンバー一覧に評価を付加（未評価も含む）
   if (isAdmin || isManager) {
     const members = await prisma.member.findMany({
       where: { deletedAt: null },
-      select: { id: true, name: true, company: true },
-      orderBy: [{ company: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+      orderBy: [{ name: "asc" }],
     });
 
     const evalMap = new Map(evaluations.map((e) => [e.memberId, e]));
@@ -57,14 +57,13 @@ export async function GET(req: NextRequest) {
       members.map((m) => {
         const ev = evalMap.get(m.id);
         if (!ev) {
-          return { memberId: m.id, memberName: m.name, memberCompany: m.company, evaluated: false };
+          return { memberId: m.id, memberName: m.name, evaluated: false };
         }
         const totalAvg = Math.round(((ev.scoreP + ev.scoreA + ev.scoreS) / 3) * 100) / 100;
         return {
           id: ev.id,
           memberId: m.id,
           memberName: m.name,
-          memberCompany: m.company,
           targetPeriod: ev.targetPeriod,
           scoreP: ev.scoreP, labelP: scoreLabel(ev.scoreP),
           scoreA: ev.scoreA, labelA: scoreLabel(ev.scoreA),

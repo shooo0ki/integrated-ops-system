@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth-context";
 
 const ProjectPLAreaChart = dynamic(
   () => import("@/components/charts/pl-chart").then((m) => m.ProjectPLAreaChart),
@@ -52,12 +53,12 @@ function buildMonths(n = 6): string[] {
   const base = new Date();
   for (let i = 0; i < n; i++) {
     const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    months.push(d.toISOString().slice(0, 7));
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
   return months;
 }
 
-const MONTHS = buildMonths(6).reverse(); // 古い順
+const MONTHS = buildMonths(6); // 新しい順（index 0 = 当月）
 
 function Toast({ message, onClose }: { message: string; onClose: () => void }) {
   return (
@@ -71,7 +72,13 @@ function Toast({ message, onClose }: { message: string; onClose: () => void }) {
 // ─── ページ ───────────────────────────────────────────────
 
 export default function ProjectPLPage() {
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const { role } = useAuth();
+  const canEdit = role === "admin" || role === "manager";
+
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [projects, setProjects] = useState<ProjectTab[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [allRecords, setAllRecords] = useState<PLRecord[]>([]);
@@ -127,13 +134,11 @@ export default function ProjectPLPage() {
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const isBoostDispatch = currentRecord?.projectType === "boost_dispatch";
-  const defaultMarkup = 1.20;
-  const actualMarkup = currentRecord?.markupRate ?? defaultMarkup;
-  const simRate = simMarkup !== "" ? Number(simMarkup) : actualMarkup;
-
   const breakevenMarkup = currentRecord && currentRecord.laborCost > 0
     ? (currentRecord.laborCost + currentRecord.otherCost) / currentRecord.laborCost
     : 1.0;
+  const actualMarkup = currentRecord?.markupRate ?? breakevenMarkup;
+  const simRate = simMarkup !== "" ? Number(simMarkup) : actualMarkup;
 
   const simRevenue = currentRecord
     ? currentRecord.laborCost * simRate + currentRecord.toolCost
@@ -201,7 +206,7 @@ export default function ProjectPLPage() {
           onChange={(e) => { setSelectedMonth(e.target.value); setSimMarkup(""); }}
           className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          {MONTHS.slice().reverse().map((m) => (
+          {MONTHS.map((m) => (
             <option key={m} value={m}>{m}</option>
           ))}
         </select>
@@ -209,7 +214,8 @@ export default function ProjectPLPage() {
 
       {projects.length === 0 ? (
         <Card>
-          <p className="text-sm text-slate-500">PLレコードがありません。管理者がデータを入力してください。</p>
+          <p className="text-sm text-slate-500">PLレコードがありません。</p>
+          <p className="mt-1 text-xs text-slate-400">PL サマリーページの「PL自動集計」ボタンで稼働申告から自動生成できます。</p>
         </Card>
       ) : (
         <>
@@ -434,37 +440,39 @@ export default function ProjectPLPage() {
             )}
           </Card>
 
-          {/* コスト手入力 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>手動コスト追記</CardTitle>
-            </CardHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-slate-500">
-                請求書に含まれない追加コスト（交通費・雑費など）を手動で入力できます。
-              </p>
-              <div className="flex items-end gap-3">
-                <div className="flex-1">
-                  <label className="mb-1 block text-xs font-medium text-slate-600">その他コスト（円）</label>
-                  <input
-                    type="number"
-                    value={otherCostInput}
-                    onChange={(e) => setOtherCostInput(e.target.value)}
-                    placeholder="例: 15000"
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <Button variant="primary" onClick={handleSaveOtherCost} disabled={saving || !currentRecord}>
-                  {saving ? "保存中..." : "保存する"}
-                </Button>
-              </div>
-              {currentRecord && (
-                <p className="text-xs text-slate-400">
-                  現在のその他費用: {formatCurrency(currentRecord.otherCost)}
+          {/* コスト手入力（admin / manager のみ） */}
+          {canEdit && (
+            <Card>
+              <CardHeader>
+                <CardTitle>手動コスト追記</CardTitle>
+              </CardHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-slate-500">
+                  請求書に含まれない追加コスト（交通費・雑費など）を手動で入力できます。
                 </p>
-              )}
-            </div>
-          </Card>
+                <div className="flex items-end gap-3">
+                  <div className="flex-1">
+                    <label className="mb-1 block text-xs font-medium text-slate-600">その他コスト（円）</label>
+                    <input
+                      type="number"
+                      value={otherCostInput}
+                      onChange={(e) => setOtherCostInput(e.target.value)}
+                      placeholder="例: 15000"
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <Button variant="primary" onClick={handleSaveOtherCost} disabled={saving || !currentRecord}>
+                    {saving ? "保存中..." : "保存する"}
+                  </Button>
+                </div>
+                {currentRecord && (
+                  <p className="text-xs text-slate-400">
+                    現在のその他費用: {formatCurrency(currentRecord.otherCost)}
+                  </p>
+                )}
+              </div>
+            </Card>
+          )}
         </>
       )}
     </div>

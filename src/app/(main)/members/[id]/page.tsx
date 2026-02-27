@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Mail, Phone, Calendar, Edit, Save, X,
-  Wrench, Plus, Trash2, BookOpen,
+  Wrench, Plus, Trash2, BookOpen, MapPin, CreditCard,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,8 +45,12 @@ interface MemberDetail {
   id: string;
   name: string;
   phone: string | null;
+  address: string | null;
+  bankName: string | null;
+  bankBranch: string | null;
+  bankAccountNumber: string | null;
+  bankAccountHolder: string | null;
   status: string;
-  company: string;
   salaryType: string;
   salaryAmount: number;
   joinedAt: string;
@@ -65,8 +69,14 @@ const statusLabel: Record<string, string> = {
   training_member: "研修生",
 };
 const roleLabel: Record<string, string> = {
-  admin: "管理者", manager: "マネージャー", employee: "社員", intern: "インターン",
+  admin: "管理者", manager: "マネージャー", member: "メンバー",
 };
+
+function roleFromStatus(status: string): string {
+  if (status === "executive") return "admin";
+  if (status === "employee") return "manager";
+  return "member";
+}
 const salaryTypeLabel: Record<string, string> = { monthly: "月給制", hourly: "時給制" };
 const levelStars = (n: number) => "★".repeat(n) + "☆".repeat(5 - n);
 const contractStatusLabel: Record<string, string> = {
@@ -74,7 +84,6 @@ const contractStatusLabel: Record<string, string> = {
   completed: "完了", voided: "無効",
 };
 const fmt = (n: number) => n.toLocaleString("ja-JP") + "円";
-const companyDisplay = (c: string) => c === "boost" ? "Boost" : c === "salt2" ? "SALT2" : c;
 
 // ─── ページ ───────────────────────────────────────────────
 
@@ -99,7 +108,7 @@ export default function MemberDetailPage({
   // Tool フォーム
   const [showToolForm, setShowToolForm] = useState(false);
   const [toolForm, setToolForm] = useState({
-    toolName: "", plan: "", monthlyCost: "0", companyLabel: "boost", note: "",
+    toolName: "", plan: "", monthlyCost: "0", note: "",
   });
   const [editingTool, setEditingTool] = useState<string | null>(null);
 
@@ -117,7 +126,12 @@ export default function MemberDetailPage({
     if (!member) return;
     setEditForm({
       name: member.name, phone: member.phone ?? "",
-      status: member.status, company: member.company,
+      address: member.address ?? "",
+      bankName: member.bankName ?? "",
+      bankBranch: member.bankBranch ?? "",
+      bankAccountNumber: member.bankAccountNumber ?? "",
+      bankAccountHolder: member.bankAccountHolder ?? "",
+      status: member.status,
       salaryType: member.salaryType, salaryAmount: member.salaryAmount,
       role: member.role,
     });
@@ -129,7 +143,19 @@ export default function MemberDetailPage({
     const res = await fetch(`/api/members/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...editForm, salaryAmount: Number(editForm.salaryAmount) }),
+      body: JSON.stringify({
+        name: editForm.name,
+        phone: editForm.phone || null,
+        address: editForm.address || null,
+        bankName: editForm.bankName || null,
+        bankBranch: editForm.bankBranch || null,
+        bankAccountNumber: editForm.bankAccountNumber || null,
+        bankAccountHolder: editForm.bankAccountHolder || null,
+        status: editForm.status,
+        salaryType: editForm.salaryType,
+        salaryAmount: Number(editForm.salaryAmount),
+        role: editForm.status ? roleFromStatus(editForm.status) : editForm.role,
+      }),
     });
     setSaving(false);
     if (res.ok) {
@@ -156,14 +182,13 @@ export default function MemberDetailPage({
         toolName: toolForm.toolName,
         plan: toolForm.plan || undefined,
         monthlyCost: Number(toolForm.monthlyCost),
-        companyLabel: toolForm.companyLabel,
         note: toolForm.note || undefined,
       }),
     });
     if (res.ok) {
       const tool = await res.json();
       setMember((m) => m ? { ...m, tools: [...m.tools, tool] } : m);
-      setToolForm({ toolName: "", plan: "", monthlyCost: "0", companyLabel: "boost", note: "" });
+      setToolForm({ toolName: "", plan: "", monthlyCost: "0", note: "" });
       setShowToolForm(false);
     }
   }
@@ -178,7 +203,6 @@ export default function MemberDetailPage({
         toolName: toolForm.toolName,
         plan: toolForm.plan || undefined,
         monthlyCost: Number(toolForm.monthlyCost),
-        companyLabel: toolForm.companyLabel,
         note: toolForm.note || undefined,
       }),
     });
@@ -200,7 +224,7 @@ export default function MemberDetailPage({
   function startEditTool(tool: ToolItem) {
     setToolForm({
       toolName: tool.toolName, plan: tool.plan ?? "",
-      monthlyCost: String(tool.monthlyCost), companyLabel: tool.companyLabel, note: tool.note ?? "",
+      monthlyCost: String(tool.monthlyCost), note: tool.note ?? "",
     });
     setEditingTool(tool.id);
     setShowToolForm(false);
@@ -243,12 +267,7 @@ export default function MemberDetailPage({
                   className="mb-1"
                 />
               ) : (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl font-bold text-slate-800">{member.name}</h1>
-                  <Badge variant={member.company === "boost" ? "boost" : "salt2"}>
-                    {companyDisplay(member.company)}
-                  </Badge>
-                </div>
+                <h1 className="text-xl font-bold text-slate-800">{member.name}</h1>
               )}
               <p className="mt-1 text-sm text-slate-600">
                 {statusLabel[member.status] ?? member.status} / {roleLabel[member.role] ?? member.role}
@@ -325,20 +344,13 @@ export default function MemberDetailPage({
               <option value="intern_training">インターン（研修）</option>
               <option value="training_member">研修生</option>
             </Select>
-            <Select id="edit-role" label="ロール"
-              value={String(editForm.role ?? "")}
-              onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}>
-              <option value="admin">管理者</option>
-              <option value="manager">マネージャー</option>
-              <option value="employee">社員</option>
-              <option value="intern">インターン</option>
-            </Select>
-            <Select id="edit-company" label="会社"
-              value={String(editForm.company ?? "")}
-              onChange={(e) => setEditForm((f) => ({ ...f, company: e.target.value }))}>
-              <option value="boost">Boost</option>
-              <option value="salt2">SALT2</option>
-            </Select>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">ロール（自動）</label>
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                {roleLabel[roleFromStatus(String(editForm.status ?? member?.status ?? ""))]}
+                <span className="ml-2 text-xs text-slate-400">（ステータスから自動設定）</span>
+              </div>
+            </div>
             <Select id="edit-salaryType" label="給与種別"
               value={String(editForm.salaryType ?? "")}
               onChange={(e) => setEditForm((f) => ({ ...f, salaryType: e.target.value }))}>
@@ -351,9 +363,69 @@ export default function MemberDetailPage({
             <Input id="edit-phone" label="電話番号"
               value={String(editForm.phone ?? "")}
               onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
+            <Input id="edit-address" label="住所" className="sm:col-span-2"
+              value={String(editForm.address ?? "")}
+              onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))} />
+            <Input id="edit-bankName" label="銀行名"
+              value={String(editForm.bankName ?? "")}
+              onChange={(e) => setEditForm((f) => ({ ...f, bankName: e.target.value }))} />
+            <Input id="edit-bankBranch" label="支店名"
+              value={String(editForm.bankBranch ?? "")}
+              onChange={(e) => setEditForm((f) => ({ ...f, bankBranch: e.target.value }))} />
+            <Input id="edit-bankAccountNumber" label="口座番号"
+              value={String(editForm.bankAccountNumber ?? "")}
+              onChange={(e) => setEditForm((f) => ({ ...f, bankAccountNumber: e.target.value }))} />
+            <Input id="edit-bankAccountHolder" label="口座名義（カナ）"
+              value={String(editForm.bankAccountHolder ?? "")}
+              onChange={(e) => setEditForm((f) => ({ ...f, bankAccountHolder: e.target.value }))} />
           </div>
         )}
       </div>
+
+      {/* 住所・口座情報カード (admin のみ表示) */}
+      {canEdit && (member.address || member.bankName || member.bankAccountNumber || editMode) && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800">
+            <CreditCard size={16} />
+            請求書情報（住所・口座）
+          </h3>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {member.address && (
+              <div className="col-span-2 flex items-start gap-2 text-slate-600">
+                <MapPin size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                {member.address}
+              </div>
+            )}
+            {member.bankName && (
+              <div>
+                <p className="text-xs text-slate-400">銀行名</p>
+                <p className="font-medium text-slate-800">{member.bankName}</p>
+              </div>
+            )}
+            {member.bankBranch && (
+              <div>
+                <p className="text-xs text-slate-400">支店名</p>
+                <p className="font-medium text-slate-800">{member.bankBranch}</p>
+              </div>
+            )}
+            {member.bankAccountNumber && (
+              <div>
+                <p className="text-xs text-slate-400">口座番号</p>
+                <p className="font-medium text-slate-800">****{member.bankAccountNumber.slice(-4)}</p>
+              </div>
+            )}
+            {member.bankAccountHolder && (
+              <div>
+                <p className="text-xs text-slate-400">口座名義</p>
+                <p className="font-medium text-slate-800">{member.bankAccountHolder}</p>
+              </div>
+            )}
+            {!member.address && !member.bankName && !member.bankAccountNumber && (
+              <p className="col-span-2 text-sm text-slate-400">未登録（「編集」から入力してください）</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Tools */}
@@ -379,11 +451,6 @@ export default function MemberDetailPage({
                   onChange={(e) => setToolForm((f) => ({ ...f, plan: e.target.value }))} />
                 <Input id="tool-cost" type="number" label="月額費用（円）" value={toolForm.monthlyCost}
                   onChange={(e) => setToolForm((f) => ({ ...f, monthlyCost: e.target.value }))} />
-                <Select id="tool-company" label="会社" value={toolForm.companyLabel}
-                  onChange={(e) => setToolForm((f) => ({ ...f, companyLabel: e.target.value }))}>
-                  <option value="boost">Boost</option>
-                  <option value="salt2">SALT2</option>
-                </Select>
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setShowToolForm(false)}>キャンセル</Button>
@@ -407,11 +474,6 @@ export default function MemberDetailPage({
                       onChange={(e) => setToolForm((f) => ({ ...f, plan: e.target.value }))} />
                     <Input id="et-cost" type="number" label="月額費用（円）" value={toolForm.monthlyCost}
                       onChange={(e) => setToolForm((f) => ({ ...f, monthlyCost: e.target.value }))} />
-                    <Select id="et-company" label="会社" value={toolForm.companyLabel}
-                      onChange={(e) => setToolForm((f) => ({ ...f, companyLabel: e.target.value }))}>
-                      <option value="boost">Boost</option>
-                      <option value="salt2">SALT2</option>
-                    </Select>
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button variant="outline" size="sm" onClick={() => setEditingTool(null)}>キャンセル</Button>
@@ -424,7 +486,7 @@ export default function MemberDetailPage({
                     <span className="text-sm font-medium text-slate-700">{tool.toolName}</span>
                     {tool.plan && <span className="ml-2 text-xs text-slate-400">{tool.plan}</span>}
                     <div className="text-xs text-slate-400 mt-0.5">
-                      {companyDisplay(tool.companyLabel)} / {fmt(tool.monthlyCost)}/月
+                      {fmt(tool.monthlyCost)}/月
                     </div>
                   </div>
                   {canEdit && (

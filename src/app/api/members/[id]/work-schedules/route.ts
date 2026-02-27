@@ -49,6 +49,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       startTime: s.startTime,
       endTime: s.endTime,
       isOff: s.isOff,
+      locationType: s.locationType,
     }))
   );
 }
@@ -72,8 +73,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const results = await Promise.all(
-    body.map(async (item: { date: string; startTime?: string; endTime?: string; isOff?: boolean }) => {
+    body.map(async (item: { date: string; startTime?: string; endTime?: string; isOff?: boolean; locationType?: string }) => {
       if (!item.date || !/^\d{4}-\d{2}-\d{2}$/.test(item.date)) return null;
+      const locationType = item.locationType ?? "office";
       return prisma.workSchedule.upsert({
         where: { memberId_date: { memberId, date: new Date(item.date) } },
         create: {
@@ -82,11 +84,13 @@ export async function POST(req: NextRequest, { params }: Params) {
           startTime: item.isOff ? null : (item.startTime ?? null),
           endTime: item.isOff ? null : (item.endTime ?? null),
           isOff: item.isOff ?? false,
+          locationType,
         },
         update: {
           startTime: item.isOff ? null : (item.startTime ?? null),
           endTime: item.isOff ? null : (item.endTime ?? null),
           isOff: item.isOff ?? false,
+          locationType,
         },
       });
     })

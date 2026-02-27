@@ -2,7 +2,7 @@ import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
 import type { SessionOptions } from "iron-session";
 
-export type AppRole = "admin" | "manager" | "employee" | "intern";
+export type AppRole = "admin" | "manager" | "member";
 
 export interface SessionUser {
   id: string;       // UserAccount.id
@@ -10,7 +10,6 @@ export interface SessionUser {
   email: string;
   role: AppRole;
   name: string;
-  company: string;
 }
 
 export interface SessionData {

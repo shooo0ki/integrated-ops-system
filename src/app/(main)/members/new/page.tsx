@@ -8,13 +8,32 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 
+// ステータスからロールを自動導出
+function roleFromStatus(status: string): string {
+  if (status === "executive") return "admin";
+  if (status === "employee") return "manager";
+  return "member";
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  executive: "役員",
+  employee: "社員",
+  intern_full: "インターン（長期）",
+  intern_training: "インターン（研修）",
+  training_member: "研修生",
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "管理者",
+  manager: "マネージャー",
+  member: "メンバー",
+};
+
 const INITIAL_FORM = {
   name: "",
   email: "",
   password: "",
   phone: "",
-  company: "boost",
-  role: "employee",
   status: "employee",
   salaryType: "monthly",
   salaryAmount: "",
@@ -42,6 +61,7 @@ export default function MemberNewPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
+        role: roleFromStatus(form.status),
         salaryAmount: Number(form.salaryAmount),
       }),
     });
@@ -141,28 +161,6 @@ export default function MemberNewPage() {
               placeholder="090-0000-0000"
             />
             <Select
-              id="company"
-              label="会社 *"
-              value={form.company}
-              onChange={(e) => set("company", e.target.value)}
-              required
-            >
-              <option value="boost">Boost</option>
-              <option value="salt2">SALT2</option>
-            </Select>
-            <Select
-              id="role"
-              label="ロール *"
-              value={form.role}
-              onChange={(e) => set("role", e.target.value)}
-              required
-            >
-              <option value="admin">管理者</option>
-              <option value="manager">マネージャー</option>
-              <option value="employee">社員</option>
-              <option value="intern">インターン</option>
-            </Select>
-            <Select
               id="status"
               label="ステータス *"
               value={form.status}
@@ -175,6 +173,15 @@ export default function MemberNewPage() {
               <option value="intern_training">インターン（研修）</option>
               <option value="training_member">研修生</option>
             </Select>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">ロール（自動）</label>
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                {ROLE_LABELS[roleFromStatus(form.status)]}
+                <span className="ml-2 text-xs text-slate-400">
+                  （ステータスから自動設定）
+                </span>
+              </div>
+            </div>
             <Input
               id="joinedAt"
               type="date"

@@ -12,67 +12,156 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =============================================================================
+// Enum 定義
+// =============================================================================
+
+enum UserRole {
+  admin   // 役員
+  manager // 社員
+  member  // インターン（長期・研修）・研修生
+}
+
+enum MemberStatus {
+  executive
+  employee
+  intern_full
+  intern_training
+  training_member
+}
+
+enum SalaryType {
+  hourly
+  monthly
+}
+
+enum ProjectStatus {
+  planning
+  active
+  completed
+  on_hold
+}
+
+enum Company {
+  boost
+  salt2
+}
+
+enum ProjectType {
+  boost_dispatch
+  salt2_own
+}
+
+enum ContractType {
+  quasi_mandate
+  contract
+  in_house
+  other
+}
+
+enum AttendanceStatus {
+  normal
+  modified
+  absent
+}
+
+enum ConfirmStatus {
+  unconfirmed
+  confirmed
+  approved
+}
+
+enum InvoiceStatus {
+  unsent    // 未提出（メンバーがまだ生成していない）
+  sent      // アプリ内で提出済み（管理者への送付待ち）
+  confirmed // 管理者がLayerXへ転送済み
+}
+
+enum PLRecordType {
+  pl
+  cf
+}
+
+enum MemberContractStatus {
+  draft
+  sent
+  waiting_sign
+  completed
+  voided
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
 // ─────────────────────────────────────────────
 // 1. user_accounts（ユーザーアカウント）
 // ─────────────────────────────────────────────
 model UserAccount {
   id           String   @id @default(uuid())
   email        String   @unique @db.VarChar(255)
-  passwordHash String   @map("password_hash")
-  role         String   @db.VarChar(20) // 'admin' | 'manager' | 'employee' | 'intern'
+  passwordHash String   @map("password_hash") // TEXT（Prisma String のデフォルト）
+  role         UserRole // 'admin' | 'manager' | 'employee' | 'intern'
   memberId     String   @unique @map("member_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  member             Member              @relation(fields: [memberId], references: [id])
-  createdProjects       Project[]              @relation("ProjectCreatedBy")
-  createdAssignments    ProjectAssignment[]    @relation("AssignmentCreatedBy")
-  evaluatedSkills       MemberSkill[]          @relation("SkillEvaluatedBy")
-  createdPLRecords      PLRecord[]             @relation("PLCreatedBy")
-  updatedConfigs        SystemConfig[]         @relation("ConfigUpdatedBy")
-  auditLogs             AuditLog[]             @relation("AuditOperator")
-  submittedEvaluations  PersonnelEvaluation[]  @relation("EvaluationEvaluator")
+  member               Member              @relation(fields: [memberId], references: [id])
+  createdProjects      Project[]           @relation("ProjectCreatedBy")
+  createdAssignments   ProjectAssignment[] @relation("AssignmentCreatedBy")
+  evaluatedSkills      MemberSkill[]       @relation("SkillEvaluatedBy")
+  createdPLRecords     PLRecord[]          @relation("PLCreatedBy")
+  updatedConfigs       SystemConfig[]      @relation("ConfigUpdatedBy")
+  auditLogs            AuditLog[]          @relation("AuditOperator")
+  submittedEvaluations PersonnelEvaluation[] @relation("EvaluationEvaluator")
 
   @@map("user_accounts")
 }
 
 // ─────────────────────────────────────────────
 // 2. members（メンバー）
+// NOTE: role(UserAccount) ↔ status(Member) の対応はアプリ層で維持すること
+//   admin/manager → executive/employee
+//   employee      → employee
+//   intern        → intern_full/intern_training/training_member
 // ─────────────────────────────────────────────
 model Member {
-  id                String    @id @default(uuid())
-  name              String    @db.VarChar(100)
-  profileImageUrl   String?   @map("profile_image_url")
-  phone             String?   @db.VarChar(20)
+  id                String       @id @default(uuid())
+  name              String       @db.VarChar(100)
+  profileImageUrl   String?      @map("profile_image_url")
+  phone             String?      @db.VarChar(20)
   address           String?
-  status            String    @db.VarChar(30) // 'executive'|'employee'|'intern_full'|'intern_training'|'training_member'
-  company           String    @db.VarChar(10) // 'boost' | 'salt2'
-  salaryType        String    @map("salary_type") @db.VarChar(10) // 'hourly' | 'monthly'
-  salaryAmount      Int       @map("salary_amount")
+  status            MemberStatus // 'executive'|'employee'|'intern_full'|'intern_training'|'training_member'
+  salaryType        SalaryType   @map("salary_type") // 'hourly' | 'monthly'
+  salaryAmount      Int          @map("salary_amount")
   // 銀行情報: アプリ層で AES-256 暗号化して保存すること（TODO: Phase 3 で暗号化実装）
-  bankName          String?   @map("bank_name")
-  bankBranch        String?   @map("bank_branch")
-  bankAccountNumber String?   @map("bank_account_number")
-  bankAccountHolder String?   @map("bank_account_holder")
-  joinedAt          DateTime  @map("joined_at") @db.Date
-  leftAt            DateTime? @map("left_at") @db.Date
-  deletedAt         DateTime? @map("deleted_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  bankName          String?      @map("bank_name")
+  bankBranch        String?      @map("bank_branch")
+  bankAccountNumber String?      @map("bank_account_number")
+  bankAccountHolder String?      @map("bank_account_holder")
+  joinedAt          DateTime     @map("joined_at") @db.Date
+  leftAt            DateTime?    @map("left_at") @db.Date
+  deletedAt         DateTime?    @map("deleted_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
 
   // Relations
-  userAccount   UserAccount?
-  skills        MemberSkill[]
-  assignments   ProjectAssignment[]
-  workSchedules WorkSchedule[]
-  attendances   Attendance[]
-  invoices      Invoice[]
-  tools               MemberTool[]
-  contracts           MemberContract[]
-  selfReports         MonthlySelfReport[]
+  userAccount          UserAccount?
+  skills               MemberSkill[]
+  assignments          ProjectAssignment[]
+  workSchedules        WorkSchedule[]
+  attendances          Attendance[]
+  invoices             Invoice[]
+  tools                MemberTool[]
+  contracts            MemberContract[]
+  selfReports          MonthlySelfReport[]
   personnelEvaluations PersonnelEvaluation[]
 
+  @@index([deletedAt])
+  @@index([status])
   @@map("members")
 }
 
@@ -96,13 +185,13 @@ model SkillCategory {
 // 4. skills（スキル）
 // ─────────────────────────────────────────────
 model Skill {
-  id           String        @id @default(uuid())
-  categoryId   String        @map("category_id")
-  name         String        @db.VarChar(100)
-  description  String?       @db.VarChar(200)
-  displayOrder Int           @default(1) @map("display_order")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  categoryId   String   @map("category_id")
+  name         String   @db.VarChar(100)
+  description  String?  @db.VarChar(200)
+  displayOrder Int      @default(1) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
   category               SkillCategory           @relation(fields: [categoryId], references: [id])
@@ -110,6 +199,8 @@ model Skill {
   positionRequiredSkills PositionRequiredSkill[]
 
   @@unique([categoryId, name])
+  @@index([categoryId])
+  @@index([categoryId, displayOrder])
   @@map("skills")
 }
 
@@ -131,6 +222,9 @@ model MemberSkill {
   skill     Skill       @relation(fields: [skillId], references: [id])
   evaluator UserAccount @relation("SkillEvaluatedBy", fields: [evaluatedBy], references: [id])
 
+  @@index([memberId, skillId, evaluatedAt(sort: Desc)])
+  @@index([skillId])
+  @@index([evaluatedBy])
   @@map("member_skills")
 }
 
@@ -138,30 +232,32 @@ model MemberSkill {
 // 6. projects（プロジェクト）
 // ─────────────────────────────────────────────
 model Project {
-  id                    String    @id @default(uuid())
-  name                  String    @db.VarChar(200)
+  id                    String         @id @default(uuid())
+  name                  String         @db.VarChar(200)
   description           String?
-  status                String    @db.VarChar(20) // 'planning'|'active'|'completed'|'on_hold'
-  company               String    @db.VarChar(10) // 'boost' | 'salt2'
-  projectType           String    @default("salt2_own") @map("project_type") @db.VarChar(20) // 'boost_dispatch'|'salt2_own'
-  startDate             DateTime  @map("start_date") @db.Date
-  endDate               DateTime? @map("end_date") @db.Date
-  clientName            String?   @map("client_name") @db.VarChar(200)
-  contractType          String?   @map("contract_type") @db.VarChar(20) // 'quasi_mandate'|'contract'|'in_house'|'other'
-  monthlyContractAmount Int       @default(0) @map("monthly_contract_amount")
-  createdBy             String    @map("created_by")
-  deletedAt             DateTime? @map("deleted_at")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
+  status                ProjectStatus  // 'planning'|'active'|'completed'|'on_hold'
+  company               Company        // 'boost' | 'salt2'
+  projectType           ProjectType    @default(salt2_own) @map("project_type") // 'boost_dispatch'|'salt2_own'
+  startDate             DateTime       @map("start_date") @db.Date
+  endDate               DateTime?      @map("end_date") @db.Date
+  clientName            String?        @map("client_name") @db.VarChar(200)
+  contractType          ContractType?  @map("contract_type") // 'quasi_mandate'|'contract'|'in_house'|'other'
+  monthlyContractAmount Int            @default(0) @map("monthly_contract_amount")
+  createdBy             String         @map("created_by")
+  deletedAt             DateTime?      @map("deleted_at")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
 
   // Relations
-  creator               UserAccount            @relation("ProjectCreatedBy", fields: [createdBy], references: [id])
-  positions             ProjectPosition[]
-  assignments           ProjectAssignment[]
-  plRecords             PLRecord[]
-  attendanceAllocations AttendanceAllocation[]
-  selfReports           MonthlySelfReport[]
+  creator     UserAccount         @relation("ProjectCreatedBy", fields: [createdBy], references: [id])
+  positions   ProjectPosition[]
+  assignments ProjectAssignment[]
+  plRecords   PLRecord[]
+  selfReports MonthlySelfReport[]
 
+  @@index([status])
+  @@index([company])
+  @@index([deletedAt])
   @@map("projects")
 }
 
@@ -181,6 +277,7 @@ model ProjectPosition {
   requiredSkills PositionRequiredSkill[]
   assignments    ProjectAssignment[]
 
+  @@index([projectId])
   @@map("project_positions")
 }
 
@@ -188,16 +285,17 @@ model ProjectPosition {
 // 8. position_required_skills（ポジション必要スキル）
 // ─────────────────────────────────────────────
 model PositionRequiredSkill {
-  id         String          @id @default(uuid())
-  positionId String          @map("position_id")
-  skillId    String          @map("skill_id")
-  minLevel   Int             @map("min_level") // 1-5
+  id         String @id @default(uuid())
+  positionId String @map("position_id")
+  skillId    String @map("skill_id")
+  minLevel   Int    @map("min_level") // 1-5
 
   // Relations
   position ProjectPosition @relation(fields: [positionId], references: [id])
   skill    Skill           @relation(fields: [skillId], references: [id])
 
   @@unique([positionId, skillId])
+  @@index([skillId])
   @@map("position_required_skills")
 }
 
@@ -222,6 +320,9 @@ model ProjectAssignment {
   member   Member          @relation(fields: [memberId], references: [id])
   creator  UserAccount     @relation("AssignmentCreatedBy", fields: [createdBy], references: [id])
 
+  @@index([projectId])
+  @@index([memberId])
+  @@index([memberId, startDate, endDate])
   @@map("project_assignments")
 }
 
@@ -229,19 +330,21 @@ model ProjectAssignment {
 // 10. work_schedules（勤務予定）
 // ─────────────────────────────────────────────
 model WorkSchedule {
-  id        String   @id @default(uuid())
-  memberId  String   @map("member_id")
-  date      DateTime @db.Date
-  startTime String?  @map("start_time") @db.VarChar(5) // "HH:MM"
-  endTime   String?  @map("end_time") @db.VarChar(5)
-  isOff     Boolean  @default(false) @map("is_off")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  memberId     String   @map("member_id")
+  date         DateTime @db.Date
+  startTime    String?  @map("start_time") @db.VarChar(5) // "HH:MM"
+  endTime      String?  @map("end_time") @db.VarChar(5)
+  isOff        Boolean  @default(false) @map("is_off")
+  locationType String   @default("office") @map("location_type") @db.VarChar(20) // "office"|"online"|"client_site"
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
   member Member @relation(fields: [memberId], references: [id])
 
   @@unique([memberId, date])
+  @@index([date])
   @@map("work_schedules")
 }
 
@@ -249,27 +352,29 @@ model WorkSchedule {
 // 11. attendances（勤怠）
 // ─────────────────────────────────────────────
 model Attendance {
-  id            String    @id @default(uuid())
-  memberId      String    @map("member_id")
-  date          DateTime  @db.Date
-  clockIn       DateTime? @map("clock_in")
-  clockOut      DateTime? @map("clock_out")
-  breakMinutes  Int       @default(0) @map("break_minutes")
-  workMinutes   Int?      @map("work_minutes") // 自動計算: (clockOut - clockIn) - breakMinutes
-  todoToday     String?   @map("todo_today") @db.VarChar(500)
-  doneToday     String?   @map("done_today") @db.VarChar(500)
-  todoTomorrow  String?   @map("todo_tomorrow") @db.VarChar(500)
-  status        String    @default("normal") @db.VarChar(20) // 'normal'|'modified'|'absent'
-  confirmStatus String    @default("unconfirmed") @map("confirm_status") @db.VarChar(20) // 'unconfirmed'|'confirmed'|'approved'
-  slackNotified Boolean   @default(false) @map("slack_notified")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id            String          @id @default(uuid())
+  memberId      String          @map("member_id")
+  date          DateTime        @db.Date
+  clockIn       DateTime?       @map("clock_in")
+  clockOut      DateTime?       @map("clock_out")
+  breakMinutes  Int             @default(0) @map("break_minutes")
+  workMinutes   Int?            @map("work_minutes") // 自動計算: (clockOut - clockIn) - breakMinutes
+  todoToday     String?         @map("todo_today") @db.VarChar(500)
+  doneToday     String?         @map("done_today") @db.VarChar(500)
+  todoTomorrow  String?         @map("todo_tomorrow") @db.VarChar(500)
+  status        AttendanceStatus @default(normal) // 'normal'|'modified'|'absent'
+  confirmStatus ConfirmStatus   @default(unconfirmed) @map("confirm_status") // 'unconfirmed'|'confirmed'|'approved'
+  locationType  String          @default("office") @map("location_type") @db.VarChar(20) // "office"|"online"|"client_site"
+  slackNotified Boolean         @default(false) @map("slack_notified")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
 
   // Relations
-  member      Member                 @relation(fields: [memberId], references: [id])
-  allocations AttendanceAllocation[]
+  member Member @relation(fields: [memberId], references: [id])
 
   @@unique([memberId, date])
+  @@index([date])
+  @@index([status, confirmStatus])
   @@map("attendances")
 }
 
@@ -277,67 +382,94 @@ model Attendance {
 // 12. invoices（請求書）
 // ─────────────────────────────────────────────
 model Invoice {
-  id              String   @id @default(uuid())
-  invoiceNumber   String   @unique @map("invoice_number") @db.VarChar(20)
-  memberId        String   @map("member_id")
-  targetMonth     String   @map("target_month") @db.Char(7) // 'YYYY-MM'
-  workHoursTotal  Decimal  @default(0) @map("work_hours_total") @db.Decimal(6, 2)
-  unitPrice       Int      @map("unit_price")
-  amountExclTax   Int      @default(0) @map("amount_excl_tax")
-  amountInclTax   Int      @default(0) @map("amount_incl_tax")
-  amountBoost     Int      @default(0) @map("amount_boost")
-  amountSalt2     Int      @default(0) @map("amount_salt2")
-  filePath        String?  @map("file_path")
-  slackSentStatus String   @default("unsent") @map("slack_sent_status") @db.VarChar(10) // 'unsent'|'sent'
-  issuedAt        DateTime @map("issued_at") @db.Date
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id              String          @id @default(uuid())
+  invoiceNumber   String          @unique @map("invoice_number") @db.VarChar(20)
+  memberId        String          @map("member_id")
+  targetMonth     String          @map("target_month") @db.Char(7) // 'YYYY-MM'
+  workHoursTotal  Decimal         @default(0) @map("work_hours_total") @db.Decimal(6, 2)
+  unitPrice       Int             @map("unit_price")
+  amountExclTax   Int             @default(0) @map("amount_excl_tax")
+  amountInclTax   Int             @default(0) @map("amount_incl_tax")
+  amountBoost     Int             @default(0) @map("amount_boost")
+  amountSalt2     Int             @default(0) @map("amount_salt2")
+  expenseAmount   Int             @default(0) @map("expense_amount") // 非課税経費合計
+  filePath        String?         @map("file_path")
+  status          InvoiceStatus   @default(unsent) @map("status") // 'unsent'|'sent'|'confirmed'
+  issuedAt        DateTime        @map("issued_at") @db.Date
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
 
   // Relations
-  member Member @relation(fields: [memberId], references: [id])
+  member Member        @relation(fields: [memberId], references: [id])
+  items  InvoiceItem[]
 
   @@unique([memberId, targetMonth])
+  @@index([targetMonth])
   @@map("invoices")
 }
 
 // ─────────────────────────────────────────────
+// 12b. invoice_items（請求書明細行）
+// onDelete: Restrict → Invoice を削除する前に明細を手動削除させる（財務履歴保護）
+// ─────────────────────────────────────────────
+model InvoiceItem {
+  id              String  @id @default(uuid())
+  invoiceId       String  @map("invoice_id")
+  name            String  @db.VarChar(200)
+  amount          Int
+  sortOrder       Int     @default(0) @map("sort_order")
+  taxable         Boolean @default(true)                // 稼働分のみtrue。経費・交通費はfalse
+  linkedProjectId String? @map("linked_project_id")     // 経費の対象プロジェクトID（経費行のみ）
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId])
+  @@index([linkedProjectId])
+  @@map("invoice_items")
+}
+
+// ─────────────────────────────────────────────
 // 13. pl_records（PL / CFレコード）
+// onDelete: Restrict → Project削除前にPLレコードを移動・削除させる（財務履歴保護）
 // ─────────────────────────────────────────────
 model PLRecord {
-  id                   String   @id @default(uuid())
-  recordType           String   @map("record_type") @db.VarChar(5) // 'pl' | 'cf'
-  projectId            String?  @map("project_id") // pl時は必須、cf時はNULL
-  targetMonth          String   @map("target_month") @db.Char(7) // 'YYYY-MM'
+  id                   String      @id @default(uuid())
+  recordType           PLRecordType @map("record_type") // 'pl' | 'cf'
+  projectId            String?     @map("project_id") // pl時は必須、cf時はNULL
+  targetMonth          String      @map("target_month") @db.Char(7) // 'YYYY-MM'
   // PL項目
-  revenueContract      Int      @default(0) @map("revenue_contract")
-  revenueExtra         Int      @default(0) @map("revenue_extra")
-  costLaborMonthly     Int      @default(0) @map("cost_labor_monthly")
-  costLaborHourly      Int      @default(0) @map("cost_labor_hourly")
-  costOutsourcing      Int      @default(0) @map("cost_outsourcing")
-  costTools            Int      @default(0) @map("cost_tools")
-  costOther            Int      @default(0) @map("cost_other")
-  grossProfit          Int      @default(0) @map("gross_profit")
-  grossProfitRate      Decimal? @map("gross_profit_rate") @db.Decimal(5, 2)
-  markupRate           Decimal? @map("markup_rate") @db.Decimal(5, 3) // boost_dispatch時の掛け率
+  revenueContract      Int         @default(0) @map("revenue_contract")
+  revenueExtra         Int         @default(0) @map("revenue_extra")
+  costLaborMonthly     Int         @default(0) @map("cost_labor_monthly")
+  costLaborHourly      Int         @default(0) @map("cost_labor_hourly")
+  costOutsourcing      Int         @default(0) @map("cost_outsourcing")
+  costTools            Int         @default(0) @map("cost_tools")
+  costOther            Int         @default(0) @map("cost_other")
+  grossProfit          Int         @default(0) @map("gross_profit")
+  grossProfitRate      Decimal?    @map("gross_profit_rate") @db.Decimal(5, 2)
+  markupRate           Decimal?    @map("markup_rate") @db.Decimal(5, 3) // boost_dispatch時の掛け率
   // CF項目（recordType='cf'のみ有効）
-  cfCashInClient       Int      @default(0) @map("cf_cash_in_client")
-  cfCashInOther        Int      @default(0) @map("cf_cash_in_other")
-  cfCashOutSalary      Int      @default(0) @map("cf_cash_out_salary")
-  cfCashOutOutsourcing Int      @default(0) @map("cf_cash_out_outsourcing")
-  cfCashOutFixed       Int      @default(0) @map("cf_cash_out_fixed")
-  cfCashOutOther       Int      @default(0) @map("cf_cash_out_other")
-  cfBalancePrev        Int?     @map("cf_balance_prev")
-  cfBalanceCurrent     Int      @default(0) @map("cf_balance_current")
-  memo                 String?  @db.VarChar(200)
-  createdBy            String   @map("created_by")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  cfCompany            Company?    @map("cf_company")             // CF時のみ有効（boost | salt2）
+  cfCashInClient       Int         @default(0) @map("cf_cash_in_client")
+  cfCashInOther        Int         @default(0) @map("cf_cash_in_other")
+  cfCashOutSalary      Int         @default(0) @map("cf_cash_out_salary")
+  cfCashOutOutsourcing Int         @default(0) @map("cf_cash_out_outsourcing")
+  cfCashOutFixed       Int         @default(0) @map("cf_cash_out_fixed")
+  cfCashOutOther       Int         @default(0) @map("cf_cash_out_other")
+  cfBalancePrev        Int?        @map("cf_balance_prev")
+  cfBalanceCurrent     Int         @default(0) @map("cf_balance_current")
+  memo                 String?     @db.VarChar(200)
+  createdBy            String      @map("created_by")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
 
   // Relations
-  project Project?    @relation(fields: [projectId], references: [id])
+  project Project?    @relation(fields: [projectId], references: [id], onDelete: Restrict)
   creator UserAccount @relation("PLCreatedBy", fields: [createdBy], references: [id])
 
   @@unique([projectId, targetMonth, recordType])
+  @@index([projectId, targetMonth])
+  @@index([targetMonth, recordType])
   @@map("pl_records")
 }
 
@@ -350,7 +482,7 @@ model MemberTool {
   toolName     String   @map("tool_name") @db.VarChar(100)
   plan         String?  @db.VarChar(50)
   monthlyCost  Int      @default(0) @map("monthly_cost")
-  companyLabel String   @map("company_label") @db.VarChar(10) // 'boost' | 'salt2'
+  companyLabel Company  @map("company_label") // 'boost' | 'salt2'
   note         String?  @db.VarChar(200)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -358,6 +490,8 @@ model MemberTool {
   // Relations
   member Member @relation(fields: [memberId], references: [id])
 
+  @@index([memberId])
+  @@index([companyLabel])
   @@map("member_tools")
 }
 
@@ -365,23 +499,28 @@ model MemberTool {
 // 15. member_contracts（メンバー契約書）
 // ─────────────────────────────────────────────
 model MemberContract {
-  id           String    @id @default(uuid())
-  memberId     String    @map("member_id")
-  status       String    @default("draft") @db.VarChar(20) // 'draft'|'sent'|'waiting_sign'|'completed'|'voided'
-  templateName String    @map("template_name") @db.VarChar(100)
-  startDate    DateTime? @map("start_date") @db.Date
-  endDate      DateTime? @map("end_date") @db.Date
-  fileUrl      String?   @map("file_url")
-  fileHash     String?   @map("file_hash") @db.VarChar(128) // SHA256
-  signerEmail  String    @map("signer_email") @db.VarChar(255) // PII
-  sentAt       DateTime? @map("sent_at")
-  completedAt  DateTime? @map("completed_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id                 String               @id @default(uuid())
+  memberId           String               @map("member_id")
+  status             MemberContractStatus @default(draft) // 'draft'|'sent'|'waiting_sign'|'completed'|'voided'
+  templateName       String               @map("template_name") @db.VarChar(100)
+  startDate          DateTime?            @map("start_date") @db.Date
+  endDate            DateTime?            @map("end_date") @db.Date
+  docusignTemplateId String?              @map("docusign_template_id") @db.VarChar(100)
+  envelopeId         String?              @map("envelope_id") @db.VarChar(100)
+  fileUrl            String?              @map("file_url")
+  fileHash           String?              @map("file_hash") @db.VarChar(128) // SHA256
+  signerEmail        String               @map("signer_email") @db.VarChar(255) // PII
+  sentAt             DateTime?            @map("sent_at")
+  completedAt        DateTime?            @map("completed_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
 
   // Relations
   member Member @relation(fields: [memberId], references: [id])
 
+  @@index([memberId])
+  @@index([status])
+  @@index([envelopeId])
   @@map("member_contracts")
 }
 
@@ -389,19 +528,22 @@ model MemberContract {
 // 16. audit_logs（監査ログ・INSERT専用）
 // ─────────────────────────────────────────────
 model AuditLog {
-  id          String   @id @default(uuid())
-  operatorId  String   @map("operator_id")
-  targetTable String   @map("target_table") @db.VarChar(100)
-  targetId    String   @map("target_id")
-  action      String   @db.VarChar(10) // 'CREATE'|'UPDATE'|'DELETE'
-  beforeData  Json?    @map("before_data")
-  afterData   Json?    @map("after_data")
-  ipAddress   String   @map("ip_address") @db.VarChar(45)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id          String      @id @default(uuid())
+  operatorId  String      @map("operator_id")
+  targetTable String      @map("target_table") @db.VarChar(100)
+  targetId    String      @map("target_id")
+  action      AuditAction // 'CREATE'|'UPDATE'|'DELETE'
+  beforeData  Json?       @map("before_data")
+  afterData   Json?       @map("after_data")
+  ipAddress   String      @map("ip_address") @db.VarChar(45)
+  createdAt   DateTime    @default(now()) @map("created_at")
 
   // Relations（INSERT専用のためupdatedAtなし）
   operator UserAccount @relation("AuditOperator", fields: [operatorId], references: [id])
 
+  @@index([operatorId])
+  @@index([targetTable, targetId])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -423,44 +565,7 @@ model SystemConfig {
 }
 
 // ─────────────────────────────────────────────
-// 18. attendance_allocations（勤怠PJ配分）
-// ─────────────────────────────────────────────
-model AttendanceAllocation {
-  id           String     @id @default(uuid())
-  attendanceId String     @map("attendance_id")
-  projectId    String     @map("project_id")
-  minutes      Int
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-
-  // Relations
-  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
-  project    Project    @relation(fields: [projectId], references: [id])
-
-  @@unique([attendanceId, projectId])
-  @@map("attendance_allocations")
-}
-
-// ─────────────────────────────────────────────
-// 19. intra_company_settlements（社内精算）
-// ─────────────────────────────────────────────
-model IntraCompanySettlement {
-  id               String   @id @default(uuid())
-  targetMonth      DateTime @map("target_month") @db.Date // YYYY-MM-01 で管理
-  payingCompany    String   @map("paying_company") @db.VarChar(10) // 'boost' | 'salt2'
-  receivingCompany String   @map("receiving_company") @db.VarChar(10) // 'boost' | 'salt2'
-  memberId         String?  @map("member_id")
-  amount           Int
-  basis            String   @default("allocation") @db.VarChar(20) // 'allocation'|'manual'
-  note             String?  @db.VarChar(200)
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  @@map("intra_company_settlements")
-}
-
-// ─────────────────────────────────────────────
-// 20. monthly_self_reports（月次自己申告）
+// 18. monthly_self_reports（月次自己申告）
 // ─────────────────────────────────────────────
 model MonthlySelfReport {
   id            String    @id @default(uuid())
@@ -478,28 +583,32 @@ model MonthlySelfReport {
   project Project @relation(fields: [projectId], references: [id])
 
   @@unique([memberId, targetMonth, projectId])
+  @@index([memberId, targetMonth])
+  @@index([projectId, targetMonth])
   @@map("monthly_self_reports")
 }
 
 // ─────────────────────────────────────────────
-// 21. personnel_evaluations（人事評価 PAS）
+// 19. personnel_evaluations（人事評価 PAS）
 // ─────────────────────────────────────────────
 model PersonnelEvaluation {
-  id            String   @id @default(uuid())
-  memberId      String   @map("member_id")
-  evaluatorId   String   @map("evaluator_id") // UserAccount.id（adminのみ）
-  targetPeriod  String   @map("target_period") @db.Char(7) // 'YYYY-MM'
-  scoreP        Int      @map("score_p") // 1〜5: Professional
-  scoreA        Int      @map("score_a") // 1〜5: Appearance
-  scoreS        Int      @map("score_s") // 1〜5: Skill
-  comment       String?  @db.VarChar(1000)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  memberId     String   @map("member_id")
+  evaluatorId  String   @map("evaluator_id") // UserAccount.id（adminのみ）
+  targetPeriod String   @map("target_period") @db.Char(7) // 'YYYY-MM'
+  scoreP       Int      @map("score_p") // 1〜5: Professional
+  scoreA       Int      @map("score_a") // 1〜5: Appearance
+  scoreS       Int      @map("score_s") // 1〜5: Skill
+  comment      String?  @db.VarChar(1000)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
   member    Member      @relation(fields: [memberId], references: [id])
   evaluator UserAccount @relation("EvaluationEvaluator", fields: [evaluatorId], references: [id])
 
   @@unique([memberId, targetPeriod])
+  @@index([memberId, targetPeriod(sort: Desc)])
+  @@index([evaluatorId])
   @@map("personnel_evaluations")
 }

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const account = await prisma.userAccount.findUnique({
     where: { email },
     include: {
-      member: { select: { id: true, name: true, company: true } },
+      member: { select: { id: true, name: true } },
     },
   });
 
@@ -40,14 +40,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // DBのUserRole（employee / intern_full / intern_training / training_member）を
+  // アプリ層の3段階ロールに正規化する
+  const normalizedRole: AppRole =
+    account.role === "admin"
+      ? "admin"
+      : account.role === "manager"
+      ? "manager"
+      : "member";
+
   const session = await getSession();
   session.user = {
     id: account.id,
     memberId: account.member.id,
     email: account.email,
-    role: account.role as AppRole,
+    role: normalizedRole,
     name: account.member.name,
-    company: account.member.company,
   };
   await session.save();
 

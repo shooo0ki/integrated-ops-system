@@ -21,12 +21,12 @@ interface CfRecord {
   month: string;
   company: string;
   openingBalance: number;
-  cashInClient: number;
-  cashInOther: number;
-  cashOutSalary: number;
-  cashOutFreelance: number;
-  cashOutFixed: number;
-  cashOutOther: number;
+  cashInClient: number;    // 自動: 請求書から
+  cashInOther: number;     // 手動
+  cashOutSalary: number;   // 自動: 月給制メンバー合計
+  cashOutFixed: number;    // 自動: ツールコスト合計
+  cashOutExpense: number;  // 自動: 経費精算
+  cashOutOther: number;    // 手動
   cfBalanceCurrent: number;
 }
 
@@ -34,19 +34,24 @@ const MONTHS = buildMonths(6);
 
 function calcBalance(r: CfRecord) {
   const cashIn = r.cashInClient + r.cashInOther;
-  const cashOut = r.cashOutSalary + r.cashOutFreelance + r.cashOutFixed + r.cashOutOther;
+  const cashOut = r.cashOutSalary + r.cashOutFixed + r.cashOutExpense + r.cashOutOther;
   const net = cashIn - cashOut;
   const closingBalance = r.openingBalance + net;
   return { cashIn, cashOut, net, closingBalance };
 }
 
 function emptyRecord(month: string, company: Company): CfRecord {
-  return { month, company, openingBalance: 0, cashInClient: 0, cashInOther: 0, cashOutSalary: 0, cashOutFreelance: 0, cashOutFixed: 0, cashOutOther: 0, cfBalanceCurrent: 0 };
+  return {
+    month, company,
+    openingBalance: 0, cashInClient: 0, cashInOther: 0,
+    cashOutSalary: 0, cashOutFixed: 0, cashOutExpense: 0, cashOutOther: 0,
+    cfBalanceCurrent: 0,
+  };
 }
 
 export default function CashflowPage() {
   const { role } = useAuth();
-  const [month, setMonth] = useState(MONTHS[MONTHS.length - 1]);
+  const [month, setMonth] = useState(MONTHS[0]);
   const [company, setCompany] = useState<Company>("boost");
   const [records, setRecords] = useState<Record<string, CfRecord>>({});
   const [loading, setLoading] = useState(true);
@@ -75,7 +80,7 @@ export default function CashflowPage() {
 
   const current = getRecord(month);
 
-  function updateField(field: keyof CfRecord, raw: string) {
+  function updateManual(field: "cashInOther" | "cashOutOther" | "openingBalance", raw: string) {
     const value = raw === "" ? 0 : parseInt(raw.replace(/,/g, ""), 10);
     if (isNaN(value) || value < 0) return;
     setRecords((prev) => ({
@@ -94,10 +99,7 @@ export default function CashflowPage() {
       body: JSON.stringify({
         month,
         company,
-        cashInClient: r.cashInClient,
         cashInOther: r.cashInOther,
-        cashOutFreelance: r.cashOutFreelance,
-        cashOutFixed: r.cashOutFixed,
         cashOutOther: r.cashOutOther,
         openingBalance: r.openingBalance,
       }),
@@ -113,30 +115,38 @@ export default function CashflowPage() {
 
   function prevMonth() {
     const idx = MONTHS.indexOf(month);
-    if (idx > 0) setMonth(MONTHS[idx - 1]);
+    if (idx < MONTHS.length - 1) setMonth(MONTHS[idx + 1]);
   }
   function nextMonth() {
     const idx = MONTHS.indexOf(month);
-    if (idx < MONTHS.length - 1) setMonth(MONTHS[idx + 1]);
+    if (idx > 0) setMonth(MONTHS[idx - 1]);
   }
 
-  const chartData = MONTHS.map((m) => {
+  // グラフ用: 古い月から新しい月へ（左→右）
+  const chartData = [...MONTHS].reverse().map((m) => {
     const r = getRecord(m);
-    return { month: m.replace("-", "/"), 残高: r.openingBalance + (r.cashInClient + r.cashInOther) - (r.cashOutSalary + r.cashOutFreelance + r.cashOutFixed + r.cashOutOther) };
+    const { closingBalance } = calcBalance(r);
+    return { month: m.replace("-", "/"), 残高: closingBalance };
   });
 
   const { cashIn, cashOut, net, closingBalance } = calcBalance(current);
 
-  const rows: { label: string; key: keyof CfRecord; type: "in" | "out"; editable: boolean }[] = [
-    { label: "クライアント入金", key: "cashInClient", type: "in", editable: true },
-    { label: "その他入金", key: "cashInOther", type: "in", editable: true },
-    { label: "給与支払い", key: "cashOutSalary", type: "out", editable: false },
-    { label: "外注費支払い", key: "cashOutFreelance", type: "out", editable: true },
-    { label: "固定費", key: "cashOutFixed", type: "out", editable: true },
-    { label: "その他支出", key: "cashOutOther", type: "out", editable: true },
-  ];
-
+  // 会社によってラベルを切り替え
+  const clientInLabel = company === "salt2" ? "クライアント入金" : "Boost入金";
   const companyLabel = company === "boost" ? "Boost" : "SALT2";
+
+  type RowDef =
+    | { label: string; key: "cashInClient" | "cashOutSalary" | "cashOutFixed" | "cashOutExpense"; type: "in" | "out"; editable: false }
+    | { label: string; key: "cashInOther" | "cashOutOther" | "openingBalance"; type: "in" | "out"; editable: true };
+
+  const rows: RowDef[] = [
+    { label: clientInLabel,       key: "cashInClient",   type: "in",  editable: false },
+    { label: "その他入金",         key: "cashInOther",    type: "in",  editable: true  },
+    { label: "給与支払い",         key: "cashOutSalary",  type: "out", editable: false },
+    { label: "固定費（ツール等）",  key: "cashOutFixed",   type: "out", editable: false },
+    { label: "経費精算",           key: "cashOutExpense", type: "out", editable: false },
+    { label: "その他支出",         key: "cashOutOther",   type: "out", editable: true  },
+  ];
 
   return (
     <div className="space-y-6">
@@ -165,7 +175,7 @@ export default function CashflowPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={prevMonth}
-          disabled={MONTHS.indexOf(month) === 0}
+          disabled={MONTHS.indexOf(month) >= MONTHS.length - 1}
           className="rounded-md border border-slate-300 p-2 hover:bg-slate-50 disabled:opacity-40"
         >
           <ChevronLeft size={16} />
@@ -175,7 +185,7 @@ export default function CashflowPage() {
         </span>
         <button
           onClick={nextMonth}
-          disabled={MONTHS.indexOf(month) === MONTHS.length - 1}
+          disabled={MONTHS.indexOf(month) <= 0}
           className="rounded-md border border-slate-300 p-2 hover:bg-slate-50 disabled:opacity-40"
         >
           <ChevronRight size={16} />
@@ -222,6 +232,20 @@ export default function CashflowPage() {
               <CardHeader>
                 <CardTitle>入出金内訳</CardTitle>
               </CardHeader>
+
+              {/* 前月繰越残高（手動） */}
+              <div className="mb-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-sm text-slate-600">前月繰越残高</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={10000}
+                  value={current.openingBalance}
+                  onChange={(e) => updateManual("openingBalance", e.target.value)}
+                  className="w-36 rounded-md border border-slate-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
@@ -242,7 +266,9 @@ export default function CashflowPage() {
                         </td>
                         <td className="py-2 pr-3 text-slate-700">
                           {row.label}
-                          {!row.editable && <span className="ml-1 text-xs text-slate-400">（自動）</span>}
+                          {!row.editable && (
+                            <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-400">自動</span>
+                          )}
                         </td>
                         <td className="py-2 text-right">
                           {row.editable ? (
@@ -251,7 +277,7 @@ export default function CashflowPage() {
                               min={0}
                               step={10000}
                               value={val}
-                              onChange={(e) => updateField(row.key, e.target.value)}
+                              onChange={(e) => updateManual(row.key as "cashInOther" | "cashOutOther", e.target.value)}
                               className="w-36 rounded-md border border-slate-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                             />
                           ) : (
