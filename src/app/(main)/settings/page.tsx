@@ -11,8 +11,6 @@ import { notFound } from "next/navigation";
 type Tab = "slack" | "company" | "system";
 
 const DEFAULT_FORM = {
-  slack_webhook_url: "",
-  slack_attendance_channel: "#attendance",
   slack_closing_notify_day: "25",
   company_name_primary: "",
   company_name_secondary: "",
@@ -28,7 +26,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [slackTestStatus, setSlackTestStatus] = useState<"idle" | "testing" | "ok" | "fail">("idle");
-  const [webhookError, setWebhookError] = useState("");
 
   useEffect(() => {
     fetch("/api/system-configs")
@@ -43,15 +40,9 @@ export default function SettingsPage() {
   function handleChange(key: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
-    if (key === "slack_webhook_url") setWebhookError("");
   }
 
   async function handleSave() {
-    if (form.slack_webhook_url && !form.slack_webhook_url.startsWith("https://hooks.slack.com/")) {
-      setWebhookError("有効な Slack Webhook URL を入力してください");
-      setActiveTab("slack");
-      return;
-    }
     setSaving(true);
     const configs = Object.entries(form).map(([key, value]) => ({ key, value: String(value) }));
     const res = await fetch("/api/system-configs", {
@@ -67,17 +58,9 @@ export default function SettingsPage() {
   }
 
   async function handleSlackTest() {
-    if (!form.slack_webhook_url.startsWith("https://hooks.slack.com/")) {
-      setWebhookError("有効な Slack Webhook URL を入力してください");
-      return;
-    }
     setSlackTestStatus("testing");
     try {
-      const res = await fetch("/api/slack/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ webhookUrl: form.slack_webhook_url }),
-      });
+      const res = await fetch("/api/slack/test", { method: "POST" });
       setSlackTestStatus(res.ok ? "ok" : "fail");
     } catch {
       setSlackTestStatus("fail");
@@ -130,39 +113,18 @@ export default function SettingsPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Slack Webhook 設定</CardTitle>
+              <CardTitle>Slack Bot 設定</CardTitle>
               <Slack size={16} className="text-slate-400" />
             </CardHeader>
             <div className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                  Slack Webhook URL <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="url"
-                  value={form.slack_webhook_url}
-                  onChange={(e) => handleChange("slack_webhook_url", e.target.value)}
-                  placeholder="https://hooks.slack.com/services/..."
-                  className={webhookError ? "border-red-400" : ""}
-                />
-                {webhookError && <p className="mt-1 text-xs text-red-600">{webhookError}</p>}
+              <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                Slack 連携は環境変数（<code className="font-mono">SLACK_BOT_TOKEN</code> / <code className="font-mono">SLACK_CHANNEL_*</code>）で設定します。
+                Vercel のダッシュボード → Settings → Environment Variables から更新してください。
               </div>
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                  勤怠通知チャンネル <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="text"
-                  value={form.slack_attendance_channel}
-                  onChange={(e) => handleChange("slack_attendance_channel", e.target.value)}
-                  placeholder="#attendance"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                  月末締め通知日 <span className="text-red-500">*</span>
+                  月末締め通知日
                 </label>
                 <div className="flex items-center gap-2">
                   <Input
@@ -197,7 +159,7 @@ export default function SettingsPage() {
                   )}
                   {slackTestStatus === "fail" && (
                     <span className="flex items-center gap-1.5 text-sm text-red-600">
-                      <XCircle size={15} /> Slack への接続に失敗しました。URL を確認してください
+                      <XCircle size={15} /> 接続失敗。環境変数を確認してください
                     </span>
                   )}
                 </div>
