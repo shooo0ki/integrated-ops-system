@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       {
         error: {
           code: "VALIDATION_ERROR",
-          message: parsed.error.errors[0]?.message ?? "入力値が不正です",
+          message: parsed.error.issues[0]?.message ?? "入力値が不正です",
         },
       },
       { status: 400 }
