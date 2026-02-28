@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { sendSlack } from "@/lib/slack";
+import { sendSlack, getSlackMention } from "@/lib/slack";
 
 function unauthorized() {
   return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "ログインが必要です" } }, { status: 401 });
@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
 
   const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   const dateTimeStr = `${jst.toISOString().slice(0, 10)} ${jst.toISOString().slice(11, 16)}`;
-  const lines = [`*${user.name}* :出勤を記録しました (${dateTimeStr})`];
+  const mention = await getSlackMention(user.email, user.name);
+  const lines = [`${mention} :出勤を記録しました (${dateTimeStr})`];
   if (todoToday) lines.push(`• 今日の予定: ${todoToday}`);
   await sendSlack(lines.join("\n"), "attendance");
 

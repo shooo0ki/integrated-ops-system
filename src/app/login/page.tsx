@@ -25,12 +25,17 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = await login(email, password);
-    setLoading(false);
-    if (result.success) {
-      router.push("/dashboard");
-    } else {
-      setError(result.error ?? "ログインに失敗しました。");
+    try {
+      const result = await login(email, password);
+      if (result.success) {
+        router.push("/dashboard");
+      } else {
+        setError(result.error ?? "ログインに失敗しました。");
+      }
+    } catch {
+      setError("通信エラーが発生しました。再度お試しください。");
+    } finally {
+      setLoading(false);
     }
   }
 

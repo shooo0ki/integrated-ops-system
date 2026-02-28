@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { sendSlack } from "@/lib/slack";
+import { sendSlack, getSlackMention } from "@/lib/slack";
 
 function unauthorized() {
   return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "ログインが必要です" } }, { status: 401 });
@@ -112,8 +112,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     weekStart.setDate(weekStart.getDate() + (dow === 0 ? -6 : 1 - dow));
     const weekStartStr = weekStart.toISOString().slice(0, 10);
 
+    const mention = await getSlackMention(user.email, user.name);
     const lines = [
-      `*${user.name}*  週間予定を受け付けました（週開始: ${weekStartStr}）\n`,
+      `${mention}  週間予定を受け付けました（週開始: ${weekStartStr}）\n`,
       ...workDays.map((item) => {
         const d = new Date(item.date);
         const dayName = WEEKDAYS_JA[d.getDay()];

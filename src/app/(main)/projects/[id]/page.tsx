@@ -109,6 +109,10 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     startDate: "", endDate: "",
   });
 
+  // プロジェクト削除
+  const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
+
   // アサイン管理
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -261,6 +265,18 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     }
   }
 
+  async function handleDeleteProject() {
+    setDeletingProject(true);
+    const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    setDeletingProject(false);
+    if (res.ok) {
+      router.push("/projects");
+    } else {
+      setDeleteProjectOpen(false);
+      setSaveMsg("削除に失敗しました");
+    }
+  }
+
   async function handleDeleteAssignment(assignId: string) {
     setDeleteId(assignId);
     const res = await fetch(`/api/projects/${id}/assignments/${assignId}`, { method: "DELETE" });
@@ -372,9 +388,17 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                 )}
               </div>
               {canManage && (
-                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-                  <Pencil size={14} /> 編集
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                    <Pencil size={14} /> 編集
+                  </Button>
+                  {role === "admin" && (
+                    <Button variant="outline" size="sm" onClick={() => setDeleteProjectOpen(true)}
+                      className="text-red-600 hover:border-red-300 hover:bg-red-50">
+                      <Trash2 size={14} /> 削除
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-4">
@@ -478,6 +502,29 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
           </div>
         )}
       </Card>
+
+      {/* ─ プロジェクト削除確認モーダル ─ */}
+      <Modal isOpen={deleteProjectOpen} onClose={() => setDeleteProjectOpen(false)} title="プロジェクトを削除">
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            プロジェクト「<span className="font-semibold">{project.name}</span>」を削除しますか？
+          </p>
+          <p className="text-xs text-slate-400">この操作は元に戻せません。</p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" onClick={() => setDeleteProjectOpen(false)} disabled={deletingProject}>
+              キャンセル
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleDeleteProject}
+              disabled={deletingProject}
+              className="border-red-300 bg-red-50 text-red-600 hover:bg-red-100"
+            >
+              <Trash2 size={14} /> {deletingProject ? "削除中..." : "削除する"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* ─ アサイン追加モーダル ─ */}
       <Modal isOpen={addOpen} onClose={() => { setAddOpen(false); setAssignError(""); }} title="メンバーをアサイン">

@@ -7,17 +7,21 @@ export type SlackChannel = "schedule" | "attendance" | "default";
  */
 export async function getSlackMention(email: string, fallbackName: string): Promise<string> {
   const token = process.env.SLACK_BOT_TOKEN;
-  if (!token) return `*${fallbackName}*`;
+  if (!token) {
+    console.log("[slack] SLACK_BOT_TOKEN not set, skipping mention lookup");
+    return `*${fallbackName}*`;
+  }
 
   try {
     const res = await fetch(
       `https://slack.com/api/users.lookupByEmail?email=${encodeURIComponent(email)}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    const data = await res.json() as { ok: boolean; user?: { id: string } };
+    const data = await res.json() as { ok: boolean; error?: string; user?: { id: string } };
+    console.log("[slack] lookupByEmail response:", JSON.stringify(data));
     if (data.ok && data.user?.id) return `<@${data.user.id}>`;
-  } catch {
-    // lookup 失敗時は名前にフォールバック
+  } catch (err) {
+    console.error("[slack] lookupByEmail error:", err);
   }
   return `*${fallbackName}*`;
 }
