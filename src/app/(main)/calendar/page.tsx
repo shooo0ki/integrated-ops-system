@@ -159,119 +159,131 @@ function WeekView({ weekDays, visible, calData }: {
   function sched(memberId: string, date: string) { return calData.schedules.find(s => s.memberId === memberId && s.date === date) ?? null;  }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden flex flex-col">
-      <div className="flex border-b border-slate-200 shrink-0 overflow-x-hidden bg-white z-20 shadow-sm">
-        <div style={{ width: TIME_W, minWidth: TIME_W }} className="border-r border-slate-100 shrink-0" />
-        {weekDays.map(day => (
-          <div key={day.date}
-            className={`flex-1 py-2.5 text-center border-r border-slate-100 last:border-r-0 ${
-              day.isToday ? "bg-blue-50" : day.isWeekend ? "bg-slate-50" : ""
-            }`}
-            style={{ minWidth: DAY_MIN_W }}
-          >
-            <p className="text-xs font-medium text-slate-400">{day.dayLabel}</p>
-            <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold mx-auto mt-0.5 ${
-              day.isToday ? "bg-blue-600 text-white" : day.isWeekend ? "text-slate-400" : "text-slate-700"
-            }`}>
-              {day.dayNum}
-            </span>
-          </div>
-        ))}
-      </div>
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      {/* ヘッダー＋グリッドを同一スクロールコンテナに入れることで横スクロールを統一 */}
+      <div
+        ref={scrollRef}
+        className="overflow-auto"
+        style={{ maxHeight: "calc(100vh - 260px)", minHeight: 360 }}
+      >
+        <div style={{ minWidth: TIME_W + DAY_MIN_W * 7 }}>
 
-      <div ref={scrollRef} className="overflow-auto" style={{ maxHeight: "calc(100vh - 360px)", minHeight: 360 }}>
-        <div className="flex" style={{ minWidth: TIME_W + DAY_MIN_W * 7 }}>
-          <div
-            className="shrink-0 border-r border-slate-100 bg-white sticky left-0 z-10 select-none"
-            style={{ width: TIME_W, minWidth: TIME_W, height: GRID_H }}
-          >
-            {HOURS.map(h => (
-              <div key={h} className="absolute w-full" style={{ top: (h - START_HOUR) * HOUR_PX - 8, left: 0 }}>
-                <span className={`block pr-2 text-right text-xs leading-none ${h === 24 ? "font-bold text-slate-600" : "text-slate-400"}`}>
-                  {String(h % 24).padStart(2, "0")}:00
+          {/* 曜日ヘッダー（縦スクロール時に上部固定） */}
+          <div className="flex border-b border-slate-200 bg-white sticky top-0 z-20 shadow-sm">
+            <div style={{ width: TIME_W, minWidth: TIME_W }} className="border-r border-slate-100 shrink-0" />
+            {weekDays.map(day => (
+              <div key={day.date}
+                className={`flex-1 py-2.5 text-center border-r border-slate-100 last:border-r-0 ${
+                  day.isToday ? "bg-blue-50" : day.isWeekend ? "bg-slate-50" : ""
+                }`}
+                style={{ minWidth: DAY_MIN_W }}
+              >
+                <p className="text-xs font-medium text-slate-400">{day.dayLabel}</p>
+                <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold mx-auto mt-0.5 ${
+                  day.isToday ? "bg-blue-600 text-white" : day.isWeekend ? "text-slate-400" : "text-slate-700"
+                }`}>
+                  {day.dayNum}
                 </span>
               </div>
             ))}
           </div>
 
-          {weekDays.map(day => (
-            <div key={day.date}
-              className={`flex-1 border-r border-slate-100 last:border-r-0 relative ${
-                day.isWeekend ? "bg-slate-50/50" : day.isToday ? "bg-blue-50/20" : ""
-              }`}
-              style={{ minWidth: DAY_MIN_W }}
+          {/* グリッド本体 */}
+          <div className="flex">
+            {/* 時刻列（横スクロール時に左端固定） */}
+            <div
+              className="shrink-0 border-r border-slate-100 bg-white sticky left-0 z-10 select-none relative"
+              style={{ width: TIME_W, minWidth: TIME_W, height: GRID_H }}
             >
-              <div className="relative" style={{ height: GRID_H }}>
-                {HOURS.map(h => (
-                  <div key={h} className={`absolute inset-x-0 border-t ${h === 24 ? "border-slate-400 border-dashed z-[1]" : "border-slate-100"}`}
-                    style={{ top: (h - START_HOUR) * HOUR_PX }} />
-                ))}
-                {HOURS.map(h => (
-                  <div key={`${h}h`} className="absolute inset-x-0 border-t border-slate-50" style={{ top: (h - START_HOUR) * HOUR_PX + HOUR_PX / 2 }} />
-                ))}
-                {/* 深夜ラベル */}
-                <div className="absolute inset-x-0 pointer-events-none z-[1]"
-                  style={{ top: (24 - START_HOUR) * HOUR_PX - 9 }}>
-                  <span className="absolute right-1 text-[9px] font-bold text-slate-500 bg-white px-0.5 leading-none">日付変更</span>
+              {HOURS.map(h => (
+                <div key={h} className="absolute w-full" style={{ top: (h - START_HOUR) * HOUR_PX - 8, left: 0 }}>
+                  <span className={`block pr-2 text-right text-xs leading-none ${h === 24 ? "font-bold text-slate-600" : "text-slate-400"}`}>
+                    {String(h % 24).padStart(2, "0")}:00
+                  </span>
                 </div>
-
-                {day.isToday && currentY >= 0 && currentY <= GRID_H && (
-                  <div className="absolute inset-x-0 z-10 flex items-center pointer-events-none" style={{ top: currentY }}>
-                    <div className="h-2.5 w-2.5 rounded-full bg-red-500 shrink-0 -ml-1" />
-                    <div className="flex-1 h-px bg-red-400" />
-                  </div>
-                )}
-
-                {!day.isWeekend && visible.map((member, mi) => {
-                  const color = colorMap.get(member.id) ?? COLORS[0];
-                  const a     = att(member.id, day.date);
-                  const s     = sched(member.id, day.date);
-                  const left  = `${mi * colPct + 0.5}%`;
-                  const width = `${colPct - 1}%`;
-
-                  return (
-                    <div key={member.id}>
-                      {/* 予定ブロック（実績がない場合のみ） */}
-                      {s && !s.isOff && s.startTime && !a?.clockIn && (
-                        <div
-                          className={`absolute rounded-md border-l-2 overflow-hidden opacity-60 ${color.bg} ${color.bl}`}
-                          style={{
-                            top:    timeToY(s.startTime) + 1,
-                            height: Math.max(20, spanPx(s.startTime, s.endTime ?? `${END_HOUR}:00`) - 2),
-                            left, width, padding: "2px 4px",
-                          }}
-                        >
-                          <p className={`text-xs font-medium truncate leading-tight ${color.text}`}>{member.name}</p>
-                          <p className={`text-xs truncate leading-tight ${color.text} opacity-70`}>
-                            {s.startTime}〜{s.endTime ?? ""}
-                          </p>
-                          <LocationBadge locationType={s.locationType} />
-                        </div>
-                      )}
-
-                      {/* 実績ブロック */}
-                      {a?.clockIn && (
-                        <div
-                          className={`absolute rounded-md border-l-2 overflow-hidden ${color.bg} ${color.bl}`}
-                          style={{
-                            top:    timeToY(a.clockIn) + 1,
-                            height: Math.max(28, spanPx(a.clockIn, a.clockOut ?? nowTimeStr()) - 2),
-                            left, width, padding: "2px 4px",
-                          }}
-                        >
-                          <p className={`text-xs font-semibold truncate leading-tight ${color.text}`}>{member.name}</p>
-                          <p className={`text-xs truncate leading-tight ${color.text} opacity-80`}>
-                            {a.clockIn}〜{a.clockOut ?? "勤務中"}
-                          </p>
-                          <LocationBadge locationType={a.locationType} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              ))}
             </div>
-          ))}
+
+            {weekDays.map(day => (
+              <div key={day.date}
+                className={`flex-1 border-r border-slate-100 last:border-r-0 relative ${
+                  day.isWeekend ? "bg-slate-50/50" : day.isToday ? "bg-blue-50/20" : ""
+                }`}
+                style={{ minWidth: DAY_MIN_W }}
+              >
+                <div className="relative" style={{ height: GRID_H }}>
+                  {HOURS.map(h => (
+                    <div key={h} className={`absolute inset-x-0 border-t ${h === 24 ? "border-slate-400 border-dashed z-[1]" : "border-slate-100"}`}
+                      style={{ top: (h - START_HOUR) * HOUR_PX }} />
+                  ))}
+                  {HOURS.map(h => (
+                    <div key={`${h}h`} className="absolute inset-x-0 border-t border-slate-50" style={{ top: (h - START_HOUR) * HOUR_PX + HOUR_PX / 2 }} />
+                  ))}
+                  {/* 深夜ラベル */}
+                  <div className="absolute inset-x-0 pointer-events-none z-[1]"
+                    style={{ top: (24 - START_HOUR) * HOUR_PX - 9 }}>
+                    <span className="absolute right-1 text-[9px] font-bold text-slate-500 bg-white px-0.5 leading-none">日付変更</span>
+                  </div>
+
+                  {day.isToday && currentY >= 0 && currentY <= GRID_H && (
+                    <div className="absolute inset-x-0 z-10 flex items-center pointer-events-none" style={{ top: currentY }}>
+                      <div className="h-2.5 w-2.5 rounded-full bg-red-500 shrink-0 -ml-1" />
+                      <div className="flex-1 h-px bg-red-400" />
+                    </div>
+                  )}
+
+                  {!day.isWeekend && visible.map((member, mi) => {
+                    const color = colorMap.get(member.id) ?? COLORS[0];
+                    const a     = att(member.id, day.date);
+                    const s     = sched(member.id, day.date);
+                    const left  = `${mi * colPct + 0.5}%`;
+                    const width = `${colPct - 1}%`;
+
+                    return (
+                      <div key={member.id}>
+                        {/* 予定ブロック（実績がない場合のみ） */}
+                        {s && !s.isOff && s.startTime && !a?.clockIn && (
+                          <div
+                            className={`absolute rounded-md border-l-2 overflow-hidden opacity-60 ${color.bg} ${color.bl}`}
+                            style={{
+                              top:    timeToY(s.startTime) + 1,
+                              height: Math.max(20, spanPx(s.startTime, s.endTime ?? `${END_HOUR}:00`) - 2),
+                              left, width, padding: "2px 4px",
+                            }}
+                          >
+                            <p className={`text-xs font-medium truncate leading-tight ${color.text}`}>{member.name}</p>
+                            <p className={`text-xs truncate leading-tight ${color.text} opacity-70`}>
+                              {s.startTime}〜{s.endTime ?? ""}
+                            </p>
+                            <LocationBadge locationType={s.locationType} />
+                          </div>
+                        )}
+
+                        {/* 実績ブロック */}
+                        {a?.clockIn && (
+                          <div
+                            className={`absolute rounded-md border-l-2 overflow-hidden ${color.bg} ${color.bl}`}
+                            style={{
+                              top:    timeToY(a.clockIn) + 1,
+                              height: Math.max(28, spanPx(a.clockIn, a.clockOut ?? nowTimeStr()) - 2),
+                              left, width, padding: "2px 4px",
+                            }}
+                          >
+                            <p className={`text-xs font-semibold truncate leading-tight ${color.text}`}>{member.name}</p>
+                            <p className={`text-xs truncate leading-tight ${color.text} opacity-80`}>
+                              {a.clockIn}〜{a.clockOut ?? "勤務中"}
+                            </p>
+                            <LocationBadge locationType={a.locationType} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
       </div>
     </div>
@@ -297,51 +309,56 @@ function MonthView({ grid, visible, calData }: {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-slate-200">
-        {["月", "火", "水", "木", "金", "土", "日"].map(d => (
-          <div key={d} className={`py-2.5 text-center text-xs font-semibold ${d === "土" || d === "日" ? "text-slate-400" : "text-slate-500"}`}>
-            {d}
-          </div>
-        ))}
-      </div>
-      {grid.map((week, wi) => (
-        <div key={wi} className="grid grid-cols-7 border-b border-slate-100 last:border-b-0">
-          {week.map(day => (
-            <div key={day.date}
-              className={`min-h-[96px] p-1.5 border-r border-slate-100 last:border-r-0 ${
-                !day.isCurrentMonth ? "bg-slate-50/60" : day.isWeekend ? "bg-slate-50/30" : ""
-              }`}
-            >
-              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium mb-1 ${
-                day.isToday ? "bg-blue-600 text-white" :
-                !day.isCurrentMonth ? "text-slate-300" :
-                day.isWeekend ? "text-slate-400" : "text-slate-700"
-              }`}>
-                {day.dayNum}
-              </span>
-              <div className="space-y-0.5">
-                {visible.map(member => {
-                  const ev    = getEvent(member.id, day.date);
-                  if (!ev) return null;
-                  const color = colorMap.get(member.id) ?? COLORS[0];
-                  return (
-                    <div key={member.id}
-                      className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 ${color.bg} ${color.text} ${color.bl} ${
-                        ev.type === "schedule" ? "opacity-60" : ""
-                      }`}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium truncate">{member.name}</span>
-                      </div>
-                      <LocationBadge locationType={ev.locationType} />
-                    </div>
-                  );
-                })}
+      {/* モバイルで横スクロール可能にする */}
+      <div className="overflow-x-auto">
+        <div style={{ minWidth: 560 }}>
+          <div className="grid grid-cols-7 border-b border-slate-200">
+            {["月", "火", "水", "木", "金", "土", "日"].map(d => (
+              <div key={d} className={`py-2.5 text-center text-xs font-semibold ${d === "土" || d === "日" ? "text-slate-400" : "text-slate-500"}`}>
+                {d}
               </div>
+            ))}
+          </div>
+          {grid.map((week, wi) => (
+            <div key={wi} className="grid grid-cols-7 border-b border-slate-100 last:border-b-0">
+              {week.map(day => (
+                <div key={day.date}
+                  className={`min-h-[80px] p-1.5 border-r border-slate-100 last:border-r-0 ${
+                    !day.isCurrentMonth ? "bg-slate-50/60" : day.isWeekend ? "bg-slate-50/30" : ""
+                  }`}
+                >
+                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium mb-1 ${
+                    day.isToday ? "bg-blue-600 text-white" :
+                    !day.isCurrentMonth ? "text-slate-300" :
+                    day.isWeekend ? "text-slate-400" : "text-slate-700"
+                  }`}>
+                    {day.dayNum}
+                  </span>
+                  <div className="space-y-0.5">
+                    {visible.map(member => {
+                      const ev    = getEvent(member.id, day.date);
+                      if (!ev) return null;
+                      const color = colorMap.get(member.id) ?? COLORS[0];
+                      return (
+                        <div key={member.id}
+                          className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 ${color.bg} ${color.text} ${color.bl} ${
+                            ev.type === "schedule" ? "opacity-60" : ""
+                          }`}
+                        >
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium truncate">{member.name}</span>
+                          </div>
+                          <LocationBadge locationType={ev.locationType} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
