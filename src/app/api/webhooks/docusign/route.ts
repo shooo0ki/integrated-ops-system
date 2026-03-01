@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!contract) {
-    // 未登録の envelopeId は無視
+    console.error(`[docusign] unknown envelopeId: ${envelopeId}`);
     return NextResponse.json({ ok: true });
   }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { MEMBERS, type Member } from "./mock-data";
 import type { SessionUser } from "./auth";
 
 interface AuthState {
@@ -9,8 +8,7 @@ interface AuthState {
   userId: string | null;    // UserAccount.id (UUID)
   memberId: string | null;  // Member.id (UUID)
   role: string;
-  name: string | null;      // 表示用: SessionUser.name（モックデータ不要）
-  member: Member | null;    // 後方互換（mock-data依存コンポーネント向け）
+  name: string | null;      // 表示用: SessionUser.name
 }
 
 interface AuthContextValue extends AuthState {
@@ -24,11 +22,6 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// セッションユーザーを名前でモックデータに紐付ける（移行期間中の後方互換）
-function findMockMember(u: SessionUser): Member | null {
-  return MEMBERS.find((m) => m.name === u.name) ?? null;
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     isLoggedIn: false,
@@ -36,7 +29,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     memberId: null,
     role: "member",
     name: null,
-    member: null,
   });
 
   // 初回マウント時にセッションを復元
@@ -51,7 +43,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             memberId: data.user.memberId,
             role: data.user.role,
             name: data.user.name,
-            member: findMockMember(data.user),
           });
         }
       })
@@ -78,20 +69,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       memberId: user.memberId,
       role: user.role,
       name: user.name,
-      member: findMockMember(user),
     });
     return { success: true };
   }
 
   async function logout(): Promise<void> {
     await fetch("/api/auth/logout", { method: "POST" });
-    setState({ isLoggedIn: false, userId: null, memberId: null, role: "member", name: null, member: null });
+    setState({ isLoggedIn: false, userId: null, memberId: null, role: "member", name: null });
   }
 
-  // デモ互換: 実APIでは役割切替を行わない
-  function switchRole(_role: string) {
-    console.warn("switchRole is disabled in production auth mode");
-  }
+  // デモ互換stub: 実APIでは役割切替を行わない
+  function switchRole(_role: string) { /* no-op */ }
 
   return (
     <AuthContext.Provider value={{ ...state, login, logout, switchRole }}>

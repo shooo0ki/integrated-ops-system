@@ -18,10 +18,7 @@ interface SendEmailOptions {
  */
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
   const host = process.env.SMTP_HOST;
-  if (!host) {
-    console.warn("[email] SMTP_HOST が未設定のためメール送信をスキップします");
-    return;
-  }
+  if (!host) return;
 
   const transporter = nodemailer.createTransport({
     host,

@@ -1,7 +1,8 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
-import { Role } from "@/lib/mock-data";
+
+type Role = "admin" | "manager" | "member";
 
 const ROLES: { value: Role; label: string }[] = [
   { value: "admin", label: "管理者" },
