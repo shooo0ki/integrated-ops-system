@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { LogOut, User, Menu } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { RoleSwitcher } from "./role-switcher";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -32,9 +31,6 @@ export function Header({ onMenuClick }: HeaderProps) {
       <div className="hidden md:block" />
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Role switcher (demo only) */}
-        <RoleSwitcher />
-
         {/* User info */}
         <div className="flex items-center gap-2 rounded-md px-2 py-1">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">

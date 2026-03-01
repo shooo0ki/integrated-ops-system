@@ -17,7 +17,6 @@ interface AuthContextValue extends AuthState {
     password: string
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  switchRole: (role: string) => void; // デモ互換stub（実APIでは無効）
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -78,11 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ isLoggedIn: false, userId: null, memberId: null, role: "member", name: null });
   }
 
-  // デモ互換stub: 実APIでは役割切替を行わない
-  function switchRole(_role: string) { /* no-op */ }
-
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, switchRole }}>
+    <AuthContext.Provider value={{ ...state, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
