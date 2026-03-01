@@ -294,7 +294,7 @@ function AdminClosingView() {
       {/* Action bar */}
       <div className="flex flex-wrap gap-3">
         <Button variant="outline" onClick={handleAggregate} disabled={loading}>
-          <RefreshCw size={15} /> 勤怠集計を更新
+          <RefreshCw size={15} /> データを更新
         </Button>
         {notSentCount > 0 && (
           <Button variant="primary" onClick={handleSendAll}>
@@ -682,7 +682,6 @@ function MemberBillingView({ memberId }: { memberId: string }) {
   const [closing, setClosing] = useState<ClosingRecord | null>(null);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [items, setItems] = useState<LineItem[]>([]);
-  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -690,6 +689,9 @@ function MemberBillingView({ memberId }: { memberId: string }) {
   // 経費入力
   const [hasExpense, setHasExpense] = useState<"none" | "yes">("none");
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
+  // 交通費入力
+  const [hasTransport, setHasTransport] = useState<"none" | "yes">("none");
+  const [transports, setTransports] = useState<ExpenseItem[]>([]);
   const [myProjects, setMyProjects] = useState<MyProject[]>([]);
 
   const monthOptions = buildMonthOptions();
@@ -701,6 +703,8 @@ function MemberBillingView({ memberId }: { memberId: string }) {
     setClosing(null);
     setHasExpense("none");
     setExpenses([]);
+    setHasTransport("none");
+    setTransports([]);
 
     const [closingRes, invRes, dashRes] = await Promise.all([
       fetch(`/api/closing?month=${month}`),
@@ -778,43 +782,49 @@ function MemberBillingView({ memberId }: { memberId: string }) {
   }
 
   function addExpense() {
-    setExpenses((prev) => [...prev, {
-      id: crypto.randomUUID(),
-      projectId: "",  // デフォルトはプロジェクト外（SALT2計上）
-      description: "",
-      amount: 0,
-    }]);
+    setExpenses((prev) => [...prev, { id: crypto.randomUUID(), projectId: "", description: "", amount: 0 }]);
   }
-
   function removeExpense(id: string) {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   }
-
   function updateExpense(id: string, field: keyof ExpenseItem, value: string | number) {
     setExpenses((prev) => prev.map((e) => e.id === id ? { ...e, [field]: value } : e));
+  }
+
+  function addTransport() {
+    setTransports((prev) => [...prev, { id: crypto.randomUUID(), projectId: "", description: "", amount: 0 }]);
+  }
+  function removeTransport(id: string) {
+    setTransports((prev) => prev.filter((e) => e.id !== id));
+  }
+  function updateTransport(id: string, field: keyof ExpenseItem, value: string | number) {
+    setTransports((prev) => prev.map((e) => e.id === id ? { ...e, [field]: value } : e));
   }
 
   async function handleGenerate() {
     if (items.length === 0) return;
     setGenerating(true);
 
-    // 稼働明細（課税）+ 経費（非課税）を統合
-    const allItems = [
-      ...items.map((it) => ({ name: it.name, amount: Number(it.amount) || 0, taxable: true })),
+    // 稼働明細（課税）+ 交通費・経費（非課税）を統合
+    const nonTaxableItems = [
+      ...(hasTransport === "yes" ? transports
+        .filter((e) => e.description && e.amount > 0)
+        .map((e) => ({ name: e.description, amount: Number(e.amount) || 0, taxable: false, linkedProjectId: e.projectId || undefined }))
+        : []),
       ...(hasExpense === "yes" ? expenses
         .filter((e) => e.description && e.amount > 0)
-        .map((e) => ({
-          name: e.description,
-          amount: Number(e.amount) || 0,
-          taxable: false,
-          linkedProjectId: e.projectId || undefined,
-        })) : []),
+        .map((e) => ({ name: e.description, amount: Number(e.amount) || 0, taxable: false, linkedProjectId: e.projectId || undefined }))
+        : []),
+    ];
+    const allItems = [
+      ...items.map((it) => ({ name: it.name, amount: Number(it.amount) || 0, taxable: true })),
+      ...nonTaxableItems,
     ];
 
     const res = await fetch("/api/invoices/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetMonth: month, items: allItems, note }),
+      body: JSON.stringify({ targetMonth: month, items: allItems }),
     });
     if (res.ok) {
       const blob = await res.blob();
@@ -835,9 +845,11 @@ function MemberBillingView({ memberId }: { memberId: string }) {
   // リアルタイム計算
   const subtotal = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
   const taxAmount = Math.round(subtotal * 0.1);
+  const transportTotal = hasTransport === "yes"
+    ? transports.reduce((s, e) => s + (Number(e.amount) || 0), 0) : 0;
   const expenseTotal = hasExpense === "yes"
     ? expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0) : 0;
-  const total = subtotal + taxAmount + expenseTotal;
+  const total = subtotal + taxAmount + transportTotal + expenseTotal;
 
   return (
     <div className="space-y-6">
@@ -928,22 +940,32 @@ function MemberBillingView({ memberId }: { memberId: string }) {
                     {items.map((item, idx) => (
                       <tr key={item.id} className="border-b border-slate-100">
                         <td className="py-2 pr-3">
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => updateItem(item.id, "name", e.target.value)}
-                            placeholder="項目名"
-                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                          />
+                          {idx === 0 ? (
+                            <span className="block px-2 py-1.5 text-sm text-slate-700">{item.name}</span>
+                          ) : (
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => updateItem(item.id, "name", e.target.value)}
+                              placeholder="項目名"
+                              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                            />
+                          )}
                         </td>
                         <td className="py-2 pr-2">
-                          <input
-                            type="number"
-                            value={item.amount === 0 ? "" : item.amount}
-                            onChange={(e) => updateItem(item.id, "amount", Number(e.target.value) || 0)}
-                            placeholder="0"
-                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
-                          />
+                          {idx === 0 ? (
+                            <span className="block px-2 py-1.5 text-right text-sm font-medium text-slate-700">
+                              {formatCurrency(item.amount)}
+                            </span>
+                          ) : (
+                            <input
+                              type="number"
+                              value={item.amount === 0 ? "" : item.amount}
+                              onChange={(e) => updateItem(item.id, "amount", Number(e.target.value) || 0)}
+                              placeholder="0"
+                              className="w-full rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
+                            />
+                          )}
                         </td>
                         <td className="py-2 text-center">
                           {idx > 0 ? (
@@ -981,6 +1003,12 @@ function MemberBillingView({ memberId }: { memberId: string }) {
                   <span>消費税（10%）</span>
                   <span>{formatCurrency(taxAmount)}</span>
                 </div>
+                {transportTotal > 0 && (
+                  <div className="flex justify-between text-sky-700">
+                    <span>交通費合計（非課税）</span>
+                    <span>{formatCurrency(transportTotal)}</span>
+                  </div>
+                )}
                 {expenseTotal > 0 && (
                   <div className="flex justify-between text-emerald-700">
                     <span>経費合計（非課税）</span>
@@ -988,9 +1016,81 @@ function MemberBillingView({ memberId }: { memberId: string }) {
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-slate-800 border-t border-slate-300 pt-1.5 mt-1.5">
-                  <span>{expenseTotal > 0 ? "合計（税込＋経費）" : "合計（税込）"}</span>
+                  <span>合計</span>
                   <span className="text-blue-700 text-base">{formatCurrency(total)}</span>
                 </div>
+              </div>
+
+              {/* 交通費セクション */}
+              <div className="rounded-lg border border-slate-200 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">交通費</label>
+                  <select
+                    value={hasTransport}
+                    onChange={(e) => {
+                      const v = e.target.value as "none" | "yes";
+                      setHasTransport(v);
+                      if (v === "yes" && transports.length === 0) addTransport();
+                      if (v === "none") setTransports([]);
+                    }}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="none">なし</option>
+                    <option value="yes">あり</option>
+                  </select>
+                </div>
+                {hasTransport === "yes" && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-500">
+                      交通費は消費税がかかりません。プロジェクトを選択するとプロジェクト別PLに反映されます。
+                    </p>
+                    {transports.map((tr) => (
+                      <div key={tr.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-start">
+                        <div className="space-y-1">
+                          <select
+                            value={tr.projectId}
+                            onChange={(e) => updateTransport(tr.id, "projectId", e.target.value)}
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                          >
+                            <option value="">プロジェクト外（SALT2計上）</option>
+                            {myProjects.map((p) => (
+                              <option key={p.projectId} value={p.projectId}>{p.projectName}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            value={tr.description}
+                            onChange={(e) => updateTransport(tr.id, "description", e.target.value)}
+                            placeholder="説明（例: 渋谷→新宿 往復）"
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div className="w-28">
+                          <input
+                            type="number"
+                            value={tr.amount === 0 ? "" : tr.amount}
+                            onChange={(e) => updateTransport(tr.id, "amount", Number(e.target.value) || 0)}
+                            placeholder="金額"
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <span className="pt-2 text-sm text-slate-500">円</span>
+                        <button
+                          onClick={() => removeTransport(tr.id)}
+                          className="pt-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={addTransport}
+                      className="flex items-center gap-1.5 text-sm text-sky-600 hover:text-sky-800 transition-colors"
+                    >
+                      <Plus size={14} /> 交通費を追加
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* 経費入力セクション */}
@@ -1011,11 +1111,10 @@ function MemberBillingView({ memberId }: { memberId: string }) {
                     <option value="yes">あり</option>
                   </select>
                 </div>
-
                 {hasExpense === "yes" && (
                   <div className="space-y-3">
                     <p className="text-xs text-slate-500">
-                      経費・交通費は消費税がかかりません。プロジェクトを選択するとプロジェクト別PLに反映されます。未選択の場合はSALT2の業務経費として計上されます。
+                      経費は消費税がかかりません。プロジェクトを選択するとプロジェクト別PLに反映されます。未選択の場合はSALT2の業務経費として計上されます。
                     </p>
                     {expenses.map((exp) => (
                       <div key={exp.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-start">
@@ -1034,7 +1133,7 @@ function MemberBillingView({ memberId }: { memberId: string }) {
                             type="text"
                             value={exp.description}
                             onChange={(e) => updateExpense(exp.id, "description", e.target.value)}
-                            placeholder="説明（例: 参考書代、交通費）"
+                            placeholder="説明（例: 参考書代）"
                             className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                           />
                         </div>
@@ -1066,18 +1165,6 @@ function MemberBillingView({ memberId }: { memberId: string }) {
                 )}
               </div>
 
-              {/* 備考 */}
-              <div>
-                <label className="text-sm font-medium text-slate-700">備考（任意）</label>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={2}
-                  placeholder="交通費・特記事項などがあれば記載してください"
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
               {/* 生成ボタン */}
               <Button
                 variant="primary"
@@ -1101,6 +1188,6 @@ function MemberBillingView({ memberId }: { memberId: string }) {
 export default function ClosingPage() {
   const { role, memberId } = useAuth();
 
-  if (role === "admin") return <AdminClosingView />;
+  if (role === "admin" || role === "manager") return <AdminClosingView />;
   return <MemberBillingView memberId={memberId ?? ""} />;
 }
