@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     `${mention} :退勤を記録しました (${dateTimeStr})`,
     `おつかれさまでした！`,
   ];
-  if (breakMinutes > 0) lines.push(`• 休憩時間: ${breakMinutes}分`);
+  lines.push(`• 休憩時間: ${breakMinutes}分`);
   if (doneToday) lines.push(`• 日報: ${doneToday}`);
   if (todoTomorrow) lines.push(`• 次回勤務日にやること: ${todoTomorrow}`);
   await sendSlack(lines.join("\n"), "attendance");
