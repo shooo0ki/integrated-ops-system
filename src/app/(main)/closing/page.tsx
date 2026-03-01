@@ -309,7 +309,7 @@ function AdminClosingView() {
       ) : (
         <Card noPadding>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[800px] text-sm">
               <thead className="border-b border-slate-100 bg-slate-50">
                 <tr className="text-xs text-slate-500">
                   <th className="px-4 py-3 text-left font-medium">メンバー</th>
@@ -439,7 +439,7 @@ function AdminClosingView() {
                 <p className="text-xs font-semibold text-slate-600">時給制（インターン・業務委託）</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[680px] text-sm">
                   <thead className="border-b border-slate-100">
                     <tr className="text-xs text-slate-500">
                       <th className="px-4 py-3 text-left font-medium">メンバー</th>

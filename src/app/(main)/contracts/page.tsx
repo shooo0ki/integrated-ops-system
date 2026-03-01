@@ -372,7 +372,7 @@ export default function ContractsPage() {
       ) : (
         <Card noPadding>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="border-b border-slate-100 bg-slate-50">
                 <tr className="text-xs text-slate-500">
                   <th className="px-4 py-3 text-left font-medium">メンバー</th>
