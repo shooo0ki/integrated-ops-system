@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const body = await req.json().catch(() => null);
   const confirmStatusRaw: string = body?.confirmStatus;
 
-  if (!["unconfirmed", "confirmed", "approved"].includes(confirmStatusRaw)) {
+  if (!["unconfirmed", "confirmed", "approved", "rejected"].includes(confirmStatusRaw)) {
     return NextResponse.json(
       { error: { code: "VALIDATION_ERROR", message: "confirmStatus が不正です" } },
       { status: 400 }

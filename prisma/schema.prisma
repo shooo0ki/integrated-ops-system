@@ -70,6 +70,7 @@ enum ConfirmStatus {
   unconfirmed
   confirmed
   approved
+  rejected
 }
 
 enum InvoiceStatus {

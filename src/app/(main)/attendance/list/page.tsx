@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, CheckCircle } from "lucide-react";
+import { ArrowLeft, Download, CheckCircle, XCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +53,7 @@ export default function AttendanceListPage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
 
   // メンバー一覧（admin/manager 用）
   useEffect(() => {
@@ -94,6 +95,19 @@ export default function AttendanceListPage() {
     });
     if (res.ok) {
       setApprovedIds((prev) => new Set(Array.from(prev).concat(id)));
+      setRejectedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }
+
+  async function handleReject(id: string) {
+    const res = await fetch(`/api/attendances/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmStatus: "rejected" }),
+    });
+    if (res.ok) {
+      setRejectedIds((prev) => new Set(Array.from(prev).concat(id)));
+      setApprovedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
     }
   }
 
@@ -185,6 +199,7 @@ export default function AttendanceListPage() {
               <tbody>
                 {records.map((rec) => {
                   const approved = approvedIds.has(rec.id) || rec.confirmStatus === "approved";
+                  const rejected = rejectedIds.has(rec.id) || rec.confirmStatus === "rejected";
                   const isToday = rec.date === new Date().toISOString().slice(0, 10);
                   return (
                     <tr
@@ -218,13 +233,26 @@ export default function AttendanceListPage() {
                             <span className="flex items-center gap-1 text-xs text-green-600">
                               <CheckCircle size={12} /> 承認済
                             </span>
-                          ) : rec.status === "done" ? (
-                            <button
-                              onClick={() => handleApprove(rec.id)}
-                              className="text-xs text-blue-600 hover:underline"
-                            >
-                              承認
-                            </button>
+                          ) : rejected ? (
+                            <span className="flex items-center gap-1 text-xs text-red-500">
+                              <XCircle size={12} /> 否認済
+                            </span>
+                          ) : rec.isModified && rec.confirmStatus === "unconfirmed" ? (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleApprove(rec.id)}
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                承認
+                              </button>
+                              <span className="text-slate-300">|</span>
+                              <button
+                                onClick={() => handleReject(rec.id)}
+                                className="text-xs text-red-500 hover:underline"
+                              >
+                                否認
+                              </button>
+                            </div>
                           ) : null}
                         </td>
                       )}
