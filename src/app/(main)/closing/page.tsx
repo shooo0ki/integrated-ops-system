@@ -31,6 +31,14 @@ interface ClosingRecord {
   salaryAmount: number;
 }
 
+interface InvoiceItem {
+  id: string;
+  name: string;
+  amount: number;
+  taxable: boolean;
+  sortOrder: number;
+}
+
 interface Invoice {
   id: string;
   memberId: string;
@@ -41,9 +49,11 @@ interface Invoice {
   workHoursTotal: number;
   unitPrice: number;
   amountExclTax: number;
+  expenseAmount?: number;
   amountInclTax: number;
   status: string;
   issuedAt: string;
+  items: InvoiceItem[];
 }
 
 // ─── スタイル ────────────────────────────────────────────
@@ -98,6 +108,7 @@ function AdminClosingView() {
   const [loading, setLoading] = useState(true);
   const [aggregateWarning, setAggregateWarning] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null);
 
   const monthOptions = buildMonthOptions();
 
@@ -463,16 +474,23 @@ function AdminClosingView() {
                             {inv?.invoiceNumber ?? "—"}
                           </td>
                           <td className="px-4 py-3">
-                            {inv && invStatus === "sent" && (
-                              <Button size="sm" variant="primary" onClick={() => handleAccounting(inv.id, rec.memberName)}>
-                                <Send size={12} /> LayerXへ送付
-                              </Button>
-                            )}
-                            {invStatus === "confirmed" && (
-                              <span className="flex items-center gap-1 text-xs text-green-600">
-                                <CheckCircle size={12} /> LayerX送付済み
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {inv && (
+                                <Button size="sm" variant="outline" onClick={() => setDetailInvoice(inv)}>
+                                  <FileText size={12} /> 明細
+                                </Button>
+                              )}
+                              {inv && invStatus === "sent" && (
+                                <Button size="sm" variant="primary" onClick={() => handleAccounting(inv.id, rec.memberName)}>
+                                  <Send size={12} /> LayerXへ送付
+                                </Button>
+                              )}
+                              {invStatus === "confirmed" && (
+                                <span className="flex items-center gap-1 text-xs text-green-600">
+                                  <CheckCircle size={12} /> LayerX送付済み
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -564,6 +582,74 @@ function AdminClosingView() {
           </div>
         </div>
       </Modal>
+
+      {/* 請求書明細モーダル */}
+      {detailInvoice && (
+        <Modal
+          isOpen={true}
+          onClose={() => setDetailInvoice(null)}
+          title={`請求書明細 — ${detailInvoice.memberName}`}
+          size="md"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>請求書番号: <strong className="text-slate-700">{detailInvoice.invoiceNumber}</strong></span>
+              <span>発行日: {detailInvoice.issuedAt}</span>
+            </div>
+
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-xs text-slate-500">
+                  <th className="pb-2 text-left font-medium">項目名</th>
+                  <th className="pb-2 text-center font-medium w-20">区分</th>
+                  <th className="pb-2 text-right font-medium w-32">金額</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detailInvoice.items.map((item) => (
+                  <tr key={item.id} className="border-b border-slate-100">
+                    <td className="py-2 text-slate-700">{item.name}</td>
+                    <td className="py-2 text-center">
+                      <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                        item.taxable ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"
+                      }`}>
+                        {item.taxable ? "課税" : "非課税"}
+                      </span>
+                    </td>
+                    <td className="py-2 text-right text-slate-700">{formatCurrency(item.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-slate-300">
+                <tr>
+                  <td colSpan={2} className="pt-3 text-xs text-slate-500">税抜小計</td>
+                  <td className="pt-3 text-right text-sm text-slate-600">{formatCurrency(detailInvoice.amountExclTax)}</td>
+                </tr>
+                <tr>
+                  <td colSpan={2} className="py-1 text-xs text-slate-500">消費税（10%）</td>
+                  <td className="py-1 text-right text-sm text-slate-500">
+                    {formatCurrency(Math.round(detailInvoice.amountExclTax * 0.1))}
+                  </td>
+                </tr>
+                {(detailInvoice.expenseAmount ?? 0) > 0 && (
+                  <tr>
+                    <td colSpan={2} className="py-1 text-xs text-slate-500">経費（非課税）</td>
+                    <td className="py-1 text-right text-sm text-emerald-600">{formatCurrency(detailInvoice.expenseAmount ?? 0)}</td>
+                  </tr>
+                )}
+                <tr>
+                  <td colSpan={2} className="pt-2 font-bold text-slate-800">合計（税込）</td>
+                  <td className="pt-2 text-right font-bold text-blue-700 text-base">{formatCurrency(detailInvoice.amountInclTax)}</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setDetailInvoice(null)}>閉じる</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

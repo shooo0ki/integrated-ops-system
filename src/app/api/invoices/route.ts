@@ -86,6 +86,13 @@ export async function GET(req: NextRequest) {
       amountInclTax: inv.amountInclTax,
       status: inv.status,
       issuedAt: inv.issuedAt.toISOString().slice(0, 10),
+      items: inv.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        amount: item.amount,
+        taxable: item.taxable,
+        sortOrder: item.sortOrder,
+      })),
     }))
   );
 }

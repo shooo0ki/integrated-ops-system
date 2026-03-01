@@ -20,11 +20,12 @@ import {
   Settings,
   Wallet,
   Award,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
-const ALL = ["admin", "manager", "member"];
+const ALL = ["admin", "manager", "member", "intern"];
 const STAFF = ["admin", "manager"];
 const PRIVILEGED = ["admin", "manager"];
 
@@ -47,7 +48,12 @@ const navItems = [
   { href: "/settings",        label: "設定",              icon: Settings,        roles: ["admin"] },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { role } = useAuth();
 
@@ -56,47 +62,66 @@ export function Sidebar() {
   );
 
   return (
-    <aside className="flex h-full w-56 flex-col border-r border-slate-200 bg-white">
-      {/* Logo */}
-      <div className="flex h-14 items-center gap-2 border-b border-slate-200 px-4">
-        <Building2 size={20} className="text-blue-600" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-800">統合業務管理</p>
+    <>
+      {/* デスクトップ: 常に表示 / モバイル: isOpen で固定オーバーレイ表示 */}
+      <aside
+        className={cn(
+          "flex h-full w-56 flex-col border-r border-slate-200 bg-white",
+          // デスクトップ: 通常フロー
+          "hidden md:flex",
+          // モバイル: 固定位置で重ねて表示
+          isOpen && "fixed inset-y-0 left-0 z-30 flex"
+        )}
+      >
+        {/* Logo */}
+        <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <Building2 size={20} className="shrink-0 text-blue-600" />
+            <p className="truncate text-sm font-bold text-slate-800">統合業務管理</p>
+          </div>
+          {/* モバイル: 閉じるボタン */}
+          <button
+            onClick={onClose}
+            className="ml-2 shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 md:hidden"
+            aria-label="メニューを閉じる"
+          >
+            <X size={16} />
+          </button>
         </div>
-      </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3">
-        <ul className="space-y-0.5 px-2">
-          {visibleItems.map((item) => {
-            const active =
-              item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(item.href);
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  )}
-                >
-                  <item.icon size={16} />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-3">
+          <ul className="space-y-0.5 px-2">
+            {visibleItems.map((item) => {
+              const active =
+                item.href === "/dashboard"
+                  ? pathname === "/dashboard"
+                  : pathname.startsWith(item.href);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                  >
+                    <item.icon size={16} />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-      {/* Footer */}
-      <div className="border-t border-slate-200 px-4 py-3">
-        <p className="text-xs text-slate-400">v1.0 | Boost / SALT2</p>
-      </div>
-    </aside>
+        {/* Footer */}
+        <div className="border-t border-slate-200 px-4 py-3">
+          <p className="text-xs text-slate-400">v1.0 | Boost / SALT2</p>
+        </div>
+      </aside>
+    </>
   );
 }
