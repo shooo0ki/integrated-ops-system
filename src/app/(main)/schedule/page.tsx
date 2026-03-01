@@ -96,7 +96,7 @@ function AdminUnsubmittedAlert() {
 // ─── ページ本体 ───────────────────────────────────────────
 
 export default function SchedulePage() {
-  const { memberId, member, role } = useAuth();
+  const { memberId, name, role } = useAuth();
   const [entries, setEntries] = useState<DayEntry[]>(buildNextWeek);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -180,7 +180,7 @@ export default function SchedulePage() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="text-xl font-bold text-slate-800">勤務予定登録</h1>
-        <p className="text-sm text-slate-500">{member?.name} — 翌週（{weekLabel}）</p>
+        <p className="text-sm text-slate-500">{name} — 翌週（{weekLabel}）</p>
       </div>
 
       {(role === "admin" || role === "manager") && <AdminUnsubmittedAlert />}
