@@ -51,6 +51,7 @@ export default function AttendanceListPage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [visibleCount, setVisibleCount] = useState(50);
   const [loading, setLoading] = useState(true);
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
@@ -92,6 +93,7 @@ export default function AttendanceListPage() {
   const totalHours = approvedRecords.reduce((s, r) => s + (r.actualHours ?? 0), 0);
   const workDays = approvedRecords.filter((r) => r.status !== "not_started" && r.status !== "absent").length;
   const absentDays = records.filter((r) => r.status === "absent").length;
+  const visibleRecords = records.slice(0, visibleCount);
 
   async function handleApprove(id: string) {
     const res = await fetch(`/api/attendances/${id}`, {
@@ -314,7 +316,7 @@ export default function AttendanceListPage() {
                 </tr>
               </thead>
               <tbody>
-                {records.map((rec) => {
+                {visibleRecords.map((rec) => {
                   const approved = approvedIds.has(rec.id) || rec.confirmStatus === "approved";
                   const rejected = rejectedIds.has(rec.id) || rec.confirmStatus === "rejected";
                   const jstToday = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
@@ -383,6 +385,13 @@ export default function AttendanceListPage() {
               <div className="py-12 text-center text-sm text-slate-400">該当する勤怠データがありません</div>
             )}
           </div>
+          {records.length > visibleCount && (
+            <div className="px-4 pb-4 pt-2 flex justify-center">
+              <Button variant="outline" size="sm" onClick={() => setVisibleCount((v) => v + 50)}>
+                もっと見る（残り {records.length - visibleCount} 件）
+              </Button>
+            </div>
+          )}
         </Card>
       )}
     </div>
