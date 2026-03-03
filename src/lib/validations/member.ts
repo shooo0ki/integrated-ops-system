@@ -45,6 +45,7 @@ export const upsertToolSchema = z.object({
 
 // メンバー自身が編集できるプロフィール項目（住所・口座情報）
 export const updateProfileSchema = z.object({
+  email: z.string().email().optional(),
   phone: z.string().max(20).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   bankName: z.string().max(100).nullable().optional(),

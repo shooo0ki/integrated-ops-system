@@ -51,11 +51,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
   }
 
-  const { phone, address, bankName, bankBranch, bankAccountNumber, bankAccountHolder } = parsed.data;
+  const { email, phone, address, bankName, bankBranch, bankAccountNumber, bankAccountHolder } = parsed.data;
 
   const updated = await prisma.member.update({
     where: { id },
     data: {
+      ...(email !== undefined && { email }),
       ...(phone !== undefined && { phone }),
       ...(address !== undefined && { address }),
       ...(bankName !== undefined && { bankName }),
@@ -66,6 +67,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     select: {
       id: true,
       name: true,
+      email: true,
       phone: true,
       address: true,
       bankName: true,

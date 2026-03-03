@@ -93,6 +93,7 @@ interface AttRecord {
 // ─── プロフィール編集モーダル ─────────────────────────────
 
 interface ProfileForm {
+  email: string;
   phone: string;
   address: string;
   bankName: string;
@@ -113,6 +114,7 @@ function ProfileEditModal({
   onSaved: (updated: Partial<MemberDetail>) => void;
 }) {
   const [form, setForm] = useState<ProfileForm>({
+    email: current.email ?? "",
     phone: current.phone ?? "",
     address: current.address ?? "",
     bankName: current.bankName ?? "",
@@ -134,6 +136,7 @@ function ProfileEditModal({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        email: form.email || undefined,
         phone: form.phone || null,
         address: form.address || null,
         bankName: form.bankName || null,
@@ -153,11 +156,11 @@ function ProfileEditModal({
     setSaving(false);
   }
 
-  const field = (label: string, key: keyof ProfileForm, placeholder?: string) => (
+  const field = (label: string, key: keyof ProfileForm, placeholder?: string, type: "text" | "email" = "text") => (
     <div>
       <label className="text-sm font-medium text-slate-700">{label}</label>
       <input
-        type="text"
+        type={type}
         value={form[key]}
         onChange={(e) => set(key, e.target.value)}
         placeholder={placeholder}
@@ -172,6 +175,8 @@ function ProfileEditModal({
         {error && (
           <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
         )}
+
+        {field("メールアドレス", "email", "例: user@example.com", "email")}
 
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">連絡先</p>
         {field("電話番号", "phone", "例: 090-1234-5678")}
