@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/warmup",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/weekly-schedule-reminder",
       "schedule": "0 0 * * 0"
     }
