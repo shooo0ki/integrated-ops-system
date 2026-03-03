@@ -373,9 +373,9 @@ export default function CalendarPage() {
   const [anchor,        setAnchor]        = useState(() => new Date());
   const [displayYear,   setDisplayYear]   = useState(() => new Date().getFullYear());
   const [displayMonth,  setDisplayMonth]  = useState(() => new Date().getMonth() + 1);
-  // 初期は自分のみ（管理者も含む）。必要に応じて全選択ボタンで拡張。
+  // 初期は全員選択（従来の挙動に戻す）
   const [selectedIds,   setSelectedIds]   = useState<Set<string>>(
-    () => new Set(myMemberId ? [myMemberId] : [])
+    () => new Set()
   );
   const [selectedProjId, setSelectedProjId] = useState<string>("");
   const [calData,       setCalData]       = useState<CalData>({ members: [], schedules: [], attendances: [], projects: [] });
@@ -397,7 +397,7 @@ export default function CalendarPage() {
       setCalData(data);
       if (!initialized.current && data.members.length > 0) {
         if (selectedIds.size === 0) {
-          setSelectedIds(new Set(myMemberId ? [myMemberId] : [data.members[0].id]));
+          setSelectedIds(new Set(data.members.map((m) => m.id)));
         }
         initialized.current = true;
       }
