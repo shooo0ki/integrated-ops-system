@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,22 +25,16 @@ export default function WorkloadPage() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
-  const [data, setData] = useState<WorkloadData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading, mutate } = useSWR<WorkloadData>(`/api/workload?month=${month}`);
   const [editMode, setEditMode] = useState(false);
   const [cells, setCells] = useState<Record<string, Record<string, CellData>>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`/api/workload?month=${month}`)
-      .then((r) => r.json())
-      .then((d: WorkloadData) => {
-        setData(d);
-        setCells(d.matrix);
-      })
-      .finally(() => setLoading(false));
-  }, [month]);
+    if (data) {
+      setCells(data.matrix);
+    }
+  }, [data]);
 
   function memberTotal(memberId: string): number {
     return Object.values(cells[memberId] ?? {}).reduce((s, c) => s + (c?.hours ?? 0), 0);
@@ -86,10 +81,7 @@ export default function WorkloadPage() {
     await Promise.all(allPatches);
     setSaving(false);
     setEditMode(false);
-    // reload
-    const d: WorkloadData = await fetch(`/api/workload?month=${month}`).then((r) => r.json());
-    setData(d);
-    setCells(d.matrix);
+    await mutate();
   }
 
   // generate month options (current + 5 months back)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -98,8 +99,9 @@ export default function MemberDetailPage({
   const canEdit = myRole === "admin" || myRole === "manager";
   const canDelete = myRole === "admin";
 
-  const [member, setMember] = useState<MemberDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: member, isLoading: loading, error: fetchError, mutate: mutateMember } = useSWR<MemberDetail>(
+    `/api/members/${id}`
+  );
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<MemberDetail>>({});
   const [saving, setSaving] = useState(false);
@@ -113,14 +115,8 @@ export default function MemberDetailPage({
   const [editingTool, setEditingTool] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/members/${id}`)
-      .then((r) => {
-        if (r.status === 404) { router.push("/members"); return null; }
-        return r.json();
-      })
-      .then((data) => { if (data) setMember(data); })
-      .finally(() => setLoading(false));
-  }, [id, router]);
+    if (fetchError) { router.push("/members"); }
+  }, [fetchError, router]);
 
   function startEdit() {
     if (!member) return;
@@ -159,8 +155,7 @@ export default function MemberDetailPage({
     });
     setSaving(false);
     if (res.ok) {
-      const updated = await res.json();
-      setMember((m) => m ? { ...m, ...editForm, name: updated.name } : m);
+      await mutateMember();
       setEditMode(false);
     } else {
       const data = await res.json();
@@ -186,8 +181,7 @@ export default function MemberDetailPage({
       }),
     });
     if (res.ok) {
-      const tool = await res.json();
-      setMember((m) => m ? { ...m, tools: [...m.tools, tool] } : m);
+      await mutateMember();
       setToolForm({ toolName: "", plan: "", monthlyCost: "0", note: "" });
       setShowToolForm(false);
     }
@@ -207,8 +201,7 @@ export default function MemberDetailPage({
       }),
     });
     if (res.ok) {
-      const updated = await res.json();
-      setMember((m) => m ? { ...m, tools: m.tools.map((t) => t.id === toolId ? updated : t) } : m);
+      await mutateMember();
       setEditingTool(null);
     }
   }
@@ -217,7 +210,7 @@ export default function MemberDetailPage({
     if (!confirm("このツールを削除しますか？")) return;
     const res = await fetch(`/api/members/${id}/tools/${toolId}`, { method: "DELETE" });
     if (res.ok) {
-      setMember((m) => m ? { ...m, tools: m.tools.filter((t) => t.id !== toolId) } : m);
+      await mutateMember();
     }
   }
 

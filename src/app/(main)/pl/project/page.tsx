@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,10 +80,8 @@ export default function ProjectPLPage() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
-  const [projects, setProjects] = useState<ProjectTab[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [allRecords, setAllRecords] = useState<PLRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: allRecords = [], isLoading: loading, mutate: mutatePLRecords } = useSWR<PLRecord[]>(`/api/pl-records?months=${MONTHS.join(",")}`);
   const [simMarkup, setSimMarkup] = useState<string>("");
   const [otherCostInput, setOtherCostInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -93,30 +92,25 @@ export default function ProjectPLPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // プロジェクト一覧（全PLレコードから一意に取得）
-  const loadProjects = useCallback(async () => {
-    const res = await fetch(`/api/pl-records?months=${MONTHS.join(",")}`);
-    if (!res.ok) return;
-    const records: PLRecord[] = await res.json();
-    setAllRecords(records);
-
-    // 一意のプロジェクトを抽出
+  // 一意のプロジェクトを抽出
+  const projects: ProjectTab[] = (() => {
     const seen = new Set<string>();
     const tabs: ProjectTab[] = [];
-    records.forEach((r) => {
+    allRecords.forEach((r) => {
       if (!seen.has(r.projectId)) {
         seen.add(r.projectId);
         tabs.push({ id: r.projectId, name: r.projectName, company: r.company, projectType: r.projectType });
       }
     });
-    setProjects(tabs);
-    if (tabs.length > 0 && !selectedProjectId) {
-      setSelectedProjectId(tabs[0].id);
-    }
-    setLoading(false);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return tabs;
+  })();
 
-  useEffect(() => { loadProjects(); }, [loadProjects]);
+  useEffect(() => {
+    if (projects.length > 0 && !selectedProjectId) {
+      setSelectedProjectId(projects[0].id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.length, selectedProjectId]);
 
   const currentRecord = allRecords.find(
     (r) => r.targetMonth === selectedMonth && r.projectId === selectedProjectId
@@ -176,7 +170,7 @@ export default function ProjectPLPage() {
     if (res.ok) {
       showToast("コストを保存しました");
       setOtherCostInput("");
-      await loadProjects();
+      await mutatePLRecords();
     }
   }
 

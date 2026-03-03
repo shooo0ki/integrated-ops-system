@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { Clock, CheckCircle, Building2, Monitor, ClipboardEdit, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -55,9 +56,12 @@ export default function AttendancePage() {
   const todayStr = today.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }); // JST 基準 YYYY-MM-DD
   const todayLabel = today.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric", weekday: "long" });
 
-  const [myRecord, setMyRecord] = useState<TodayRecord | null>(null);
-  const [myStatus, setMyStatus] = useState<AttendanceStatus>("not_started");
-  const [corrections, setCorrections] = useState<CorrectionRecord[]>([]);
+  const { data: myRecord = null, mutate: mutateToday } = useSWR<TodayRecord | null>("/api/attendances/today");
+  const myStatus: AttendanceStatus = myRecord?.status ?? "not_started";
+  const { data: correctionsData = [], mutate: mutateCorrections } = useSWR<CorrectionRecord[]>(
+    isAdmin ? "/api/attendances/corrections" : null
+  );
+  const corrections = Array.isArray(correctionsData) ? correctionsData : [];
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [corrToast, setCorrToast] = useState<string | null>(null);
 
@@ -71,37 +75,14 @@ export default function AttendancePage() {
   const [clockInError, setClockInError] = useState("");
   const [actionLog, setActionLog] = useState<string[]>([]);
 
+  useEffect(() => {
+    if (myRecord?.todoToday) setTodayPlan(myRecord.todoToday);
+  }, [myRecord]);
+
   const timeStr = () => {
     const n = new Date();
     return `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`;
   };
-
-  // 今日の自分の打刻記録を取得
-  const loadToday = useCallback(async () => {
-    const res = await fetch("/api/attendances/today");
-    if (!res.ok) return;
-    const data: TodayRecord | null = await res.json();
-    if (data) {
-      setMyRecord(data);
-      setMyStatus(data.status);
-      if (data.todoToday) setTodayPlan(data.todoToday);
-    }
-  }, []);
-
-  // 修正申請一覧の取得（admin/manager のみ）
-  const loadCorrections = useCallback(async () => {
-    if (!isAdmin) return;
-    const res = await fetch("/api/attendances/corrections");
-    if (res.ok) {
-      const data = await res.json();
-      setCorrections(Array.isArray(data) ? data : []);
-    }
-  }, [isAdmin]);
-
-  useEffect(() => {
-    loadToday();
-    if (isAdmin) loadCorrections();
-  }, [loadToday, loadCorrections, isAdmin]);
 
   async function clockIn() {
     if (!workLocation) { setClockInError("勤務場所を選択してください"); return; }
@@ -113,9 +94,8 @@ export default function AttendancePage() {
       body: JSON.stringify({ date: todayStr, todoToday: todayPlan, locationType: locationTypeMap[workLocation] ?? "office" }),
     });
     if (res.ok) {
-      setMyStatus("working");
       setActionLog((prev) => [`${timeStr()} 出勤しました（${workLocation}）`, ...prev]);
-      await loadToday();
+      await mutateToday();
     }
   }
 
@@ -133,9 +113,8 @@ export default function AttendancePage() {
     if (res.ok) {
       const data = await res.json();
       const hours = data.workMinutes != null ? (data.workMinutes / 60).toFixed(1) : "—";
-      setMyStatus("done");
       setActionLog((prev) => [`${timeStr()} 退勤しました（実働 ${hours}h）`, ...prev]);
-      await loadToday();
+      await mutateToday();
     }
   }
 
@@ -147,7 +126,7 @@ export default function AttendancePage() {
       body: JSON.stringify({ confirmStatus: "confirmed" }),
     });
     if (res.ok) {
-      setCorrections((prev) => prev.filter((c) => c.id !== id));
+      await mutateCorrections();
       setCorrToast("修正を承認しました");
       setTimeout(() => setCorrToast(null), 3000);
     }

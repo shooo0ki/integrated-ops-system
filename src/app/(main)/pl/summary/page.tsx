@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { TrendingUp, TrendingDown, ArrowRight, RefreshCw, CheckCircle, AlertCircle, Pencil, Save, X } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,8 +70,7 @@ export default function PLSummaryPage() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
-  const [allRecords, setAllRecords] = useState<PLRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: allRecords = [], isLoading: loading, mutate: mutatePL } = useSWR<PLRecord[]>(`/api/pl-records?months=${MONTHS.join(",")}`);
   const [generating, setGenerating] = useState(false);
   const [genMsg, setGenMsg] = useState<string | null>(null);
 
@@ -89,28 +89,9 @@ export default function PLSummaryPage() {
     submittedAt: string | null;
     projects: { projectId: string; projectName: string; reportedHours: number }[];
   };
-  const [selfReports, setSelfReports] = useState<SelfReportStatus[]>([]);
-  const [reportLoading, setReportLoading] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch(`/api/pl-records?months=${MONTHS.join(",")}`);
-    if (res.ok) {
-      setAllRecords(await res.json());
-    }
-    setLoading(false);
-  }, []);
-
-  const loadSelfReports = useCallback(async () => {
-    if (!canEdit) return;
-    setReportLoading(true);
-    const res = await fetch(`/api/self-reports?month=${month}`);
-    if (res.ok) setSelfReports(await res.json());
-    setReportLoading(false);
-  }, [canEdit, month]);
-
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => { loadSelfReports(); }, [loadSelfReports]);
+  const { data: selfReports = [], isLoading: reportLoading } = useSWR<SelfReportStatus[]>(
+    canEdit ? `/api/self-reports?month=${month}` : null
+  );
 
   async function handleSavePL(pl: PLRecord) {
     const isDispatch = pl.projectType === "boost_dispatch";
@@ -130,7 +111,7 @@ export default function PLSummaryPage() {
       body: JSON.stringify(body),
     });
     if (res.ok) {
-      await load();
+      await mutatePL();
       setEditingMarkup(null);
     }
     setSavingMarkup(null);
@@ -146,7 +127,7 @@ export default function PLSummaryPage() {
     });
     const data = await res.json();
     setGenMsg(res.ok ? data.message : (data.error ?? "生成に失敗しました"));
-    if (res.ok) await load();
+    if (res.ok) await mutatePL();
     setGenerating(false);
     setTimeout(() => setGenMsg(null), 5000);
   }

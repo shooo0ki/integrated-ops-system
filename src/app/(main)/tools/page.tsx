@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { Wrench, Plus, TrendingUp, Edit2, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,31 +30,18 @@ export default function ToolsPage() {
   const [memberFilter, setMemberFilter] = useState<string>("ALL");
   const [toolFilter, setToolFilter] = useState<string>("ALL");
 
-  const [tools, setTools] = useState<ToolEntry[]>([]);
-  const [members, setMembers] = useState<MemberOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: tools = [], isLoading: toolsLoading, mutate: mutateTools } = useSWR<ToolEntry[]>("/api/tools");
+  const { data: membersData, isLoading: membersLoading } = useSWR<{ members?: MemberOption[] } | MemberOption[]>("/api/members");
+  const loading = toolsLoading || membersLoading;
+  const members: MemberOption[] = membersData
+    ? ((membersData as { members?: MemberOption[] }).members ?? (membersData as MemberOption[])).map((m: { id: string; name: string }) => ({ id: m.id, name: m.name }))
+    : [];
 
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ToolEntry | null>(null);
   const [form, setForm] = useState({ toolName: "", plan: "", monthlyCost: "", memberId: "", note: "" });
   const [editForm, setEditForm] = useState({ plan: "", monthlyCost: "", note: "" });
   const [submitting, setSubmitting] = useState(false);
-
-  const loadTools = useCallback(async () => {
-    setLoading(true);
-    const [toolsRes, membersRes] = await Promise.all([
-      fetch("/api/tools"),
-      fetch("/api/members"),
-    ]);
-    if (toolsRes.ok) setTools(await toolsRes.json());
-    if (membersRes.ok) {
-      const data = await membersRes.json();
-      setMembers((data.members ?? data).map((m: { id: string; name: string }) => ({ id: m.id, name: m.name })));
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { loadTools(); }, [loadTools]);
 
   const toolNames = Array.from(new Set(tools.map((t) => t.toolName))).sort();
 
@@ -87,8 +75,7 @@ export default function ToolsPage() {
       }),
     });
     if (res.ok) {
-      const newTool = await res.json();
-      setTools((prev) => [...prev, newTool]);
+      await mutateTools();
       setAddOpen(false);
       setForm({ toolName: "", plan: "", monthlyCost: "", memberId: "", note: "" });
     }
@@ -109,8 +96,7 @@ export default function ToolsPage() {
       }),
     });
     if (res.ok) {
-      const updated = await res.json();
-      setTools((prev) => prev.map((t) => (t.id === editTarget.id ? { ...t, ...updated, memberName: editTarget.memberName } : t)));
+      await mutateTools();
       setEditTarget(null);
     }
     setSubmitting(false);
@@ -120,7 +106,7 @@ export default function ToolsPage() {
     if (!confirm(`「${tool.toolName}」を削除しますか？`)) return;
     const res = await fetch(`/api/members/${tool.memberId}/tools/${tool.id}`, { method: "DELETE" });
     if (res.ok) {
-      setTools((prev) => prev.filter((t) => t.id !== tool.id));
+      await mutateTools();
     }
   }
 

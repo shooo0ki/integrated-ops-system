@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { ArrowLeft, Download, CheckCircle, XCircle, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -44,15 +45,14 @@ export default function AttendanceListPage() {
   const { role, memberId: myMemberId } = useAuth();
   const isAdmin = role === "admin" || role === "manager";
 
-  const [members, setMembers] = useState<MemberOption[]>([]);
+  const { data: membersData = [] } = useSWR<MemberOption[]>(isAdmin ? "/api/members" : null);
+  const members: MemberOption[] = Array.isArray(membersData) ? membersData : [];
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
-  const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [visibleCount, setVisibleCount] = useState(50);
-  const [loading, setLoading] = useState(true);
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
 
@@ -61,32 +61,12 @@ export default function AttendanceListPage() {
     open: false, date: "", clockIn: "", clockOut: "", breakMinutes: "0", submitting: false, error: "",
   });
 
-  // メンバー一覧（admin/manager 用）
-  useEffect(() => {
-    if (!isAdmin) return;
-    fetch("/api/members")
-      .then((r) => r.json())
-      .then((data: MemberOption[]) => setMembers(data))
-      .catch(() => {});
-  }, [isAdmin]);
-
   // memberId が確定したら記録取得
   const targetMemberId = isAdmin ? (selectedMemberId || myMemberId || "") : (myMemberId || "");
 
-  const loadRecords = useCallback(async () => {
-    if (!targetMemberId) return;
-    setLoading(true);
-    const params = new URLSearchParams({ memberId: targetMemberId, month });
-    const res = await fetch(`/api/attendances?${params}`);
-    if (res.ok) {
-      setRecords(await res.json());
-    }
-    setLoading(false);
-  }, [targetMemberId, month]);
-
-  useEffect(() => {
-    loadRecords();
-  }, [loadRecords]);
+  const { data: records = [], isLoading: loading, mutate: mutateRecords } = useSWR<AttendanceRecord[]>(
+    targetMemberId ? `/api/attendances?memberId=${targetMemberId}&month=${month}` : null
+  );
 
   // 集計（承認待ちは集計に含めない）
   const approvedRecords = records.filter((r) => r.status !== "pending_approval");
@@ -104,6 +84,7 @@ export default function AttendanceListPage() {
     if (res.ok) {
       setApprovedIds((prev) => new Set(Array.from(prev).concat(id)));
       setRejectedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+      await mutateRecords();
     }
   }
 
@@ -116,6 +97,7 @@ export default function AttendanceListPage() {
     if (res.ok) {
       setRejectedIds((prev) => new Set(Array.from(prev).concat(id)));
       setApprovedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+      await mutateRecords();
     }
   }
 
@@ -145,11 +127,7 @@ export default function AttendanceListPage() {
       body: JSON.stringify(body),
     });
     if (res.ok) {
-      const created: AttendanceRecord = await res.json();
-      setRecords((prev) => {
-        const merged = [...prev, created].sort((a, b) => a.date.localeCompare(b.date));
-        return merged;
-      });
+      await mutateRecords();
       setNewForm({ open: false, date: "", clockIn: "", clockOut: "", breakMinutes: "0", submitting: false, error: "" });
     } else {
       const data = await res.json().catch(() => ({}));

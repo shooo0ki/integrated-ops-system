@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Users, FolderOpen, Monitor, Building2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -378,8 +379,6 @@ export default function CalendarPage() {
     () => new Set()
   );
   const [selectedProjId, setSelectedProjId] = useState<string>("");
-  const [calData,       setCalData]       = useState<CalData>({ members: [], schedules: [], attendances: [], projects: [] });
-  const [loading,       setLoading]       = useState(true);
   const initialized = useRef(false);
 
   const weekDays  = buildWeekDays(anchor);
@@ -388,24 +387,20 @@ export default function CalendarPage() {
   const from = view === "week" ? weekDays[0].date : monthGrid[0][0].date;
   const to   = view === "week" ? weekDays[6].date : monthGrid[monthGrid.length - 1][6].date;
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const memberIdsParam = selectedIds.size > 0 ? Array.from(selectedIds).join(",") : "";
-    const res = await fetch(`/api/calendar?from=${from}&to=${to}${memberIdsParam ? `&memberIds=${memberIdsParam}` : ""}`);
-    if (res.ok) {
-      const data: CalData = await res.json();
-      setCalData(data);
-      if (!initialized.current && data.members.length > 0) {
-        if (selectedIds.size === 0) {
-          setSelectedIds(new Set(data.members.map((m) => m.id)));
-        }
-        initialized.current = true;
-      }
-    }
-    setLoading(false);
-  }, [from, to, selectedIds]);
+  const memberIdsParam = selectedIds.size > 0 ? Array.from(selectedIds).join(",") : "";
+  const calUrl = `/api/calendar?from=${from}&to=${to}${memberIdsParam ? `&memberIds=${memberIdsParam}` : ""}`;
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const { data: calData = { members: [], schedules: [], attendances: [], projects: [] }, isLoading: loading } = useSWR<CalData>(calUrl);
+
+  useEffect(() => {
+    if (!initialized.current && calData.members.length > 0) {
+      if (selectedIds.size === 0) {
+        setSelectedIds(new Set(calData.members.map((m) => m.id)));
+      }
+      initialized.current = true;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calData.members]);
 
   // プロジェクトフィルター適用後の表示メンバー
   const projectFilteredMembers = selectedProjId

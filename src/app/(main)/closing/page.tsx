@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
 import {
   AlertTriangle, Send, RefreshCw, CheckCircle, Zap, ChevronRight, AlertCircle, FileText,
   Plus, Trash2, Download,
@@ -103,32 +104,24 @@ function AdminClosingView() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
-  const [records, setRecords] = useState<ClosingRecord[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
   const [aggregateWarning, setAggregateWarning] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null);
 
   const monthOptions = buildMonthOptions();
 
+  const { data: records = [], isLoading: closingLoading, mutate: mutateClosing } = useSWR<ClosingRecord[]>(`/api/closing?month=${targetMonth}`);
+  const { data: invoices = [], isLoading: invoicesLoading, mutate: mutateInvoices } = useSWR<Invoice[]>(`/api/invoices?month=${targetMonth}`);
+  const loading = closingLoading || invoicesLoading;
+
+  async function reloadData() {
+    await Promise.all([mutateClosing(), mutateInvoices()]);
+  }
+
   function showToast(msg: string) {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
   }
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const [closingRes, invRes] = await Promise.all([
-      fetch(`/api/closing?month=${targetMonth}`),
-      fetch(`/api/invoices?month=${targetMonth}`),
-    ]);
-    if (closingRes.ok) setRecords(await closingRes.json());
-    if (invRes.ok) setInvoices(await invRes.json());
-    setLoading(false);
-  }, [targetMonth]);
-
-  useEffect(() => { loadData(); }, [loadData]);
 
   function handleAggregate() {
     if (records.some((r) => r.missingDays > 0)) {
@@ -140,7 +133,7 @@ function AdminClosingView() {
 
   async function doAggregate() {
     setAggregateWarning(false);
-    await loadData();
+    await reloadData();
     showToast("集計を最新の状態に更新しました");
   }
 
@@ -153,7 +146,7 @@ function AdminClosingView() {
     if (res.ok) {
       const memberName = records.find((r) => r.memberId === memberId)?.memberName ?? "";
       showToast(`${memberName} さんにSlack確認依頼を送信しました`);
-      await loadData();
+      await reloadData();
     }
   }
 
@@ -169,7 +162,7 @@ function AdminClosingView() {
       )
     );
     showToast("未送信メンバー全員にSlack確認依頼を送信しました");
-    await loadData();
+    await reloadData();
   }
 
   async function handleForce(memberId: string) {
@@ -180,7 +173,7 @@ function AdminClosingView() {
     });
     if (res.ok) {
       showToast("強制確定しました");
-      await loadData();
+      await reloadData();
     }
   }
 
@@ -190,7 +183,7 @@ function AdminClosingView() {
     });
     if (res.ok) {
       showToast(`${memberName} さんの請求書を LayerX へ送付しました`);
-      await loadData();
+      await reloadData();
     }
   }
 
@@ -682,7 +675,6 @@ function MemberBillingView({ memberId }: { memberId: string }) {
   const [closing, setClosing] = useState<ClosingRecord | null>(null);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [items, setItems] = useState<LineItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -692,80 +684,64 @@ function MemberBillingView({ memberId }: { memberId: string }) {
   // 交通費入力
   const [hasTransport, setHasTransport] = useState<"none" | "yes">("none");
   const [transports, setTransports] = useState<ExpenseItem[]>([]);
-  const [myProjects, setMyProjects] = useState<MyProject[]>([]);
 
   const monthOptions = buildMonthOptions();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const { data: closingData, isLoading: closingLoading } = useSWR<ClosingRecord[]>(`/api/closing?month=${month}`);
+  const { data: invoiceData, isLoading: invoiceLoading, mutate: mutateInvoice } = useSWR<Invoice | null>(`/api/invoices?month=${month}&mine=1`);
+  const { data: dashData } = useSWR<{ myProjects?: MyProject[] }>("/api/dashboard");
+  const loading = closingLoading || invoiceLoading;
+
+  const myProjects: MyProject[] = dashData?.myProjects ?? [];
+
+  // Initialize derived state when SWR data loads
+  useEffect(() => {
+    if (closingLoading || invoiceLoading) return;
+
+    const closingRecord = Array.isArray(closingData)
+      ? closingData.find((r) => r.memberId === memberId) ?? null
+      : null;
+    setClosing(closingRecord);
+
     setSubmitted(false);
     setInvoice(null);
-    setClosing(null);
     setHasExpense("none");
     setExpenses([]);
     setHasTransport("none");
     setTransports([]);
 
-    const [closingRes, invRes, dashRes] = await Promise.all([
-      fetch(`/api/closing?month=${month}`),
-      fetch(`/api/invoices?month=${month}&mine=1`),
-      fetch("/api/dashboard"),
-    ]);
-
-    if (dashRes.ok) {
-      const dash = await dashRes.json();
-      setMyProjects((dash?.myProjects ?? []) as MyProject[]);
-    }
-
-    let closingData: ClosingRecord | null = null;
-    if (closingRes.ok) {
-      const all: ClosingRecord[] = await closingRes.json();
-      closingData = all.find((r) => r.memberId === memberId) ?? null;
-      setClosing(closingData);
-    }
-    if (invRes.ok) {
-      const inv = await invRes.json();
-      if (inv) {
-        setInvoice(inv);
-        setSubmitted(true);
-        // 既存 items を課税/非課税に分けて復元
-        if (Array.isArray(inv.items) && inv.items.length > 0) {
-          const taxableItems = inv.items.filter((it: { taxable: boolean }) => it.taxable !== false);
-          const nonTaxableItems = inv.items.filter((it: { taxable: boolean; linkedProjectId?: string }) => it.taxable === false);
-          setItems(taxableItems.map((it: { id: string; name: string; amount: number }) => ({
+    const inv = invoiceData ?? null;
+    if (inv) {
+      setInvoice(inv);
+      setSubmitted(true);
+      // 既存 items を課税/非課税に分けて復元
+      if (Array.isArray(inv.items) && inv.items.length > 0) {
+        const taxableItems = inv.items.filter((it: { taxable: boolean }) => it.taxable !== false);
+        const nonTaxableItems = inv.items.filter((it: { taxable: boolean; linkedProjectId?: string }) => it.taxable === false);
+        setItems(taxableItems.map((it: { id: string; name: string; amount: number }) => ({
+          id: it.id,
+          name: it.name,
+          amount: it.amount,
+        })));
+        if (nonTaxableItems.length > 0) {
+          setHasExpense("yes");
+          setExpenses(nonTaxableItems.map((it: { id: string; name: string; amount: number; linkedProjectId?: string }) => ({
             id: it.id,
-            name: it.name,
+            projectId: it.linkedProjectId ?? "",
+            description: it.name,
             amount: it.amount,
           })));
-          if (nonTaxableItems.length > 0) {
-            setHasExpense("yes");
-            setExpenses(nonTaxableItems.map((it: { id: string; name: string; amount: number; linkedProjectId?: string }) => ({
-              id: it.id,
-              projectId: it.linkedProjectId ?? "",
-              description: it.name,
-              amount: it.amount,
-            })));
-          }
         }
-      } else if (closingData) {
-        setItems([{
-          id: "base",
-          name: `稼働（${closingData.totalHours}h × ¥${closingData.salaryAmount}/h）`,
-          amount: closingData.estimatedAmount,
-        }]);
       }
-    } else if (closingData) {
+    } else if (closingRecord) {
       setItems([{
         id: "base",
-        name: `稼働（${closingData.totalHours}h × ¥${closingData.salaryAmount}/h）`,
-        amount: closingData.estimatedAmount,
+        name: `稼働（${closingRecord.totalHours}h × ¥${closingRecord.salaryAmount}/h）`,
+        amount: closingRecord.estimatedAmount,
       }]);
     }
-
-    setLoading(false);
-  }, [month, memberId]);
-
-  useEffect(() => { load(); }, [load]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closingData, invoiceData, closingLoading, invoiceLoading, memberId]);
 
   function addItem() {
     setItems((prev) => [...prev, { id: crypto.randomUUID(), name: "", amount: 0 }]);
@@ -837,7 +813,7 @@ function MemberBillingView({ memberId }: { memberId: string }) {
       a.click();
       URL.revokeObjectURL(url);
       setSubmitted(true);
-      await load();
+      await mutateInvoice();
     }
     setGenerating(false);
   }

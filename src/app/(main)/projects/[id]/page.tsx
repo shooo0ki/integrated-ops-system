@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Users, Calendar, DollarSign, Plus, Trash2, Pencil, Check, X } from "lucide-react";
@@ -96,8 +97,13 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const { role } = useAuth();
   const canManage = role === "admin" || role === "manager";
 
-  const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: project, isLoading: loading, error: projectError, mutate: mutateProject } = useSWR<ProjectDetail>(
+    `/api/projects/${id}`
+  );
+  const { data: membersData } = useSWR<{ members?: MemberOption[] } | MemberOption[]>("/api/members");
+  const members: MemberOption[] = membersData
+    ? ((membersData as { members?: MemberOption[] }).members ?? (membersData as MemberOption[]))
+    : [];
 
   // プロジェクト編集
   const [editing, setEditing] = useState(false);
@@ -114,7 +120,6 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [deletingProject, setDeletingProject] = useState(false);
 
   // アサイン管理
-  const [members, setMembers] = useState<MemberOption[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [assignSaving, setAssignSaving] = useState(false);
   const [assignError, setAssignError] = useState("");
@@ -124,29 +129,26 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [positionMode, setPositionMode] = useState<"existing" | "new">("existing");
   const [newPositionName, setNewPositionName] = useState("");
 
-  const loadProject = useCallback(async () => {
-    const r = await fetch(`/api/projects/${id}`);
-    if (r.status === 404) { router.push("/projects"); return; }
-    const data: ProjectDetail = await r.json();
-    setProject(data);
-    setForm({
-      name: data.name,
-      description: data.description ?? "",
-      status: data.status,
-      clientName: data.clientName ?? "",
-      contractType: data.contractType ?? "",
-      monthlyContractAmount: String(data.monthlyContractAmount),
-      startDate: toDateInput(data.startDate),
-      endDate: toDateInput(data.endDate),
-    });
-  }, [id, router]);
-
+  // Redirect on 404
   useEffect(() => {
-    Promise.all([
-      loadProject(),
-      fetch("/api/members").then(r => r.json()).then(setMembers),
-    ]).finally(() => setLoading(false));
-  }, [loadProject]);
+    if (projectError) { router.push("/projects"); }
+  }, [projectError, router]);
+
+  // Initialize form from project data (only when not editing)
+  useEffect(() => {
+    if (!project || editing) return;
+    setForm({
+      name: project.name,
+      description: project.description ?? "",
+      status: project.status,
+      clientName: project.clientName ?? "",
+      contractType: project.contractType ?? "",
+      monthlyContractAmount: String(project.monthlyContractAmount),
+      startDate: toDateInput(project.startDate),
+      endDate: toDateInput(project.endDate),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project]);
 
   // ─── プロジェクト編集 ──────────────────────────────────
 
@@ -170,7 +172,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     });
     setSaving(false);
     if (res.ok) {
-      await loadProject();
+      await mutateProject();
       setEditing(false);
       setSaveMsg("保存しました");
       setTimeout(() => setSaveMsg(null), 3000);
@@ -256,7 +258,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     });
     setAssignSaving(false);
     if (res.ok) {
-      await loadProject();
+      await mutateProject();
       setAddOpen(false);
     } else {
       let msg = "登録に失敗しました";
@@ -281,7 +283,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     setDeleteId(assignId);
     const res = await fetch(`/api/projects/${id}/assignments/${assignId}`, { method: "DELETE" });
     setDeleteId(null);
-    if (res.ok) await loadProject();
+    if (res.ok) await mutateProject();
   }
 
   // ─── レンダー ─────────────────────────────────────────

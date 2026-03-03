@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight, Save, CheckCircle, TrendingDown, TrendingUp } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,24 +54,21 @@ export default function CashflowPage() {
   const { role } = useAuth();
   const [month, setMonth] = useState(MONTHS[0]);
   const [company, setCompany] = useState<Company>("boost");
-  const [records, setRecords] = useState<Record<string, CfRecord>>({});
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [localRecords, setLocalRecords] = useState<Record<string, CfRecord>>({});
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch(`/api/cashflow?company=${company}&months=${MONTHS.join(",")}`);
-    if (res.ok) {
-      const data: CfRecord[] = await res.json();
-      const map: Record<string, CfRecord> = {};
-      (Array.isArray(data) ? data : [data]).forEach((r) => { map[r.month] = r; });
-      setRecords(map);
+  const { data: rawCfData, isLoading: loading } = useSWR<CfRecord[]>(
+    `/api/cashflow?company=${company}&months=${MONTHS.join(",")}`
+  );
+  const fetchedRecords: Record<string, CfRecord> = (() => {
+    const map: Record<string, CfRecord> = {};
+    if (rawCfData) {
+      (Array.isArray(rawCfData) ? rawCfData : [rawCfData]).forEach((r) => { map[r.month] = r; });
     }
-    setLoading(false);
-  }, [company]);
-
-  useEffect(() => { loadData(); }, [loadData]);
+    return map;
+  })();
+  const records: Record<string, CfRecord> = { ...fetchedRecords, ...localRecords };
 
   if (role !== "admin") return notFound();
 
@@ -83,9 +81,9 @@ export default function CashflowPage() {
   function updateManual(field: "cashInOther" | "cashOutOther" | "openingBalance", raw: string) {
     const value = raw === "" ? 0 : parseInt(raw.replace(/,/g, ""), 10);
     if (isNaN(value) || value < 0) return;
-    setRecords((prev) => ({
+    setLocalRecords((prev) => ({
       ...prev,
-      [month]: { ...(prev[month] ?? emptyRecord(month, company)), [field]: value },
+      [month]: { ...(records[month] ?? emptyRecord(month, company)), [field]: value },
     }));
     setSaved(false);
   }
@@ -106,7 +104,7 @@ export default function CashflowPage() {
     });
     if (res.ok) {
       const updated: CfRecord = await res.json();
-      setRecords((prev) => ({ ...prev, [month]: updated }));
+      setLocalRecords((prev) => ({ ...prev, [month]: updated }));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     }

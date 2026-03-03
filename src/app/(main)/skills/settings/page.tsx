@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ArrowLeft, Check, X } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,8 +20,7 @@ interface Category  { id: string; name: string; displayOrder: number; skills: Sk
 
 export default function SkillSettingsPage() {
   const { role } = useAuth();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: categories = [], isLoading: loading, mutate: mutateCategories } = useSWR<Category[]>("/api/skill-categories");
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
 
   // Category add form
@@ -38,16 +38,6 @@ export default function SkillSettingsPage() {
   const [editCatName, setEditCatName] = useState("");
   const [editingSkill, setEditingSkill] = useState<string | null>(null);
   const [editSkillName, setEditSkillName] = useState("");
-
-  useEffect(() => {
-    fetch("/api/skill-categories")
-      .then((r) => r.json())
-      .then((data: Category[]) => {
-        setCategories(data);
-        setExpandedCats(new Set(data.map((c) => c.id)));
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   if (role !== "admin") return notFound();
 
@@ -73,9 +63,9 @@ export default function SkillSettingsPage() {
     setCatSaving(false);
     if (res.ok) {
       const cat: Category = await res.json();
-      setCategories((prev) => [...prev, { ...cat, skills: [] }]);
       setExpandedCats((prev) => new Set(Array.from(prev).concat(cat.id)));
       setNewCatName(""); setCatError("");
+      await mutateCategories();
     } else {
       const data = await res.json();
       setCatError(data.error?.message ?? "追加に失敗しました");
@@ -88,7 +78,7 @@ export default function SkillSettingsPage() {
     if (!confirm(`「${cat.name}」を削除しますか？`)) return;
     const res = await fetch(`/api/skill-categories/${catId}`, { method: "DELETE" });
     if (res.ok) {
-      setCategories((prev) => prev.filter((c) => c.id !== catId));
+      await mutateCategories();
     } else {
       const data = await res.json();
       alert(data.error?.message ?? "削除に失敗しました");
@@ -104,7 +94,7 @@ export default function SkillSettingsPage() {
       body: JSON.stringify({ name: trimmed }),
     });
     if (res.ok) {
-      setCategories((prev) => prev.map((c) => c.id === catId ? { ...c, name: trimmed } : c));
+      await mutateCategories();
       setEditingCat(null);
     } else {
       const data = await res.json();
@@ -128,12 +118,9 @@ export default function SkillSettingsPage() {
     });
     setSkillSaving((prev) => ({ ...prev, [catId]: false }));
     if (res.ok) {
-      const skill: SkillItem = await res.json();
-      setCategories((prev) =>
-        prev.map((c) => c.id === catId ? { ...c, skills: [...c.skills, skill] } : c)
-      );
       setNewSkillName((prev) => ({ ...prev, [catId]: "" }));
       setSkillError((prev) => ({ ...prev, [catId]: "" }));
+      await mutateCategories();
     } else {
       const data = await res.json();
       setSkillError((prev) => ({ ...prev, [catId]: data.error?.message ?? "追加に失敗しました" }));
@@ -144,9 +131,7 @@ export default function SkillSettingsPage() {
     if (!confirm("このスキルを削除しますか？")) return;
     const res = await fetch(`/api/skill-categories/${catId}/skills/${skillId}`, { method: "DELETE" });
     if (res.ok) {
-      setCategories((prev) =>
-        prev.map((c) => c.id === catId ? { ...c, skills: c.skills.filter((s) => s.id !== skillId) } : c)
-      );
+      await mutateCategories();
     } else {
       const data = await res.json();
       alert(data.error?.message ?? "削除に失敗しました");
@@ -162,13 +147,7 @@ export default function SkillSettingsPage() {
       body: JSON.stringify({ name: trimmed }),
     });
     if (res.ok) {
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === catId
-            ? { ...c, skills: c.skills.map((s) => s.id === skillId ? { ...s, name: trimmed } : s) }
-            : c
-        )
-      );
+      await mutateCategories();
       setEditingSkill(null);
     } else {
       const data = await res.json();

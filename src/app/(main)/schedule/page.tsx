@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { Copy, CheckCircle, RotateCcw, Save, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Card } from "@/components/ui/card";
@@ -63,14 +64,7 @@ interface UnsubmittedData {
 }
 
 function AdminUnsubmittedAlert() {
-  const [data, setData] = useState<UnsubmittedData | null>(null);
-
-  useEffect(() => {
-    fetch("/api/schedules/unsubmitted")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d: UnsubmittedData | null) => setData(d))
-      .catch(() => {});
-  }, []);
+  const { data } = useSWR<UnsubmittedData>("/api/schedules/unsubmitted");
 
   if (!data || data.unsubmitted.length === 0) return null;
 
@@ -107,35 +101,31 @@ export default function SchedulePage() {
     ? `${nextWeek[0].date.slice(5).replace("-", "/")} 〜 ${nextWeek[6].date.slice(5).replace("-", "/")}`
     : "";
 
+  const from = nextWeek[0]?.date;
+  const to = nextWeek[6]?.date;
+  const { data: existingSchedules } = useSWR<{ date: string; startTime: string | null; endTime: string | null; isOff: boolean; locationType: string }[]>(
+    memberId && from && to ? `/api/members/${memberId}/work-schedules?from=${from}&to=${to}` : null
+  );
+
   // 既存のスケジュールを取得して上書き
   useEffect(() => {
-    if (!memberId) return;
-    const from = nextWeek[0]?.date;
-    const to = nextWeek[6]?.date;
-    if (!from || !to) return;
-
-    fetch(`/api/members/${memberId}/work-schedules?from=${from}&to=${to}`)
-      .then((r) => r.json())
-      .then((existing: { date: string; startTime: string | null; endTime: string | null; isOff: boolean; locationType: string }[]) => {
-        if (!Array.isArray(existing) || existing.length === 0) return;
-        setEntries((prev) =>
-          prev.map((e) => {
-            const found = existing.find((s) => s.date === e.date);
-            if (!found) return e;
-            return {
-              ...e,
-              isOff: found.isOff || e.isHoliday,
-              plannedStart: found.startTime ?? DEFAULT_START,
-              plannedEnd: found.endTime ?? DEFAULT_END,
-              workType: LOCATION_TO_WORK_TYPE[found.locationType] ?? "出社",
-            };
-          })
-        );
-        setLoaded(true);
+    if (!Array.isArray(existingSchedules) || existingSchedules.length === 0) return;
+    setEntries((prev) =>
+      prev.map((e) => {
+        const found = existingSchedules.find((s) => s.date === e.date);
+        if (!found) return e;
+        return {
+          ...e,
+          isOff: found.isOff || e.isHoliday,
+          plannedStart: found.startTime ?? DEFAULT_START,
+          plannedEnd: found.endTime ?? DEFAULT_END,
+          workType: LOCATION_TO_WORK_TYPE[found.locationType] ?? "出社",
+        };
       })
-      .catch(() => {});
+    );
+    setLoaded(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberId]);
+  }, [existingSchedules]);
 
   function update(i: number, key: keyof DayEntry, value: string | boolean) {
     setEntries((prev) => prev.map((e, idx) => idx === i ? { ...e, [key]: value } : e));

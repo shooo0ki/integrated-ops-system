@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import {
   FileCheck, Send, Clock, CheckCircle, XCircle, FilePlus, Download,
@@ -100,11 +101,12 @@ function StatusFlow({ current }: { current: ContractStatus }) {
 // ─── ページ ───────────────────────────────────────────────
 
 export default function ContractsPage() {
-  const [contracts, setContracts] = useState<ContractRecord[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [dsTemplates, setDsTemplates] = useState<DocuSignTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const { data: contracts = [], isLoading: loading, mutate: mutateContracts } = useSWR<ContractRecord[]>("/api/contracts");
+  const { data: membersData } = useSWR<{ members?: Member[] } | Member[]>("/api/members");
+  const members: Member[] = membersData
+    ? (Array.isArray(membersData) ? membersData : (membersData.members ?? []))
+    : [];
+  const { data: dsTemplates = [], isLoading: templatesLoading } = useSWR<DocuSignTemplate[]>("/api/contracts/templates");
   const [statusFilter, setStatusFilter] = useState<ContractStatus | "ALL">("ALL");
   const [memberFilter, setMemberFilter] = useState<string>("ALL");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -142,26 +144,6 @@ export default function ContractsPage() {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
   }
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setTemplatesLoading(true);
-    const [contractsRes, membersRes, templatesRes] = await Promise.all([
-      fetch("/api/contracts"),
-      fetch("/api/members"),
-      fetch("/api/contracts/templates"),
-    ]);
-    if (contractsRes.ok) setContracts(await contractsRes.json());
-    if (membersRes.ok) {
-      const data = await membersRes.json();
-      setMembers(Array.isArray(data) ? data : (data.members ?? []));
-    }
-    if (templatesRes.ok) setDsTemplates(await templatesRes.json());
-    setLoading(false);
-    setTemplatesLoading(false);
-  }, []);
-
-  useEffect(() => { loadData(); }, [loadData]);
 
   const filtered = contracts.filter((c) => {
     const matchStatus = statusFilter === "ALL" || c.status === statusFilter;
@@ -233,7 +215,7 @@ export default function ContractsPage() {
       setShowCreate(false);
       resetForm();
       showToast("契約ドラフトを作成しました");
-      await loadData();
+      await mutateContracts();
     } else {
       const err = await res.json();
       showToast(`エラー: ${err.error?.message ?? "作成失敗"}`);
@@ -249,7 +231,7 @@ export default function ContractsPage() {
     });
     if (res.ok) {
       showToast("署名依頼を送付しました");
-      await loadData();
+      await mutateContracts();
       setSelectedId(null);
     } else {
       const err = await res.json();
@@ -269,7 +251,7 @@ export default function ContractsPage() {
     });
     if (res.ok) {
       showToast("契約を無効化しました");
-      await loadData();
+      await mutateContracts();
       setSelectedId(null);
     } else {
       const err = await res.json();

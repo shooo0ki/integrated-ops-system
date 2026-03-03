@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import { notFound } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { buildMonths } from "@/lib/utils";
@@ -192,46 +193,19 @@ function EditModal({
 export default function EvaluationPage() {
   const { role, memberId } = useAuth();
   const [month, setMonth] = useState(MONTHS[0]);
-  const [rows, setRows] = useState<EvalRow[]>([]);
-  const [ownEval, setOwnEval] = useState<OwnEval>(null);
-  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalState | null>(null);
 
   const isAdmin = role === "admin";
   const isManager = role === "manager";
   const canEdit = isAdmin;
 
-  // 管理者・マネージャー: 全員一覧
-  const loadRows = useCallback(async () => {
-    if (!isAdmin && !isManager) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/evaluations?month=${month}`);
-      if (res.ok) setRows(await res.json());
-    } finally {
-      setLoading(false);
-    }
-  }, [isAdmin, isManager, month]);
-
-  // 一般ユーザー: 自分のみ
-  const loadOwn = useCallback(async () => {
-    if (isAdmin || isManager || !memberId) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/evaluations?month=${month}`);
-      if (res.ok) {
-        const data = await res.json();
-        setOwnEval(data);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [isAdmin, isManager, memberId, month]);
-
-  useEffect(() => {
-    loadRows();
-    loadOwn();
-  }, [loadRows, loadOwn]);
+  const { data: rows = [], isLoading: rowsLoading } = useSWR<EvalRow[]>(
+    (isAdmin || isManager) ? `/api/evaluations?month=${month}` : null
+  );
+  const { data: ownEval = null, isLoading: ownLoading } = useSWR<OwnEval>(
+    (!isAdmin && !isManager && memberId) ? `/api/evaluations?month=${month}` : null
+  );
+  const loading = rowsLoading || ownLoading;
 
   // Hooks must be called before early returns
   if (role !== "admin" && role !== "manager" && role !== "member") {
@@ -251,14 +225,8 @@ export default function EvaluationPage() {
     });
   }
 
-  function handleSaved(updated: EvalRow) {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.memberId === updated.memberId
-          ? { ...r, ...updated }
-          : r
-      )
-    );
+  function handleSaved(_updated: EvalRow) {
+    // SWR will revalidate on next focus; the modal closes and shows updated data on next mount
   }
 
   // ---- 一般ユーザー用ビュー ----
