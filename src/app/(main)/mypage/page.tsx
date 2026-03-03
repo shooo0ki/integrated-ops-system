@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   User, Mail, Phone, Calendar, Bell, Shield, ClipboardList, CheckCircle,
-  Award, Pencil, ChevronLeft, ChevronRight, MapPin, CreditCard, Star,
+  Award, Pencil, ChevronLeft, ChevronRight, MapPin, CreditCard, Star, Plus,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -327,6 +327,15 @@ export default function MyPage() {
   const [corrForm, setCorrForm] = useState({ clockIn: "", clockOut: "", breakMinutes: "0" });
   const [correcting, setCorrecting] = useState(false);
   const [corrToast, setCorrToast] = useState<string | null>(null);
+  const [newForm, setNewForm] = useState({
+    open: false,
+    date: "",
+    clockIn: "",
+    clockOut: "",
+    breakMinutes: "0",
+    submitting: false,
+    error: "",
+  });
 
   const loadAttendances = async (month: string) => {
     setAttLoading(true);
@@ -408,6 +417,34 @@ export default function MyPage() {
       setTimeout(() => setCorrToast(null), 4000);
     }
     setCorrecting(false);
+  }
+
+  async function handleNewAttendance(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newForm.date) {
+      setNewForm((f) => ({ ...f, error: "日付を入力してください" }));
+      return;
+    }
+    setNewForm((f) => ({ ...f, submitting: true, error: "" }));
+    const res = await fetch("/api/attendances", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        date: newForm.date,
+        clockIn: newForm.clockIn || null,
+        clockOut: newForm.clockOut || null,
+        breakMinutes: Number(newForm.breakMinutes),
+      }),
+    });
+    if (res.ok) {
+      setNewForm({ open: false, date: "", clockIn: "", clockOut: "", breakMinutes: "0", submitting: false, error: "" });
+      await loadAttendances(attMonth);
+      setCorrToast("新規勤怠を申請しました。承認をお待ちください。");
+      setTimeout(() => setCorrToast(null), 4000);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setNewForm((f) => ({ ...f, submitting: false, error: data?.error?.message ?? "申請に失敗しました" }));
+    }
   }
 
   useEffect(() => {
@@ -783,6 +820,13 @@ export default function MyPage() {
               勤怠記録
             </CardTitle>
             <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setNewForm((f) => ({ ...f, open: !f.open, error: "" }))}
+              >
+                <Plus size={14} /> 新規申請
+              </Button>
               <button onClick={prevAttMonth} disabled={MONTHS.indexOf(attMonth) >= MONTHS.length - 1}
                 className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
                 <ChevronLeft size={15} />
@@ -799,68 +843,130 @@ export default function MyPage() {
         </CardHeader>
         {attLoading ? (
           <p className="py-4 text-center text-sm text-slate-400">読み込み中...</p>
-        ) : attendances.length === 0 ? (
-          <p className="text-sm text-slate-500">この月の勤怠データがありません。</p>
         ) : (
           <>
-            <div className="mb-3 grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-xs text-slate-500">稼働日数</p>
-                <p className="mt-0.5 text-lg font-bold text-slate-800">{attWorkDays}日</p>
-              </div>
-              <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-xs text-slate-500">合計時間</p>
-                <p className="mt-0.5 text-lg font-bold text-slate-800">{attTotalHours.toFixed(1)}h</p>
-              </div>
-            </div>
-            <div className="max-h-64 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 border-b border-slate-100 bg-white">
-                  <tr className="text-xs text-slate-500">
-                    <th className="py-2 text-left font-medium">日付</th>
-                    <th className="py-2 text-center font-medium">出勤</th>
-                    <th className="py-2 text-center font-medium">退勤</th>
-                    <th className="py-2 text-right font-medium">実働</th>
-                    <th className="py-2 text-right font-medium">状態</th>
-                    <th className="py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendances.map((a) => (
-                    <tr key={a.id} className="border-b border-slate-50 hover:bg-slate-50">
-                      <td className="py-1.5 text-slate-700">{formatDate(a.date)}</td>
-                      <td className="py-1.5 text-center text-slate-600">{a.clockIn ?? "—"}</td>
-                      <td className="py-1.5 text-center text-slate-600">{a.clockOut ?? "—"}</td>
-                      <td className="py-1.5 text-right text-slate-700">
-                        {a.actualHours != null ? `${a.actualHours.toFixed(1)}h` : "—"}
-                      </td>
-                      <td className="py-1.5 text-right">
-                        {a.isModified && a.confirmStatus === "unconfirmed" && (
-                          <Badge variant="warning">承認待ち</Badge>
-                        )}
-                        {a.isModified && a.confirmStatus === "confirmed" && (
-                          <Badge variant="success">承認済み</Badge>
-                        )}
-                      </td>
-                      <td className="py-1.5 pl-2">
-                        {!(a.isModified && a.confirmStatus === "unconfirmed") && (
-                          <button
-                            onClick={() => openCorrection(a)}
-                            className="text-slate-400 hover:text-blue-600 transition-colors"
-                            title="修正申請"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="mt-2 text-xs text-slate-400">
-              打刻ミスがある場合は鉛筆アイコンから修正申請してください（管理者・マネージャーが承認します）。
-            </p>
+            {/* 新規申請フォーム */}
+            {newForm.open && (
+              <form onSubmit={handleNewAttendance} className="mx-4 mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 flex flex-wrap gap-3 items-end">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-slate-600">日付</label>
+                  <input
+                    type="date"
+                    required
+                    min={`${attMonth}-01`}
+                    max={`${attMonth}-31`}
+                    value={newForm.date}
+                    onChange={(e) => setNewForm((f) => ({ ...f, date: e.target.value }))}
+                    className="rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-slate-600">出勤時刻</label>
+                  <input
+                    type="time"
+                    value={newForm.clockIn}
+                    onChange={(e) => setNewForm((f) => ({ ...f, clockIn: e.target.value }))}
+                    className="rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-slate-600">退勤時刻</label>
+                  <input
+                    type="time"
+                    value={newForm.clockOut}
+                    onChange={(e) => setNewForm((f) => ({ ...f, clockOut: e.target.value }))}
+                    className="rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-slate-600">休憩（分）</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    value={newForm.breakMinutes}
+                    onChange={(e) => setNewForm((f) => ({ ...f, breakMinutes: e.target.value }))}
+                    className="w-24 rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button type="submit" size="sm" disabled={newForm.submitting}>
+                    {newForm.submitting ? "送信中…" : "承認依頼を送る"}
+                  </Button>
+                  <button
+                    type="button"
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                    onClick={() => setNewForm((f) => ({ ...f, open: false, error: "" }))}
+                  >
+                    キャンセル
+                  </button>
+                </div>
+                {newForm.error && <p className="w-full text-xs text-red-500">{newForm.error}</p>}
+              </form>
+            )}
+
+            {attendances.length === 0 ? (
+              <p className="text-sm text-slate-500">この月の勤怠データがありません。</p>
+            ) : (
+              <>
+                <div className="mb-3 grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xs text-slate-500">稼働日数</p>
+                    <p className="mt-0.5 text-lg font-bold text-slate-800">{attWorkDays}日</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xs text-slate-500">合計時間</p>
+                    <p className="mt-0.5 text-lg font-bold text-slate-800">{attTotalHours.toFixed(1)}h</p>
+                  </div>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 border-b border-slate-100 bg-white">
+                      <tr className="text-xs text-slate-500">
+                        <th className="py-2 text-left font-medium">日付</th>
+                        <th className="py-2 text-center font-medium">出勤</th>
+                        <th className="py-2 text-center font-medium">退勤</th>
+                        <th className="py-2 text-right font-medium">実働</th>
+                        <th className="py-2 text-right font-medium">状態</th>
+                        <th className="py-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendances.map((a) => (
+                        <tr key={a.id} className="border-b border-slate-50 hover:bg-slate-50">
+                          <td className="py-1.5 text-slate-700">{formatDate(a.date)}</td>
+                          <td className="py-1.5 text-center text-slate-600">{a.clockIn ?? "—"}</td>
+                          <td className="py-1.5 text-center text-slate-600">{a.clockOut ?? "—"}</td>
+                          <td className="py-1.5 text-right text-slate-700">
+                            {a.actualHours != null ? `${a.actualHours.toFixed(1)}h` : "—"}
+                          </td>
+                          <td className="py-1.5 text-right">
+                            {a.status === "pending_approval" && <Badge variant="warning">承認待ち</Badge>}
+                            {a.isModified && a.confirmStatus === "confirmed" && (
+                              <Badge variant="success">承認済み</Badge>
+                            )}
+                          </td>
+                          <td className="py-1.5 pl-2">
+                            {a.status !== "pending_approval" && (
+                              <button
+                                onClick={() => openCorrection(a)}
+                                className="text-slate-400 hover:text-blue-600 transition-colors"
+                                title="修正申請"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-slate-400">
+                  未登録日の勤怠は「新規申請」から追加できます。打刻ミスは鉛筆アイコンから修正申請してください（管理者・マネージャーが承認します）。
+                </p>
+              </>
+            )}
           </>
         )}
       </Card>
