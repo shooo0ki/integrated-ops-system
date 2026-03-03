@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
 import {
   User, Mail, Phone, Calendar, Bell, Shield, ClipboardList, CheckCircle,
   Award, Pencil, ChevronLeft, ChevronRight, MapPin, CreditCard, Star, Plus,
@@ -308,7 +309,7 @@ function PasswordChangeModal({
 export default function MyPage() {
   const { memberId, role } = useAuth();
   const [memberDetail, setMemberDetail] = useState<MemberDetail | null>(null);
-  const [todayAtt, setTodayAtt] = useState<TodayAttendance | null>(null);
+  const { data: todayAtt } = useSWR<TodayAttendance | null>("/api/attendances/today");
   const [myProjects, setMyProjects] = useState<MyProject[]>([]);
   const [selfReports, setSelfReports] = useState<SelfReport[]>([]);
   const [reportAllocations, setReportAllocations] = useState<{ projectId: string; projectName: string; reportedHours: number }[]>([]);
@@ -356,10 +357,8 @@ export default function MyPage() {
     // 第一段階: 必須データのみ先に取得して表示を早める
     Promise.all([
       fetch(`/api/members/${memberId}`).then((r) => r.ok ? r.json() : null),
-      fetch("/api/attendances/today").then((r) => r.ok ? r.json() : null),
-    ]).then(([detail, att]) => {
+    ]).then(([detail]) => {
       setMemberDetail(detail);
-      setTodayAtt(att);
       setLoading(false);
     });
 

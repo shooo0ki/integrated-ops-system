@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { SWRProvider } from "@/lib/swr-config";
 
 export const metadata: Metadata = {
   title: "統合業務管理システム",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className="antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <SWRProvider>{children}</SWRProvider>
+        </AuthProvider>
       </body>
     </html>
   );

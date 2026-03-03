@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -80,8 +81,7 @@ function formatCurrency(v: number) {
 export default function DashboardPage() {
   const { role } = useAuth();
   const router = useRouter();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useSWR<DashboardData>(`/api/dashboard?lite=${role === "member" ? "1" : "0"}`);
 
   useEffect(() => {
     if (role === "member") {
@@ -90,11 +90,7 @@ export default function DashboardPage() {
   }, [role, router]);
 
   useEffect(() => {
-    const lite = role === "member" ? "1" : "0";
-    fetch(`/api/dashboard?lite=${lite}`)
-      .then((r) => r.json())
-      .then((d: DashboardData) => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+    if (role === "member") return;
   }, [role]);
 
   const today = new Date();
@@ -102,7 +98,7 @@ export default function DashboardPage() {
     year: "numeric", month: "long", day: "numeric", weekday: "long",
   });
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div>
