@@ -16,9 +16,9 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className="antialiased">
-        <AuthProvider>
-          <SWRProvider>{children}</SWRProvider>
-        </AuthProvider>
+        <SWRProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </SWRProvider>
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { FolderOpen, Users, Calendar, ArrowRight, Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -64,21 +65,15 @@ export default function ProjectsPage() {
   const { role } = useAuth();
   const canCreate = role === "admin" || role === "manager";
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
   const [companyFilter, setCompanyFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (companyFilter) params.set("company", companyFilter);
-    if (statusFilter) params.set("status", statusFilter);
-    setLoading(true);
-    fetch(`/api/projects?${params}`)
-      .then((r) => r.json())
-      .then(setProjects)
-      .finally(() => setLoading(false));
-  }, [companyFilter, statusFilter]);
+  const params = new URLSearchParams();
+  if (companyFilter) params.set("company", companyFilter);
+  if (statusFilter) params.set("status", statusFilter);
+  const { data: projects = [], isLoading: loading } = useSWR<Project[]>(
+    `/api/projects?${params}`
+  );
 
   return (
     <div className="space-y-6">

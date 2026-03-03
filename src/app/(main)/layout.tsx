@@ -7,7 +7,7 @@ import { Header } from "@/components/layout/header";
 import { useAuth } from "@/lib/auth-context";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -18,12 +18,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }, [pathname]);
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoading && !isLoggedIn) {
       router.push("/login");
     }
-  }, [isLoggedIn, router]);
+  }, [isLoading, isLoggedIn, router]);
 
-  if (!isLoggedIn) {
+  if (isLoading || !isLoggedIn) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />

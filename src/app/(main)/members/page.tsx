@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { Search, Plus, User } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -46,22 +47,15 @@ export default function MembersPage() {
   const { role } = useAuth();
   const canCreate = role === "admin" || role === "manager";
 
-  const [members, setMembers] = useState<MemberListItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (search) params.set("q", search);
-    if (roleFilter) params.set("role", roleFilter);
-
-    setLoading(true);
-    fetch(`/api/members?${params}`)
-      .then((r) => r.json())
-      .then((data) => setMembers(data))
-      .finally(() => setLoading(false));
-  }, [search, roleFilter]);
+  const params = new URLSearchParams();
+  if (search) params.set("q", search);
+  if (roleFilter) params.set("role", roleFilter);
+  const { data: members = [], isLoading: loading } = useSWR<MemberListItem[]>(
+    `/api/members?${params}`
+  );
 
   return (
     <div className="space-y-6">

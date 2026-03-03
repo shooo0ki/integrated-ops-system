@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, ReactNode } from "react";
+import useSWR, { useSWRConfig } from "swr";
 import type { SessionUser } from "./auth";
 
 interface AuthState {
@@ -12,6 +13,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
+  isLoading: boolean;
   login: (
     email: string,
     password: string
@@ -21,32 +23,29 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    isLoggedIn: false,
-    userId: null,
-    memberId: null,
-    role: "member",
-    name: null,
-  });
+// 401 を null で返すカスタムフェッチャー（SWRのエラーにしない）
+const sessionFetcher = (url: string) =>
+  fetch(url).then((r) => (r.ok ? r.json() : null));
 
-  // 初回マウント時にセッションを復元
-  useEffect(() => {
-    fetch("/api/auth/session")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { user: SessionUser } | null) => {
-        if (data?.user) {
-          setState({
-            isLoggedIn: true,
-            userId: data.user.id,
-            memberId: data.user.memberId,
-            role: data.user.role,
-            name: data.user.name,
-          });
-        }
-      })
-      .catch(() => {/* セッションなし */});
-  }, []);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const { mutate } = useSWRConfig();
+
+  const { data, isLoading } = useSWR<{ user: SessionUser } | null>(
+    "/api/auth/session",
+    sessionFetcher,
+    { dedupingInterval: 60_000, revalidateOnFocus: false }
+  );
+
+  const user = data?.user ?? null;
+  const state: AuthState = user
+    ? {
+        isLoggedIn: true,
+        userId: user.id,
+        memberId: user.memberId,
+        role: user.role,
+        name: user.name,
+      }
+    : { isLoggedIn: false, userId: null, memberId: null, role: "member", name: null };
 
   async function login(
     email: string,
@@ -57,28 +56,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
+    const responseData = await res.json();
     if (!res.ok) {
-      return { success: false, error: data.error ?? "ログインに失敗しました。" };
+      return { success: false, error: responseData.error ?? "ログインに失敗しました。" };
     }
-    const user: SessionUser = data.user;
-    setState({
-      isLoggedIn: true,
-      userId: user.id,
-      memberId: user.memberId,
-      role: user.role,
-      name: user.name,
-    });
+    // SWR キャッシュを更新（再フェッチなし）
+    await mutate("/api/auth/session", { user: responseData.user }, false);
     return { success: true };
   }
 
   async function logout(): Promise<void> {
     await fetch("/api/auth/logout", { method: "POST" });
-    setState({ isLoggedIn: false, userId: null, memberId: null, role: "member", name: null });
+    // SWR キャッシュをクリア（再フェッチなし）
+    await mutate("/api/auth/session", null, false);
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
