@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Users, FolderOpen, Monitor, Building2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 // ─── 定数 ────────────────────────────────────────────────
 
@@ -366,11 +367,12 @@ function MonthView({ grid, visible, calData }: {
 // ─── ページ ───────────────────────────────────────────────
 
 export default function CalendarPage() {
+  const { memberId: myMemberId } = useAuth();
   const [view,          setView]          = useState<ViewMode>("week");
   const [anchor,        setAnchor]        = useState(() => new Date());
   const [displayYear,   setDisplayYear]   = useState(() => new Date().getFullYear());
   const [displayMonth,  setDisplayMonth]  = useState(() => new Date().getMonth() + 1);
-  const [selectedIds,   setSelectedIds]   = useState<Set<string>>(new Set());
+  const [selectedIds,   setSelectedIds]   = useState<Set<string>>(new Set(myMemberId ? [myMemberId] : []));
   const [selectedProjId, setSelectedProjId] = useState<string>("");
   const [calData,       setCalData]       = useState<CalData>({ members: [], schedules: [], attendances: [], projects: [] });
   const [loading,       setLoading]       = useState(true);
@@ -384,17 +386,21 @@ export default function CalendarPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/calendar?from=${from}&to=${to}`);
+    const memberIdsParam = Array.from(selectedIds).join(",");
+    const res = await fetch(`/api/calendar?from=${from}&to=${to}${memberIdsParam ? `&memberIds=${memberIdsParam}` : ""}`);
     if (res.ok) {
       const data: CalData = await res.json();
       setCalData(data);
       if (!initialized.current && data.members.length > 0) {
-        setSelectedIds(new Set(data.members.map(m => m.id)));
+        // 初回は現在選択が空なら取得した先頭を選択
+        if (selectedIds.size === 0) {
+          setSelectedIds(new Set([data.members[0].id]));
+        }
         initialized.current = true;
       }
     }
     setLoading(false);
-  }, [from, to]);
+  }, [from, to, selectedIds]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -11,6 +11,8 @@ export async function GET() {
   const today = new Date(Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate()));
   const todayStr = today.toISOString().slice(0, 10);
   const isAdmin = user.role === "admin" || user.role === "manager";
+  const { searchParams } = new URL(req.url);
+  const isLite = searchParams.get("lite") === "1" || (!isAdmin && searchParams.get("lite") !== "0");
 
   // 1) 今日の自分の打刻
   const myAttendance = await prisma.attendance.findUnique({
@@ -37,7 +39,7 @@ export async function GET() {
     take: 5,
   });
 
-  // 3) チーム在席状況（admin/manager のみ）
+  // 3) チーム在席状況（admin/manager かつ非Liteのみ）
   let teamAttendance: Array<{
     memberId: string;
     memberName: string;
@@ -46,7 +48,7 @@ export async function GET() {
     clockOut: string | null;
   }> = [];
 
-  if (isAdmin) {
+  if (isAdmin && !isLite) {
     // 今日の全メンバーの勤怠
     const todayAttendances = await prisma.attendance.findMany({
       where: { date: today },
@@ -85,7 +87,7 @@ export async function GET() {
     salt2GrossProfit: number;
   } | null = null;
 
-  if (user.role === "admin") {
+  if (user.role === "admin" && !isLite) {
     const plRecords = await prisma.pLRecord.findMany({
       where: { targetMonth: currentMonth, recordType: "pl" },
       include: { project: { select: { company: true } } },
@@ -132,7 +134,7 @@ export async function GET() {
     })),
     teamAttendance,
     plSummary,
-    notStartedCount: isAdmin
+    notStartedCount: isAdmin && !isLite
       ? teamAttendance.filter((t) => t.status === "not_started").length
       : null,
   });

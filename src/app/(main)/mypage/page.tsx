@@ -352,30 +352,48 @@ export default function MyPage() {
 
   useEffect(() => {
     if (!memberId) return;
+
+    // 第一段階: 必須データのみ先に取得して表示を早める
     Promise.all([
       fetch(`/api/members/${memberId}`).then((r) => r.ok ? r.json() : null),
       fetch("/api/attendances/today").then((r) => r.ok ? r.json() : null),
-      fetch("/api/dashboard").then((r) => r.ok ? r.json() : null),
-      fetch(`/api/self-reports?month=${MONTHS[0]}`).then((r) => r.ok ? r.json() : []),
-      fetch(`/api/evaluations/${memberId}?limit=6`).then((r) => r.ok ? r.json() : []),
-      fetch(`/api/attendances?month=${MONTHS[0]}`).then((r) => r.ok ? r.json() : []),
-    ]).then(([detail, att, dash, reports, evals, atts]) => {
+    ]).then(([detail, att]) => {
       setMemberDetail(detail);
       setTodayAtt(att);
-      const projects: MyProject[] = dash?.myProjects ?? [];
-      setMyProjects(projects);
-      const existing: SelfReport[] = reports ?? [];
-      setSelfReports(existing);
-      const allocs = projects.map((p) => {
-        const found = existing.find((r) => r.projectId === p.projectId);
-        return { projectId: p.projectId, projectName: p.projectName, reportedHours: found?.reportedHours ?? 0 };
-      });
-      setReportAllocations(allocs);
-      setReportSubmitted(existing.length > 0 && existing.every((r) => r.submittedAt));
-      setEvaluations(Array.isArray(evals) ? evals : []);
-      setAttendances(Array.isArray(atts) ? atts : []);
       setLoading(false);
     });
+
+    // 第二段階: 重めのデータは非同期で取得し、揃い次第それぞれ更新
+    fetch("/api/dashboard")
+      .then((r) => r.ok ? r.json() : null)
+      .then((dash) => {
+        const projects: MyProject[] = dash?.myProjects ?? [];
+        setMyProjects(projects);
+        // 既存の自己申告データと合算しておくため、後続の self-reports 取得完了後に再計算する
+      });
+
+    fetch(`/api/self-reports?month=${MONTHS[0]}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((reports: SelfReport[]) => {
+        setSelfReports(reports ?? []);
+        setReportSubmitted(reports.length > 0 && reports.every((r) => r.submittedAt));
+        setReportAllocations((prev) => {
+          // dashboard取得済みのプロジェクトに対応する配分を上書き
+          return (prev.length ? prev : myProjects).map((p) => {
+            const found = reports.find((r) => r.projectId === p.projectId);
+            return { projectId: p.projectId, projectName: p.projectName, reportedHours: found?.reportedHours ?? 0 };
+          });
+        });
+      });
+
+    fetch(`/api/evaluations/${memberId}?limit=6`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((evals) => setEvaluations(Array.isArray(evals) ? evals : []));
+
+    fetch(`/api/attendances?month=${MONTHS[0]}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((atts) => setAttendances(Array.isArray(atts) ? atts : []));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
 
   async function handleSubmitReport() {

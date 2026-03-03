@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+  const memberIdsParam = searchParams.get("memberIds");
 
   if (!from || !to) {
     return NextResponse.json({ error: "from と to は必須です" }, { status: 400 });
@@ -25,9 +26,17 @@ export async function GET(req: NextRequest) {
   fromDate.setHours(0, 0, 0, 0);
   toDate.setHours(23, 59, 59, 999);
 
-  // アクティブなメンバー一覧
+  // アクティブなメンバー一覧（フィルタあり）
+  const filterIds = memberIdsParam
+    ? memberIdsParam.split(",").map((s) => s.trim()).filter(Boolean)
+    : null;
+
   const members = await prisma.member.findMany({
-    where: { deletedAt: null, leftAt: null },
+    where: {
+      deletedAt: null,
+      leftAt: null,
+      ...(filterIds ? { id: { in: filterIds } } : {}),
+    },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

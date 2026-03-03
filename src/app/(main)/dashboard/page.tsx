@@ -90,11 +90,12 @@ export default function DashboardPage() {
   }, [role, router]);
 
   useEffect(() => {
-    fetch("/api/dashboard")
+    const lite = role === "member" ? "1" : "0";
+    fetch(`/api/dashboard?lite=${lite}`)
       .then((r) => r.json())
       .then((d: DashboardData) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }, [role]);
 
   const today = new Date();
   const todayLabel = today.toLocaleDateString("ja-JP", {
