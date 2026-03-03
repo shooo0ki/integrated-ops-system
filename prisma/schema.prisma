@@ -377,6 +377,7 @@ model Attendance {
   @@unique([memberId, date])
   @@index([date])
   @@index([status, confirmStatus])
+  @@index([confirmStatus, date])
   @@map("attendances")
 }
 
