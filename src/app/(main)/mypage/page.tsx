@@ -402,9 +402,7 @@ export default function MyPage() {
         setEvalsLoading(false);
       });
 
-    fetch(`/api/attendances?month=${MONTHS[0]}`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((atts) => setAttendances(Array.isArray(atts) ? atts : []));
+    loadAttendances(MONTHS[0]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
 

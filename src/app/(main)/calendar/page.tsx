@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Users, FolderOpen, Monitor, Building2 } from "lucide-react";
@@ -157,8 +157,29 @@ function WeekView({ weekDays, visible, calData }: {
   const colorMap = new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]]));
   const colPct   = visible.length > 0 ? 100 / visible.length : 100;
 
-  function att(memberId: string, date: string)   { return calData.attendances.find(a => a.memberId === memberId && a.date === date) ?? null; }
-  function sched(memberId: string, date: string) { return calData.schedules.find(s => s.memberId === memberId && s.date === date) ?? null;  }
+  const attMap = useMemo(() => {
+    const map = new Map<string, AttEntry>();
+    for (const a of calData.attendances) {
+      map.set(`${a.memberId}:${a.date}`, a);
+    }
+    return map;
+  }, [calData.attendances]);
+
+  const schedMap = useMemo(() => {
+    const map = new Map<string, SchedEntry>();
+    for (const s of calData.schedules) {
+      map.set(`${s.memberId}:${s.date}`, s);
+    }
+    return map;
+  }, [calData.schedules]);
+
+  function att(memberId: string, date: string) {
+    return attMap.get(`${memberId}:${date}`) ?? null;
+  }
+
+  function sched(memberId: string, date: string) {
+    return schedMap.get(`${memberId}:${date}`) ?? null;
+  }
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">

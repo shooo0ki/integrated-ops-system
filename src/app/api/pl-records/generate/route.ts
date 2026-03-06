@@ -126,71 +126,71 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 6. PLRecord を upsert ─────────────────────────────────
-  const results: { projectId: string; grossProfit: number }[] = [];
+  const results = await Promise.all(
+    projects.map(async (project) => {
+      const { laborCost, toolCost } = projectMap.get(project.id) ?? { laborCost: 0, toolCost: 0 };
+      const existing = existingMap.get(project.id);
 
-  for (const project of projects) {
-    const { laborCost, toolCost } = projectMap.get(project.id) ?? { laborCost: 0, toolCost: 0 };
-    const existing = existingMap.get(project.id);
+      // その他コスト: 経費（請求書から自動）+ 既存のその他コスト
+      const expenseCost = expenseByProject.get(project.id) ?? 0;
+      const costOther = expenseCost + (existing?.costOther ?? 0);
 
-    // その他コスト: 経費（請求書から自動）+ 既存のその他コスト
-    const expenseCost = expenseByProject.get(project.id) ?? 0;
-    const costOther = expenseCost + (existing?.costOther ?? 0);
+      // 掛け率: 既存値があればそれを優先
+      // なければ損益分岐掛け率（差益≈0）を自動計算
+      //   Revenue = labor × markup + tool
+      //   Profit  = labor × (markup - 1) - otherCost = 0
+      //   markup  = (labor + otherCost) / labor
+      const breakevenMarkup = laborCost > 0 ? (laborCost + costOther) / laborCost : 1.0;
+      const markupRate = existing?.markupRate ? Number(existing.markupRate) : breakevenMarkup;
 
-    // 掛け率: 既存値があればそれを優先
-    // なければ損益分岐掛け率（差益≈0）を自動計算
-    //   Revenue = labor × markup + tool
-    //   Profit  = labor × (markup - 1) - otherCost = 0
-    //   markup  = (labor + otherCost) / labor
-    const breakevenMarkup = laborCost > 0 ? (laborCost + costOther) / laborCost : 1.0;
-    const markupRate = existing?.markupRate ? Number(existing.markupRate) : breakevenMarkup;
+      // 売上
+      let revenue: number;
+      if (project.projectType === "boost_dispatch") {
+        revenue = Math.round(laborCost * markupRate + toolCost);
+      } else {
+        revenue = project.monthlyContractAmount;
+      }
 
-    // 売上
-    let revenue: number;
-    if (project.projectType === "boost_dispatch") {
-      revenue = Math.round(laborCost * markupRate + toolCost);
-    } else {
-      revenue = project.monthlyContractAmount;
-    }
+      const grossProfit = revenue - laborCost - toolCost - costOther;
+      const grossProfitRate = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
 
-    const grossProfit = revenue - laborCost - toolCost - costOther;
-    const grossProfitRate = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
-
-    await prisma.pLRecord.upsert({
-      where: {
-        projectId_targetMonth_recordType: {
+      await prisma.pLRecord.upsert({
+        where: {
+          projectId_targetMonth_recordType: {
+            projectId: project.id,
+            targetMonth,
+            recordType: "pl",
+          },
+        },
+        create: {
+          recordType: "pl",
           projectId: project.id,
           targetMonth,
-          recordType: "pl",
+          revenueContract: revenue,
+          revenueExtra: 0,
+          costLaborMonthly: 0,
+          costLaborHourly: laborCost,
+          costOutsourcing: 0,
+          costTools: toolCost,
+          costOther,
+          grossProfit,
+          grossProfitRate,
+          markupRate: project.projectType === "boost_dispatch" ? markupRate : null,
+          createdBy: user.id,
         },
-      },
-      create: {
-        recordType: "pl",
-        projectId: project.id,
-        targetMonth,
-        revenueContract: revenue,
-        revenueExtra: 0,
-        costLaborMonthly: 0,
-        costLaborHourly: laborCost,
-        costOutsourcing: 0,
-        costTools: toolCost,
-        costOther,
-        grossProfit,
-        grossProfitRate,
-        markupRate: project.projectType === "boost_dispatch" ? markupRate : null,
-        createdBy: user.id,
-      },
-      update: {
-        revenueContract: revenue,
-        costLaborHourly: laborCost,
-        costTools: toolCost,
-        // costOther・markupRate は既存値を保持（手動調整を上書きしない）
-        grossProfit,
-        grossProfitRate,
-      },
-    });
+        update: {
+          revenueContract: revenue,
+          costLaborHourly: laborCost,
+          costTools: toolCost,
+          // costOther・markupRate は既存値を保持（手動調整を上書きしない）
+          grossProfit,
+          grossProfitRate,
+        },
+      });
 
-    results.push({ projectId: project.id, grossProfit });
-  }
+      return { projectId: project.id, grossProfit };
+    })
+  );
 
   return NextResponse.json({
     message: `${results.length} 件の PL レコードを生成しました`,

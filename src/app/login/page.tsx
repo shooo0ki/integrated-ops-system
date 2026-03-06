@@ -30,10 +30,9 @@ export default function LoginPage() {
     try {
       const result = await login(email, password);
       if (result.success) {
-        // ログイン成功後、遷移前に主要データを並列で先読みしてキャッシュに乗せる
+        // ログイン成功後、遷移前に主要データを先読みしてキャッシュに乗せる
         preload("/api/dashboard", fetcher);
         preload("/api/attendances/today", fetcher);
-        preload("/api/members", fetcher);
         router.push("/dashboard");
       } else {
         setError(result.error ?? "ログインに失敗しました。");

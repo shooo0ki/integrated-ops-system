@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, ReactNode } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import type { SessionUser } from "./auth";
 
@@ -37,20 +37,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const user = data?.user ?? null;
-  const state: AuthState = user
-    ? {
-        isLoggedIn: true,
-        userId: user.id,
-        memberId: user.memberId,
-        role: user.role,
-        name: user.name,
-      }
-    : { isLoggedIn: false, userId: null, memberId: null, role: "member", name: null };
+  const state: AuthState = useMemo(
+    () =>
+      user
+        ? {
+            isLoggedIn: true,
+            userId: user.id,
+            memberId: user.memberId,
+            role: user.role,
+            name: user.name,
+          }
+        : { isLoggedIn: false, userId: null, memberId: null, role: "member", name: null },
+    [user]
+  );
 
-  async function login(
+  const login = useCallback(async (
     email: string,
     password: string
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string }> => {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -63,16 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // SWR キャッシュを更新（再フェッチなし）
     await mutate("/api/auth/session", { user: responseData.user }, false);
     return { success: true };
-  }
+  }, [mutate]);
 
-  async function logout(): Promise<void> {
+  const logout = useCallback(async (): Promise<void> => {
     await fetch("/api/auth/logout", { method: "POST" });
     // SWR キャッシュをクリア（再フェッチなし）
     await mutate("/api/auth/session", null, false);
-  }
+  }, [mutate]);
+
+  const value = useMemo(
+    () => ({ ...state, isLoading, login, logout }),
+    [state, isLoading, login, logout]
+  );
 
   return (
-    <AuthContext.Provider value={{ ...state, isLoading, login, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

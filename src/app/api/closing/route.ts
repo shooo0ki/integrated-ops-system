@@ -71,9 +71,30 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
+  const attendancesByMember = new Map<string, typeof attendances>();
+  for (const a of attendances) {
+    const list = attendancesByMember.get(a.memberId) ?? [];
+    list.push(a);
+    attendancesByMember.set(a.memberId, list);
+  }
+
+  const schedulesByMember = new Map<string, typeof schedules>();
+  for (const s of schedules) {
+    const list = schedulesByMember.get(s.memberId) ?? [];
+    list.push(s);
+    schedulesByMember.set(s.memberId, list);
+  }
+
+  const invoiceByMember = new Map<string, typeof invoices[number]>();
+  for (const inv of invoices) {
+    if (!invoiceByMember.has(inv.memberId)) {
+      invoiceByMember.set(inv.memberId, inv);
+    }
+  }
+
   const result = members.map((m) => {
-    const atts = attendances.filter((a) => a.memberId === m.id);
-    const scheds = schedules.filter((s) => s.memberId === m.id);
+    const atts = attendancesByMember.get(m.id) ?? [];
+    const scheds = schedulesByMember.get(m.id) ?? [];
 
     // 稼働日数 = clockIn がある日数
     const workDays = atts.filter((a) => a.clockIn !== null).length;
@@ -88,7 +109,7 @@ export async function GET(req: NextRequest) {
 
     // 人件費見込み
     let estimatedAmount = 0;
-    const inv = invoices.find((i) => i.memberId === m.id);
+    const inv = invoiceByMember.get(m.id);
     if (inv) {
       estimatedAmount = inv.amountExclTax;
     } else if (m.salaryType === "hourly") {
