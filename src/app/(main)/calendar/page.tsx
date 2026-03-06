@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import { ChevronLeft, ChevronRight, Users, FolderOpen, Monitor, Building2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
@@ -147,14 +146,19 @@ function WeekView({ weekDays, visible, calData }: {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = Math.max(0, currentY - 120);
+      scrollRef.current.scrollTop = Math.max(0, nowY() - 120);
     }
-    const t = setInterval(() => setCurrentY(nowY()), 60_000);
-    return () => clearInterval(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const colorMap = new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]]));
+  useEffect(() => {
+    const t = setInterval(() => setCurrentY(nowY()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const colorMap = useMemo(
+    () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
+    [calData.members]
+  );
   const colPct   = visible.length > 0 ? 100 / visible.length : 100;
 
   const attMap = useMemo(() => {
@@ -322,7 +326,10 @@ function MonthView({ grid, visible, calData }: {
   visible: CalMember[];
   calData: CalData;
 }) {
-  const colorMap = new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]]));
+  const colorMap = useMemo(
+    () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
+    [calData.members]
+  );
 
   const attMap = useMemo(() => {
     const map = new Map<string, AttEntry>();
@@ -336,13 +343,29 @@ function MonthView({ grid, visible, calData }: {
     return map;
   }, [calData.schedules]);
 
-  function getEvent(memberId: string, date: string) {
+  const getEvent = useCallback((memberId: string, date: string) => {
     const a = attMap.get(`${memberId}:${date}`);
     const s = schedMap.get(`${memberId}:${date}`);
     if (a?.clockIn) return { type: "actual" as const, clockIn: a.clockIn, clockOut: a.clockOut, locationType: a.locationType };
     if (s && !s.isOff && s.startTime) return { type: "schedule" as const, startTime: s.startTime, endTime: s.endTime, locationType: s.locationType };
     return null;
-  }
+  }, [attMap, schedMap]);
+
+  const dayItemsMap = useMemo(() => {
+    const map = new Map<string, { member: CalMember; ev: ReturnType<typeof getEvent> }[]>();
+    for (const member of visible) {
+      for (const week of grid) {
+        for (const day of week) {
+          const ev = getEvent(member.id, day.date);
+          if (!ev) continue;
+          const list = map.get(day.date) ?? [];
+          list.push({ member, ev });
+          map.set(day.date, list);
+        }
+      }
+    }
+    return map;
+  }, [visible, grid, getEvent]);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -373,10 +396,7 @@ function MonthView({ grid, visible, calData }: {
                   </span>
                   <div className="space-y-0.5">
                     {(() => {
-                      const items = visible.flatMap(member => {
-                        const ev = getEvent(member.id, day.date);
-                        return ev ? [{ member, ev }] : [];
-                      });
+                      const items = dayItemsMap.get(day.date) ?? [];
                       const overflow = Math.max(0, items.length - MAX_PER_CELL);
                       return (
                         <>
@@ -425,27 +445,40 @@ export default function CalendarPage() {
   const [selectedIds,   setSelectedIds]   = useState<Set<string> | null>(null);
   const [selectedProjId, setSelectedProjId] = useState<string>("");
 
-  const weekDays  = buildWeekDays(anchor);
-  const monthGrid = buildMonthGrid(displayYear, displayMonth);
+  const weekDays = useMemo(() => buildWeekDays(anchor), [anchor]);
+  const monthGrid = useMemo(() => buildMonthGrid(displayYear, displayMonth), [displayYear, displayMonth]);
 
   const from = view === "week" ? weekDays[0].date : monthGrid[0][0].date;
   const to   = view === "week" ? weekDays[6].date : monthGrid[monthGrid.length - 1][6].date;
 
-  // null（全員）の場合は memberIds を送らない → API が全員返す
-  const memberIdsParam = selectedIds !== null ? Array.from(selectedIds).join(",") : "";
-  const calUrl = `/api/calendar?from=${from}&to=${to}${memberIdsParam ? `&memberIds=${memberIdsParam}` : ""}`;
+  // メンバー選択はクライアント側で絞り込み、不要な再fetchを防ぐ
+  const calUrl = `/api/calendar?from=${from}&to=${to}`;
 
-  const { data: calData = { members: [], schedules: [], attendances: [], projects: [] }, isLoading: loading } = useSWR<CalData>(calUrl);
+  const { data: calData = { members: [], schedules: [], attendances: [], projects: [] }, isLoading: loading } = useSWR<CalData>(
+    calUrl,
+    { keepPreviousData: true }
+  );
+
+  const memberColorMap = useMemo(
+    () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
+    [calData.members]
+  );
 
   // プロジェクトフィルター適用後の表示メンバー
-  const projectFilteredMembers = selectedProjId
-    ? calData.members.filter(m => m.projectIds.includes(selectedProjId))
-    : calData.members;
+  const projectFilteredMembers = useMemo(
+    () => (selectedProjId
+      ? calData.members.filter((m) => m.projectIds.includes(selectedProjId))
+      : calData.members),
+    [calData.members, selectedProjId]
+  );
 
   // null = 全員表示、Set = 絞り込み表示
-  const visibleMembers = selectedIds === null
-    ? projectFilteredMembers
-    : projectFilteredMembers.filter(m => selectedIds.has(m.id));
+  const visibleMembers = useMemo(
+    () => (selectedIds === null
+      ? projectFilteredMembers
+      : projectFilteredMembers.filter((m) => selectedIds.has(m.id))),
+    [projectFilteredMembers, selectedIds]
+  );
 
   function toggleMember(id: string) {
     setSelectedIds(prev => {
@@ -587,8 +620,8 @@ export default function CalendarPage() {
             <span className="text-slate-300 select-none">|</span>
             <button onClick={deselectAll} className="text-xs text-slate-500 hover:underline">解除</button>
           </div>
-          {projectFilteredMembers.map((m, gi) => {
-            const color = COLORS[calData.members.findIndex(cm => cm.id === m.id) % COLORS.length];
+            {projectFilteredMembers.map((m) => {
+            const color = memberColorMap.get(m.id) ?? COLORS[0];
             const on    = selectedIds === null || selectedIds.has(m.id);
             return (
               <button key={m.id} onClick={() => toggleMember(m.id)}

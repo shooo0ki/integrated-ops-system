@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import useSWR from "swr";
 import {
   AlertTriangle, Send, RefreshCw, CheckCircle, Zap, ChevronRight, AlertCircle, FileText,
@@ -182,16 +182,24 @@ function AdminClosingView() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null);
 
-  const monthOptions = buildMonthOptions();
+  const monthOptions = useMemo(() => buildMonthOptions(), []);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: records = [], isLoading: closingLoading, mutate: mutateClosing } = useSWR<ClosingRecord[]>(`/api/closing?month=${targetMonth}`);
   const { data: invoices = [], isLoading: invoicesLoading, mutate: mutateInvoices } = useSWR<Invoice[]>(`/api/invoices?month=${targetMonth}`);
   const loading = closingLoading || invoicesLoading;
 
-  function showToast(msg: string) {
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
-  }
+    toastTimerRef.current = setTimeout(() => setToastMsg(null), 3000);
+  }, []);
 
   function handleAggregate() {
     if (records.some((r) => r.missingDays > 0)) {
@@ -228,8 +236,7 @@ function AdminClosingView() {
     } finally {
       setSendingSlackId(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetMonth, mutateClosing]);
+  }, [targetMonth, mutateClosing, records, showToast]);
 
   const handleSendAll = useCallback(async () => {
     setSendingAll(true);
@@ -249,8 +256,7 @@ function AdminClosingView() {
     } finally {
       setSendingAll(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [records, targetMonth, mutateClosing]);
+  }, [records, targetMonth, mutateClosing, showToast]);
 
   const handleForce = useCallback(async (memberId: string) => {
     setForcingId(memberId);
@@ -267,8 +273,7 @@ function AdminClosingView() {
     } finally {
       setForcingId(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetMonth, mutateClosing]);
+  }, [targetMonth, mutateClosing, showToast]);
 
   const handleAccounting = useCallback(async (invoiceId: string, memberName: string) => {
     setAccountingId(invoiceId);
@@ -283,11 +288,10 @@ function AdminClosingView() {
     } finally {
       setAccountingId(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mutateClosing, mutateInvoices]);
+  }, [mutateClosing, mutateInvoices, showToast]);
 
   const {
-    notSentCount, waitingCount, confirmedCount, totalEstimated, hasMissingDays,
+    notSentCount, waitingCount, confirmedCount, totalEstimated, hasMissingDays, missingDaysCount,
     hourlyRecords, salaryRecords, receivedCount, hourlyLaborCost, salaryLaborCost,
     totalLaborCost, hourlyReceived, notReceivedCount, invoiceMap,
   } = useMemo(() => {
@@ -302,6 +306,7 @@ function AdminClosingView() {
       confirmedCount: records.filter((r) => r.confirmStatus === "confirmed" || r.confirmStatus === "forced").length,
       totalEstimated: records.reduce((s, r) => s + r.estimatedAmount, 0),
       hasMissingDays: records.some((r) => r.missingDays > 0),
+      missingDaysCount: records.filter((r) => r.missingDays > 0).length,
       hourlyRecords:  hourlyRecs,
       salaryRecords:  salaryRecs,
       receivedCount:  hourlyRecs.filter((r) => r.invoiceStatus === "sent" || r.invoiceStatus === "approved" || r.invoiceStatus === "accounting_sent").length,
@@ -638,7 +643,7 @@ function AdminClosingView() {
           <div className="flex items-start gap-3 rounded-lg bg-amber-50 p-3">
             <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-800">
-              {records.filter((r) => r.missingDays > 0).length}名に未打刻日があります。このまま集計を更新しますか？
+              {missingDaysCount}名に未打刻日があります。このまま集計を更新しますか？
             </p>
           </div>
           <div className="flex justify-end gap-2">
@@ -757,7 +762,7 @@ function MemberBillingView({ memberId }: { memberId: string }) {
   const [hasTransport, setHasTransport] = useState<"none" | "yes">("none");
   const [transports, setTransports] = useState<ExpenseItem[]>([]);
 
-  const monthOptions = buildMonthOptions();
+  const monthOptions = useMemo(() => buildMonthOptions(), []);
 
   const { data: closingData, isLoading: closingLoading } = useSWR<ClosingRecord[]>(`/api/closing?month=${month}`);
   const { data: invoiceData, isLoading: invoiceLoading, mutate: mutateInvoice } = useSWR<Invoice | null>(`/api/invoices?month=${month}&mine=1`);
@@ -812,7 +817,6 @@ function MemberBillingView({ memberId }: { memberId: string }) {
         amount: closingRecord.estimatedAmount,
       }]);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [closingData, invoiceData, closingLoading, invoiceLoading, memberId]);
 
   function addItem() {
@@ -891,13 +895,23 @@ function MemberBillingView({ memberId }: { memberId: string }) {
   }
 
   // リアルタイム計算
-  const subtotal = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
-  const taxAmount = Math.round(subtotal * 0.1);
-  const transportTotal = hasTransport === "yes"
-    ? transports.reduce((s, e) => s + (Number(e.amount) || 0), 0) : 0;
-  const expenseTotal = hasExpense === "yes"
-    ? expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0) : 0;
-  const total = subtotal + taxAmount + transportTotal + expenseTotal;
+  const { subtotal, taxAmount, transportTotal, expenseTotal, total } = useMemo(() => {
+    const subtotalValue = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+    const taxAmountValue = Math.round(subtotalValue * 0.1);
+    const transportTotalValue = hasTransport === "yes"
+      ? transports.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+      : 0;
+    const expenseTotalValue = hasExpense === "yes"
+      ? expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+      : 0;
+    return {
+      subtotal: subtotalValue,
+      taxAmount: taxAmountValue,
+      transportTotal: transportTotalValue,
+      expenseTotal: expenseTotalValue,
+      total: subtotalValue + taxAmountValue + transportTotalValue + expenseTotalValue,
+    };
+  }, [items, hasTransport, transports, hasExpense, expenses]);
 
   return (
     <div className="space-y-6">

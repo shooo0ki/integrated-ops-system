@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,14 +86,22 @@ export default function ProjectPLPage() {
   const [otherCostInput, setOtherCostInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showToast = (msg: string) => {
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }, []);
 
   // 一意のプロジェクトを抽出
-  const projects: ProjectTab[] = (() => {
+  const projects: ProjectTab[] = useMemo(() => {
     const seen = new Set<string>();
     const tabs: ProjectTab[] = [];
     allRecords.forEach((r) => {
@@ -103,30 +111,42 @@ export default function ProjectPLPage() {
       }
     });
     return tabs;
-  })();
+  }, [allRecords]);
+
+  const recordByProjectMonth = useMemo(() => {
+    const map = new Map<string, PLRecord>();
+    for (const record of allRecords) {
+      map.set(`${record.projectId}:${record.targetMonth}`, record);
+    }
+    return map;
+  }, [allRecords]);
 
   useEffect(() => {
     if (projects.length > 0 && !selectedProjectId) {
       setSelectedProjectId(projects[0].id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projects.length, selectedProjectId]);
+  }, [projects, selectedProjectId]);
 
-  const currentRecord = allRecords.find(
-    (r) => r.targetMonth === selectedMonth && r.projectId === selectedProjectId
+  const currentRecord = recordByProjectMonth.get(`${selectedProjectId}:${selectedMonth}`);
+
+  const trendData = useMemo(
+    () =>
+      MONTHS.map((month) => {
+        const rec = recordByProjectMonth.get(`${selectedProjectId}:${month}`);
+        return {
+          month: month.replace("-", "/"),
+          revenue: rec?.revenue ?? 0,
+          laborCost: rec?.laborCost ?? 0,
+          grossProfit: rec?.grossProfit ?? 0,
+        };
+      }),
+    [recordByProjectMonth, selectedProjectId]
   );
 
-  const trendData = MONTHS.map((month) => {
-    const rec = allRecords.find((r) => r.targetMonth === month && r.projectId === selectedProjectId);
-    return {
-      month: month.replace("-", "/"),
-      revenue: rec?.revenue ?? 0,
-      laborCost: rec?.laborCost ?? 0,
-      grossProfit: rec?.grossProfit ?? 0,
-    };
-  });
-
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.id === selectedProjectId),
+    [projects, selectedProjectId]
+  );
   const isBoostDispatch = currentRecord?.projectType === "boost_dispatch";
   const breakevenMarkup = currentRecord && currentRecord.laborCost > 0
     ? (currentRecord.laborCost + currentRecord.otherCost) / currentRecord.laborCost

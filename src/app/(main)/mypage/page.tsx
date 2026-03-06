@@ -80,6 +80,10 @@ interface EvalRecord {
   comment: string | null;
 }
 
+interface MyPageResponse extends MemberDetail {
+  projects: MyProject[];
+}
+
 interface AttRecord {
   id: string;
   date: string;
@@ -862,56 +866,31 @@ const SelfReportSection = memo(function SelfReportSection({ myProjects }: { myPr
 
 export default function MyPage() {
   const { memberId, role } = useAuth();
-  const [memberDetail, setMemberDetail] = useState<MemberDetail | null>(null);
-  const [myProjects, setMyProjects] = useState<MyProject[]>([]);
-  const [evaluations, setEvaluations] = useState<EvalRecord[]>([]);
-  const [evalsLoading, setEvalsLoading] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [deferLowerSections, setDeferLowerSections] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
+  const { data: mypageData, isLoading: mypageLoading, mutate: mutateMypage } = useSWR<MyPageResponse | null>(
+    memberId ? "/api/mypage" : null
+  );
+
+  const { data: evalData, isLoading: evalsLoading } = useSWR<EvalRecord[]>(
+    memberId ? `/api/evaluations/${memberId}?limit=6` : null
+  );
+
   useEffect(() => {
-    if (!memberId) return;
+    const t = setTimeout(() => setDeferLowerSections(true), 0);
+    return () => clearTimeout(t);
+  }, []);
 
-    // 第一段階: メンバー詳細＋プロジェクトを取得して表示を早める
-    fetch("/api/mypage")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (data) {
-          setMemberDetail({
-            id: data.id,
-            name: data.name,
-            phone: data.phone,
-            address: data.address,
-            bankName: data.bankName,
-            bankBranch: data.bankBranch,
-            bankAccountNumber: data.bankAccountNumber,
-            bankAccountHolder: data.bankAccountHolder,
-            status: data.status,
-            salaryType: data.salaryType,
-            salaryAmount: data.salaryAmount,
-            joinedAt: data.joinedAt,
-            email: data.email,
-            role: data.role,
-            skills: data.skills,
-          });
-          setMyProjects(data.projects ?? []);
-        }
-        setLoading(false);
-      });
+  const evaluations = Array.isArray(evalData) ? evalData : [];
+  const evaluationComments = evaluations.filter((ev) => ev.comment).slice(0, 3);
 
-    // 第二段階: 評価を遅延取得
-    fetch(`/api/evaluations/${memberId}?limit=6`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((evals) => {
-        setEvaluations(Array.isArray(evals) ? evals : []);
-        setEvalsLoading(false);
-      });
-  }, [memberId]);
-
-  if (loading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
+  if (mypageLoading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
+  const memberDetail = mypageData;
   if (!memberDetail) return null;
 
+  const myProjects = mypageData?.projects ?? [];
   const hasBankInfo = memberDetail.bankName || memberDetail.bankAccountNumber;
 
   return (
@@ -1107,9 +1086,9 @@ export default function MyPage() {
                 </tbody>
               </table>
             </div>
-            {evaluations.some((ev) => ev.comment) && (
+            {evaluationComments.length > 0 && (
               <div className="mt-3 space-y-2">
-                {evaluations.filter((ev) => ev.comment).slice(0, 3).map((ev) => (
+                {evaluationComments.map((ev) => (
                   <div key={ev.id} className="rounded-md bg-blue-50 px-3 py-2 text-sm">
                     <p className="text-xs text-blue-600 font-medium mb-0.5">{ev.targetPeriod.replace("-", "年")}月 コメント</p>
                     <p className="text-slate-700">{ev.comment}</p>
@@ -1122,10 +1101,10 @@ export default function MyPage() {
       </Card>
 
       {/* ─── 自己申告・プロジェクト・通知設定（state独立） ─── */}
-      <SelfReportSection myProjects={myProjects} />
+      {deferLowerSections && <SelfReportSection myProjects={myProjects} />}
 
       {/* ─── 勤怠記録（state独立） ─── */}
-      <AttendanceSection />
+      {deferLowerSections && <AttendanceSection />}
 
       {/* ─── セキュリティ ─── */}
       <Card>
@@ -1155,7 +1134,7 @@ export default function MyPage() {
           current={memberDetail}
           onClose={() => setEditingProfile(false)}
           onSaved={(updated) => {
-            setMemberDetail((prev) => prev ? { ...prev, ...updated } : prev);
+            mutateMypage((prev) => (prev ? { ...prev, ...updated } : prev), false);
           }}
         />
       )}
