@@ -1234,7 +1234,14 @@ function MemberBillingView({ memberId }: { memberId: string }) {
 // ─── Page ─────────────────────────────────────────────────
 
 export default function ClosingPage() {
-  const { role, memberId } = useAuth();
+  const { role, memberId, isLoading } = useAuth();
+
+  // auth 解決前に member/admin 分岐を行うと、両ビューの API が連続発火し得るため待機する
+  if (isLoading) {
+    return (
+      <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
+    );
+  }
 
   if (role === "admin" || role === "manager") return <AdminClosingView />;
   return <MemberBillingView memberId={memberId ?? ""} />;
