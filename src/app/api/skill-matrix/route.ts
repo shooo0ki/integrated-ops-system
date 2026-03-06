@@ -23,30 +23,46 @@ export async function GET(req: NextRequest) {
 
   const skillIds = categories.flatMap((c) => c.skills.map((s) => s.id));
 
-  // メンバーとスキル評価（最新1件/skillId）
+  // メンバー一覧
   const members = await prisma.member.findMany({
     where: {
       deletedAt: null,
     },
     include: {
-      skills: {
-        where: { skillId: { in: skillIds } },
-        orderBy: { evaluatedAt: "desc" },
-      },
       userAccount: { select: { role: true } },
     },
     orderBy: { createdAt: "asc" },
   });
 
-  // skillId ごとに最新レベルだけ残す
+  // 評価履歴から memberId+skillId ごとの最新1件だけ取得
+  const memberIds = members.map((m) => m.id);
+  const latestSkills =
+    skillIds.length > 0 && memberIds.length > 0
+      ? await prisma.memberSkill.findMany({
+          where: {
+            memberId: { in: memberIds },
+            skillId: { in: skillIds },
+          },
+          orderBy: [
+            { memberId: "asc" },
+            { skillId: "asc" },
+            { evaluatedAt: "desc" },
+          ],
+          distinct: ["memberId", "skillId"],
+          select: {
+            memberId: true,
+            skillId: true,
+            level: true,
+          },
+        })
+      : [];
+
   const levelMap: Record<string, Record<string, number>> = {};
   for (const m of members) {
     levelMap[m.id] = {};
-    for (const sk of m.skills) {
-      if (!(sk.skillId in levelMap[m.id])) {
-        levelMap[m.id][sk.skillId] = sk.level;
-      }
-    }
+  }
+  for (const sk of latestSkills) {
+    levelMap[sk.memberId][sk.skillId] = sk.level;
   }
 
   // minLevel フィルタ: 対象カテゴリのスキルで minLevel 以上が1つでもあるメンバー

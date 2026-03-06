@@ -11,13 +11,15 @@ function forbidden() {
 }
 
 // 自動計算: 会社別の入出金を取得
-async function calcAutoFields(targetMonth: string, company: Company) {
-  // 当該会社に属するプロジェクトIDを取得（経費計算用）
-  const companyProjects = await prisma.project.findMany({
-    where: { company, deletedAt: null },
-    select: { id: true },
-  });
-  const projectIds = companyProjects.map((p) => p.id);
+async function calcAutoFields(targetMonth: string, company: Company, projectIds?: string[]) {
+  const resolvedProjectIds = projectIds
+    ? projectIds
+    : (
+        await prisma.project.findMany({
+          where: { company, deletedAt: null },
+          select: { id: true },
+        })
+      ).map((p) => p.id);
 
   const [invoiceAgg, toolAgg, salaryAgg, expenseAgg] = await Promise.all([
     // Boost入金 / クライアント入金: 送付済み・確認済み請求書から自動集計
@@ -43,18 +45,18 @@ async function calcAutoFields(targetMonth: string, company: Company) {
           where: {
             taxable: false,
             OR: [
-              ...(projectIds.length > 0 ? [{ linkedProjectId: { in: projectIds } }] : []),
+              ...(resolvedProjectIds.length > 0 ? [{ linkedProjectId: { in: resolvedProjectIds } }] : []),
               { linkedProjectId: null },
             ],
             invoice: { targetMonth },
           },
           _sum: { amount: true },
         })
-      : projectIds.length > 0
+      : resolvedProjectIds.length > 0
       ? prisma.invoiceItem.aggregate({
           where: {
             taxable: false,
-            linkedProjectId: { in: projectIds },
+            linkedProjectId: { in: resolvedProjectIds },
             invoice: { targetMonth },
           },
           _sum: { amount: true },
@@ -99,13 +101,20 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const companyProjectIds = (
+    await prisma.project.findMany({
+      where: { company, deletedAt: null },
+      select: { id: true },
+    })
+  ).map((p) => p.id);
+
   const records = await Promise.all(
     targetMonths.map(async (targetMonth) => {
       const [rec, auto] = await Promise.all([
         prisma.pLRecord.findFirst({
           where: { recordType: "cf", targetMonth, cfCompany: company },
         }),
-        calcAutoFields(targetMonth, company),
+        calcAutoFields(targetMonth, company, companyProjectIds),
       ]);
 
       const cashIn = auto.cashInClient + (rec?.cfCashInOther ?? 0);

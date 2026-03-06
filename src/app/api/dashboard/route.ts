@@ -86,8 +86,12 @@ export async function GET(req: Request) {
         : Promise.resolve([] as { revenueContract: number; revenueExtra: number; grossProfit: number; project: { company: string } | null }[]),
     ]);
 
+    const attendanceByMember = new Map(
+      todayAttendances.map((a) => [a.memberId, a])
+    );
+
     teamAttendance = allMembers.map((m) => {
-      const att = todayAttendances.find((a) => a.memberId === m.id);
+      const att = attendanceByMember.get(m.id);
       let status = "not_started";
       if (att?.clockIn && att?.clockOut) status = "done";
       else if (att?.clockIn) status = "working";
