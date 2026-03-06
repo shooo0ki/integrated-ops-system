@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Users, FolderOpen, Monitor, Building2 } from "lucide-react";
