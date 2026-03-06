@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
 
   // 月の開始・終了
   const [year, mon] = month.split("-").map(Number);
-  const monthStart = new Date(year, mon - 1, 1);
-  const monthEnd = new Date(year, mon, 0, 23, 59, 59, 999);
+  const monthStart = new Date(Date.UTC(year, mon - 1, 1));
+  const monthEnd = new Date(Date.UTC(year, mon, 0, 23, 59, 59, 999));
 
   // 対象メンバー：admin/manager は全員、それ以外は自分のみ
   const members = await prisma.member.findMany({

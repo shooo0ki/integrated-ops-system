@@ -19,8 +19,8 @@ export async function PATCH(
   }
 
   const [year, mon] = month.split("-").map(Number);
-  const monthStart = new Date(year, mon - 1, 1);
-  const monthEnd = new Date(year, mon, 0, 23, 59, 59, 999);
+  const monthStart = new Date(Date.UTC(year, mon - 1, 1));
+  const monthEnd = new Date(Date.UTC(year, mon, 0, 23, 59, 59, 999));
 
   // サマリーとメンバー情報を並列取得（attendance 全行 scan を排除）
   const [member, summary, scheduledDays] = await Promise.all([
