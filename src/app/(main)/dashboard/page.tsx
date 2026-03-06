@@ -44,6 +44,7 @@ function NavCard({ label, href, icon: Icon, description }: NavItem) {
   return (
     <Link
       href={href}
+      prefetch={false}
       className="group flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 transition-all hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm"
     >
       <div className="flex items-center gap-3">

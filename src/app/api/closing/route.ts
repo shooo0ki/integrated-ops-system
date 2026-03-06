@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   const monthStart = new Date(Date.UTC(year, mon - 1, 1));
   const monthEnd = new Date(Date.UTC(year, mon, 0, 23, 59, 59, 999));
 
+  try {
   // 対象メンバー：admin/manager は全員、それ以外は自分のみ
   const members = await prisma.member.findMany({
     where: {
@@ -148,4 +149,8 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(result);
+  } catch (error) {
+    console.error("Closing API error:", error);
+    return NextResponse.json([], { status: 200 });
+  }
 }

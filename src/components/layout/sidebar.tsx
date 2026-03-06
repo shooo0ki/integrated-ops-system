@@ -91,6 +91,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <li className="md:hidden">
                 <Link
                   href="/dashboard"
+                  prefetch={false}
                   onClick={onClose}
                   className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                 >
@@ -107,7 +108,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               return (
                 <li key={item.href}>
                   <Link
-                    prefetch
+                    prefetch={false}
                     href={item.href}
                     onClick={onClose}
                     className={cn(
