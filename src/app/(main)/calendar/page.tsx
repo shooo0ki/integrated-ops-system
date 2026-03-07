@@ -541,6 +541,11 @@ export default function CalendarPage() {
     }
   }
 
+  // hydration 完了まで待つ（anchor/displayYear が未設定のプリレンダリング時にクラッシュ防止）
+  if (!anchor) {
+    return <div className="py-16 text-center text-slate-400 text-sm">読み込み中...</div>;
+  }
+
   const weekLabel = `${weekDays[0].date.slice(5).replace("-", "/")} 〜 ${weekDays[6].date.slice(5).replace("-", "/")}`;
 
   return (
