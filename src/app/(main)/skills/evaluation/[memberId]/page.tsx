@@ -46,8 +46,6 @@ const LEVEL_COLORS: Record<number, string> = {
   5: "bg-purple-100 text-purple-700 border-purple-300",
 };
 
-const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-
 // ─── ページ ───────────────────────────────────────────────
 
 export default function SkillEvaluationPage({
@@ -61,6 +59,11 @@ export default function SkillEvaluationPage({
   const canEdit = role === "admin" || role === "manager";
 
   // ─── データ ─────────────────────────────────────────────
+
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }));
+  }, []);
 
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -92,7 +95,7 @@ export default function SkillEvaluationPage({
       }
       return next;
     });
-  }, [memberId]);
+  }, [memberId, today]);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,7 +125,7 @@ export default function SkillEvaluationPage({
     }
     init();
     return () => { cancelled = true; };
-  }, [memberId, router, loadHistory]);
+  }, [memberId, router, loadHistory, today]);
 
   // ─── アクション ──────────────────────────────────────────
 

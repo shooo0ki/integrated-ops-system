@@ -18,7 +18,7 @@ const HOURS      = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START
 function localDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-const TODAY  = localDateStr(new Date());
+let TODAY = ""; // set on client after hydration
 const DOW_JP = ["日", "月", "火", "水", "木", "金", "土"];
 
 const COLORS = [
@@ -438,25 +438,33 @@ export default function CalendarPage() {
   const { memberId: myMemberId, role } = useAuth();
   const isAdmin = role === "admin" || role === "manager";
   const [view,          setView]          = useState<ViewMode>("week");
-  const [anchor,        setAnchor]        = useState(() => new Date());
-  const [displayYear,   setDisplayYear]   = useState(() => new Date().getFullYear());
-  const [displayMonth,  setDisplayMonth]  = useState(() => new Date().getMonth() + 1);
+  const [anchor,        setAnchor]        = useState<Date | null>(null);
+  const [displayYear,   setDisplayYear]   = useState(0);
+  const [displayMonth,  setDisplayMonth]  = useState(0);
   // null = 全員表示（APIに memberIds を送らない）、Set = 明示的な絞り込み
   const [selectedIds,   setSelectedIds]   = useState<Set<string> | null>(null);
   const [selectedProjId, setSelectedProjId] = useState<string>("");
 
-  const weekDays = useMemo(() => buildWeekDays(anchor), [anchor]);
-  const monthGrid = useMemo(() => buildMonthGrid(displayYear, displayMonth), [displayYear, displayMonth]);
+  useEffect(() => {
+    const now = new Date();
+    TODAY = localDateStr(now);
+    setAnchor(now);
+    setDisplayYear(now.getFullYear());
+    setDisplayMonth(now.getMonth() + 1);
+  }, []);
 
-  const from = view === "week" ? weekDays[0].date : monthGrid[0][0].date;
-  const to   = view === "week" ? weekDays[6].date : monthGrid[monthGrid.length - 1][6].date;
+  const weekDays = useMemo(() => anchor ? buildWeekDays(anchor) : [], [anchor]);
+  const monthGrid = useMemo(() => displayYear ? buildMonthGrid(displayYear, displayMonth) : [], [displayYear, displayMonth]);
+
+  const from = view === "week" ? weekDays[0]?.date : monthGrid[0]?.[0]?.date;
+  const to   = view === "week" ? weekDays[6]?.date : monthGrid[monthGrid.length - 1]?.[6]?.date;
 
   // メンバー選択はクライアント側で絞り込み、不要な再fetchを防ぐ
-  const calUrl = `/api/calendar?from=${from}&to=${to}`;
+  const calUrl = from && to ? `/api/calendar?from=${from}&to=${to}` : null;
 
   const { data: calData = { members: [], schedules: [], attendances: [], projects: [] }, isLoading: loading } = useSWR<CalData>(
     calUrl,
-    { keepPreviousData: true }
+    { keepPreviousData: true },
   );
 
   const memberColorMap = useMemo(
@@ -514,6 +522,7 @@ export default function CalendarPage() {
   }
   function prev() {
     if (view === "week") {
+      if (!anchor) return;
       const d = new Date(anchor); d.setDate(d.getDate() - 7); setAnchor(d);
     } else {
       let m = displayMonth - 1, y = displayYear;
@@ -523,6 +532,7 @@ export default function CalendarPage() {
   }
   function next() {
     if (view === "week") {
+      if (!anchor) return;
       const d = new Date(anchor); d.setDate(d.getDate() + 7); setAnchor(d);
     } else {
       let m = displayMonth + 1, y = displayYear;
