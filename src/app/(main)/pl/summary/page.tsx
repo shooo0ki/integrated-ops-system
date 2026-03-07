@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { TrendingUp, TrendingDown, ArrowRight, RefreshCw, CheckCircle, AlertCircle, Pencil, Save, X } from "lucide-react";
@@ -66,10 +66,11 @@ export default function PLSummaryPage() {
   const canEdit = role === "admin" || role === "manager";
 
   const [tab, setTab] = useState<TabCompany>("合算");
-  const [month, setMonth] = useState(() => {
+  const [month, setMonth] = useState("");
+  useEffect(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+    setMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+  }, []);
   const { data: allRecords = [], isLoading: loading, mutate: mutatePL } = useSWR<PLRecord[]>(`/api/pl-records?months=${MONTHS.join(",")}`);
   const [generating, setGenerating] = useState(false);
   const [genMsg, setGenMsg] = useState<string | null>(null);
@@ -90,7 +91,7 @@ export default function PLSummaryPage() {
     projects: { projectId: string; projectName: string; reportedHours: number }[];
   };
   const { data: selfReports = [], isLoading: reportLoading } = useSWR<SelfReportStatus[]>(
-    canEdit ? `/api/self-reports?month=${month}` : null
+    canEdit && month ? `/api/self-reports?month=${month}` : null
   );
 
   async function handleSavePL(pl: PLRecord) {

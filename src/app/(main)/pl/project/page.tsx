@@ -76,10 +76,11 @@ export default function ProjectPLPage() {
   const { role } = useAuth();
   const canEdit = role === "admin" || role === "manager";
 
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+  const [selectedMonth, setSelectedMonth] = useState("");
+  useEffect(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+    setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+  }, []);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const { data: allRecords = [], isLoading: loading, mutate: mutatePLRecords } = useSWR<PLRecord[]>(`/api/pl-records?months=${MONTHS.join(",")}`);
   const [simMarkup, setSimMarkup] = useState<string>("");

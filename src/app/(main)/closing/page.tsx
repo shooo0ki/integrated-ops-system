@@ -169,10 +169,7 @@ const ClosingTableRow = memo(function ClosingTableRow({
 // ─── Admin View ───────────────────────────────────────────
 
 function AdminClosingView() {
-  const [targetMonth, setTargetMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [targetMonth, setTargetMonth] = useState("");
   const [aggregateWarning, setAggregateWarning] = useState(false);
   const [aggregating, setAggregating] = useState(false);
   const [sendingAll, setSendingAll] = useState(false);
@@ -181,12 +178,18 @@ function AdminClosingView() {
   const [accountingId, setAccountingId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null);
+  const [monthOptions, setMonthOptions] = useState<string[]>([]);
 
-  const monthOptions = useMemo(() => buildMonthOptions(), []);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: records = [], isLoading: closingLoading, mutate: mutateClosing } = useSWR<ClosingRecord[]>(`/api/closing?month=${targetMonth}`);
-  const { data: invoices = [], isLoading: invoicesLoading, mutate: mutateInvoices } = useSWR<Invoice[]>(`/api/invoices?month=${targetMonth}`);
+  useEffect(() => {
+    const opts = buildMonthOptions();
+    setMonthOptions(opts);
+    setTargetMonth(opts[0]);
+  }, []);
+
+  const { data: records = [], isLoading: closingLoading, mutate: mutateClosing } = useSWR<ClosingRecord[]>(targetMonth ? `/api/closing?month=${targetMonth}` : null);
+  const { data: invoices = [], isLoading: invoicesLoading, mutate: mutateInvoices } = useSWR<Invoice[]>(targetMonth ? `/api/invoices?month=${targetMonth}` : null);
   const loading = closingLoading || invoicesLoading;
 
   useEffect(() => {
@@ -745,10 +748,7 @@ interface MyProject {
 }
 
 function MemberBillingView({ memberId }: { memberId: string }) {
-  const [month, setMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [month, setMonth] = useState("");
   const [closing, setClosing] = useState<ClosingRecord | null>(null);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [items, setItems] = useState<LineItem[]>([]);
@@ -762,10 +762,15 @@ function MemberBillingView({ memberId }: { memberId: string }) {
   const [hasTransport, setHasTransport] = useState<"none" | "yes">("none");
   const [transports, setTransports] = useState<ExpenseItem[]>([]);
 
-  const monthOptions = useMemo(() => buildMonthOptions(), []);
+  const [monthOptions, setMonthOptions] = useState<string[]>([]);
+  useEffect(() => {
+    const opts = buildMonthOptions();
+    setMonthOptions(opts);
+    setMonth(opts[0]);
+  }, []);
 
-  const { data: closingData, isLoading: closingLoading } = useSWR<ClosingRecord[]>(`/api/closing?month=${month}`);
-  const { data: invoiceData, isLoading: invoiceLoading, mutate: mutateInvoice } = useSWR<Invoice | null>(`/api/invoices?month=${month}&mine=1`);
+  const { data: closingData, isLoading: closingLoading } = useSWR<ClosingRecord[]>(month ? `/api/closing?month=${month}` : null);
+  const { data: invoiceData, isLoading: invoiceLoading, mutate: mutateInvoice } = useSWR<Invoice | null>(month ? `/api/invoices?month=${month}&mine=1` : null);
   const { data: mypageData } = useSWR<{ projects?: MyProject[] }>("/api/mypage");
   const loading = closingLoading || invoiceLoading;
 

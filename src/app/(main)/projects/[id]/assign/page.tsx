@@ -60,8 +60,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-  const [form, setForm] = useState({ memberId: "", positionId: "", workloadHours: "80", startDate: today });
+  const [form, setForm] = useState({ memberId: "", positionId: "", workloadHours: "80", startDate: "" });
   const [positionMode, setPositionMode] = useState<"existing" | "new">("existing");
   const [newPositionName, setNewPositionName] = useState("");
 
@@ -76,6 +75,10 @@ export default function AssignPage({ params }: { params: { id: string } }) {
       assignments: data.assignments,
     });
   }, [id]);
+
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) }));
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -134,7 +137,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
     if (res.ok) {
       await loadProject();
       setAddOpen(false);
-      setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: today });
+      setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) });
       setPositionMode("existing");
       setNewPositionName("");
     } else {
@@ -169,7 +172,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
             setError("");
             setPositionMode(project.positions.length > 0 ? "existing" : "new");
             setNewPositionName("");
-            setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: today });
+            setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) });
             setAddOpen(true);
           }}>
             <Plus size={14} /> アサイン追加

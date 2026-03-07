@@ -91,10 +91,14 @@ function AdminUnsubmittedAlert() {
 
 export default function SchedulePage() {
   const { memberId, name, role } = useAuth();
-  const [entries, setEntries] = useState<DayEntry[]>(buildNextWeek);
+  const [entries, setEntries] = useState<DayEntry[]>([]);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setEntries(buildNextWeek());
+  }, []);
 
   const nextWeek = entries;
   const weekLabel = nextWeek.length >= 7

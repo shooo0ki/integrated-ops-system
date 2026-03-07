@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
 import Link from "@/components/ui/app-link";
 import { ArrowLeft, Download, CheckCircle, XCircle, Plus } from "lucide-react";
@@ -48,11 +48,22 @@ export default function AttendanceListPage() {
   const { data: membersData = [] } = useSWR<MemberOption[]>(isAdmin ? "/api/members" : null);
   const members: MemberOption[] = Array.isArray(membersData) ? membersData : [];
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
-  const [month, setMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [month, setMonth] = useState("");
+  const [jstToday, setJstToday] = useState("");
   const [visibleCount, setVisibleCount] = useState(50);
+
+  useEffect(() => {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    setMonth(currentMonth);
+    setJstToday(now.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }));
+    const opts: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      opts.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    }
+    setMonthOptions(opts);
+  }, []);
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
 
@@ -65,7 +76,7 @@ export default function AttendanceListPage() {
   const targetMemberId = isAdmin ? (selectedMemberId || myMemberId || "") : (myMemberId || "");
 
   const { data: records = [], isLoading: loading, mutate: mutateRecords } = useSWR<AttendanceRecord[]>(
-    targetMemberId ? `/api/attendances?memberId=${targetMemberId}&month=${month}` : null
+    targetMemberId && month ? `/api/attendances?memberId=${targetMemberId}&month=${month}` : null
   );
 
   // 集計（承認待ちは集計に含めない）
@@ -102,12 +113,7 @@ export default function AttendanceListPage() {
   }
 
   // 月オプション
-  const monthOptions: string[] = [];
-  const base = new Date();
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    monthOptions.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  }
+  const [monthOptions, setMonthOptions] = useState<string[]>([]);
 
   const targetMember = members.find((m) => m.id === targetMemberId);
 
@@ -297,7 +303,6 @@ export default function AttendanceListPage() {
                 {visibleRecords.map((rec) => {
                   const approved = approvedIds.has(rec.id) || rec.confirmStatus === "approved";
                   const rejected = rejectedIds.has(rec.id) || rec.confirmStatus === "rejected";
-                  const jstToday = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
                   const isToday = rec.date === jstToday;
                   return (
                     <tr

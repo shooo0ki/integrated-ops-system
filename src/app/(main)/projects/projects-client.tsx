@@ -61,11 +61,10 @@ function formatCurrency(n: number): string {
 // ─── クライアントコンポーネント ───────────────────────────
 
 interface ProjectsClientProps {
-  initialProjects: Project[];
   role: string;
 }
 
-export default function ProjectsClient({ initialProjects, role }: ProjectsClientProps) {
+export default function ProjectsClient({ role }: ProjectsClientProps) {
   const canCreate = role === "admin" || role === "manager";
 
   const [companyFilter, setCompanyFilter] = useState("");
@@ -76,9 +75,7 @@ export default function ProjectsClient({ initialProjects, role }: ProjectsClient
   if (statusFilter) params.set("status", statusFilter);
   const swrKey = `/api/projects?${params}`;
 
-  const { data: projects = [], isLoading: loading } = useSWR<Project[]>(swrKey, {
-    fallbackData: swrKey === "/api/projects?" ? initialProjects : undefined,
-  });
+  const { data: projects = [], isLoading: loading } = useSWR<Project[]>(swrKey);
 
   return (
     <div className="space-y-6">

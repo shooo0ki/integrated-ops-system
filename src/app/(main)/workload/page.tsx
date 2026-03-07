@@ -21,14 +21,23 @@ interface WorkloadData {
 // ─── ページ ───────────────────────────────────────────────
 
 export default function WorkloadPage() {
-  const [month, setMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
-  const { data, isLoading: loading, mutate } = useSWR<WorkloadData>(`/api/workload?month=${month}`);
+  const [month, setMonth] = useState("");
+  const [monthOptions, setMonthOptions] = useState<string[]>([]);
+  const { data, isLoading: loading, mutate } = useSWR<WorkloadData>(month ? `/api/workload?month=${month}` : null);
   const [editMode, setEditMode] = useState(false);
   const [cells, setCells] = useState<Record<string, Record<string, CellData>>>({});
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const now = new Date();
+    const opts: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      opts.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    }
+    setMonthOptions(opts);
+    setMonth(opts[0]);
+  }, []);
 
   useEffect(() => {
     if (data) {
@@ -66,14 +75,6 @@ export default function WorkloadPage() {
     setSaving(false);
     setEditMode(false);
     await mutate();
-  }
-
-  // generate month options (current + 5 months back)
-  const monthOptions: string[] = [];
-  const base = new Date();
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    monthOptions.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
   const members = data?.members ?? [];

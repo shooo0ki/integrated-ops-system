@@ -124,10 +124,13 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [assignSaving, setAssignSaving] = useState(false);
   const [assignError, setAssignError] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-  const [assignForm, setAssignForm] = useState({ memberId: "", positionId: "", workloadHours: "80", startDate: today });
+  const [assignForm, setAssignForm] = useState({ memberId: "", positionId: "", workloadHours: "80", startDate: "" });
   const [positionMode, setPositionMode] = useState<"existing" | "new">("existing");
   const [newPositionName, setNewPositionName] = useState("");
+
+  useEffect(() => {
+    setAssignForm((prev) => ({ ...prev, startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) }));
+  }, []);
 
   // Redirect on 404
   useEffect(() => {
@@ -206,7 +209,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     setAssignError("");
     setPositionMode(project && project.positions.length > 0 ? "existing" : "new");
     setNewPositionName("");
-    setAssignForm({ memberId: "", positionId: "", workloadHours: "80", startDate: today });
+    setAssignForm({ memberId: "", positionId: "", workloadHours: "80", startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) });
     setAddOpen(true);
   }
 

@@ -47,11 +47,10 @@ const roleLabel: Record<string, string> = {
 // ─── クライアントコンポーネント ───────────────────────────
 
 interface MembersClientProps {
-  initialMembers: MemberListItem[];
   role: string;
 }
 
-export default function MembersClient({ initialMembers, role }: MembersClientProps) {
+export default function MembersClient({ role }: MembersClientProps) {
   const canCreate = role === "admin" || role === "manager";
 
   const [search, setSearch] = useState("");
@@ -62,9 +61,7 @@ export default function MembersClient({ initialMembers, role }: MembersClientPro
   if (roleFilter) params.set("role", roleFilter);
   const swrKey = `/api/members?${params}`;
 
-  const { data: members = [], isLoading: loading } = useSWR<MemberListItem[]>(swrKey, {
-    fallbackData: swrKey === "/api/members?" ? initialMembers : undefined,
-  });
+  const { data: members = [], isLoading: loading } = useSWR<MemberListItem[]>(swrKey);
 
   return (
     <div className="space-y-6">
