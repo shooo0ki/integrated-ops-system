@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Clock, CheckCircle, Building2, Monitor, ClipboardEdit, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,9 +53,14 @@ export default function AttendancePage() {
   const { memberId, role } = useAuth();
   const isAdmin = role === "admin" || role === "manager";
 
-  const today = new Date();
-  const todayStr = today.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }); // JST 基準 YYYY-MM-DD
-  const todayLabel = today.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric", weekday: "long" });
+  // JST日付をクライアントで初期化（SSRとのハイドレーション不一致を防ぐ）
+  const [todayStr, setTodayStr] = useState("");
+  const [todayLabel, setTodayLabel] = useState("");
+  useEffect(() => {
+    const now = new Date();
+    setTodayStr(now.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }));
+    setTodayLabel(now.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric", weekday: "long" }));
+  }, []);
 
   const { data: myRecord = null, mutate: mutateToday } = useSWR<TodayRecord | null>("/api/attendances/today");
   const myStatus: AttendanceStatus = myRecord?.status ?? "not_started";

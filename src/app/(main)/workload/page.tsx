@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 

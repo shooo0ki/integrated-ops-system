@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { Wrench, Plus, TrendingUp, Edit2, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

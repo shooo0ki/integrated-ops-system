@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, User, Menu, ChevronLeft } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";

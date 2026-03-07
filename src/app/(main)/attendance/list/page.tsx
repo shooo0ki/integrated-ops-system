@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { ArrowLeft, Download, CheckCircle, XCircle, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";

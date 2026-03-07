@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import {
   FileCheck, Send, Clock, CheckCircle, XCircle, FilePlus, Download,
 } from "lucide-react";
