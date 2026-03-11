@@ -11,7 +11,6 @@ import {
   CalendarDays,
   CalendarClock,
   Settings,
-  Wallet,
   X,
   ChevronLeft,
 } from "lucide-react";
@@ -41,7 +40,6 @@ const MEMBER_NAV: NavItem[] = [
   { href: "/schedule",   label: "勤務予定",  icon: CalendarClock },
   { href: "/closing",    label: "請求管理",  icon: FileText },
   { href: "/pl/summary", label: "PLサマリー", icon: TrendingUp },
-  { href: "/pl/cashflow",label: "キャッシュフロー", icon: Wallet },
   { href: "/mypage",     label: "マイページ", icon: User },
 ];
 
