@@ -693,16 +693,17 @@ function SelfReportCard({
   useEffect(() => {
     if (!selfReports) return;
     if (selfReports.length > 0) {
-      setRows(
-        selfReports.map((r) => ({
-          key: r.id,
-          projectId: r.projectId,
-          customLabel: r.customLabel,
-          displayName: r.projectName ?? r.customLabel ?? "—",
-          reportedPercent: r.reportedPercent,
-        }))
-      );
-      setEditing(false);
+      if (!editing) {
+        setRows(
+          selfReports.map((r) => ({
+            key: r.id,
+            projectId: r.projectId,
+            customLabel: r.customLabel,
+            displayName: r.projectName ?? r.customLabel ?? "—",
+            reportedPercent: r.reportedPercent,
+          }))
+        );
+      }
     } else {
       setRows(
         myProjects.map((p) => ({
@@ -715,7 +716,12 @@ function SelfReportCard({
       );
       setEditing(true);
     }
-  }, [selfReports, myProjects]);
+  }, [selfReports, myProjects, editing]);
+
+  // 月が変わったら編集モードをリセット
+  useEffect(() => {
+    setEditing(false);
+  }, [month]);
 
   const totalPercent = rows.reduce((s, r) => s + r.reportedPercent, 0);
   const isValid = totalPercent === 100;
@@ -1301,29 +1307,17 @@ function MemberBillingView({ memberId }: { memberId: string }) {
                 {hasTransport === "yes" && (
                   <div className="space-y-3">
                     <p className="text-xs text-slate-500">
-                      交通費は消費税がかかりません。プロジェクトを選択するとプロジェクト別PLに反映されます。
+                      交通費は非課税です。SALT2の経費として計上されます。
                     </p>
                     {transports.map((tr) => (
-                      <div key={tr.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-start">
-                        <div className="space-y-1">
-                          <select
-                            value={tr.projectId}
-                            onChange={(e) => updateTransport(tr.id, "projectId", e.target.value)}
-                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                          >
-                            <option value="">プロジェクト外（SALT2計上）</option>
-                            {myProjects.map((p) => (
-                              <option key={p.projectId} value={p.projectId}>{p.projectName}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            value={tr.description}
-                            onChange={(e) => updateTransport(tr.id, "description", e.target.value)}
-                            placeholder="説明（例: 渋谷→新宿 往復）"
-                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
+                      <div key={tr.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
+                        <input
+                          type="text"
+                          value={tr.description}
+                          onChange={(e) => updateTransport(tr.id, "description", e.target.value)}
+                          placeholder="説明（例: 渋谷→新宿 往復）"
+                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                        />
                         <div className="w-28">
                           <input
                             type="number"
@@ -1333,10 +1327,10 @@ function MemberBillingView({ memberId }: { memberId: string }) {
                             className="w-full rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
                           />
                         </div>
-                        <span className="pt-2 text-sm text-slate-500">円</span>
+                        <span className="text-sm text-slate-500">円</span>
                         <button
                           onClick={() => removeTransport(tr.id)}
-                          className="pt-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                          className="text-slate-400 hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={14} />
                         </button>
