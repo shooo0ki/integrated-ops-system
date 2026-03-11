@@ -103,6 +103,7 @@ interface ClosingTableRowProps {
   rec: ClosingRecord;
   sendingSlackId: string | null;
   forcingId: string | null;
+  selfReportSubmitted: boolean | undefined;
   onSendSlack: (memberId: string) => void;
   onForce: (memberId: string) => void;
 }
@@ -111,6 +112,7 @@ const ClosingTableRow = memo(function ClosingTableRow({
   rec,
   sendingSlackId,
   forcingId,
+  selfReportSubmitted,
   onSendSlack,
   onForce,
 }: ClosingTableRowProps) {
@@ -137,6 +139,13 @@ const ClosingTableRow = memo(function ClosingTableRow({
         <Badge variant={receiptStatusConfig[rec.invoiceStatus].variant}>
           {receiptStatusConfig[rec.invoiceStatus].label}
         </Badge>
+      </td>
+      <td className="px-4 py-3">
+        {selfReportSubmitted === true ? (
+          <Badge variant="success">済</Badge>
+        ) : (
+          <Badge variant="default">未</Badge>
+        )}
       </td>
       <td className="px-4 py-3">
         <div className="flex gap-1.5 flex-wrap">
@@ -190,7 +199,13 @@ function AdminClosingView() {
 
   const { data: records = [], isLoading: closingLoading, mutate: mutateClosing } = useSWR<ClosingRecord[]>(targetMonth ? `/api/closing?month=${targetMonth}` : null);
   const { data: invoices = [], isLoading: invoicesLoading, mutate: mutateInvoices } = useSWR<Invoice[]>(targetMonth ? `/api/invoices?month=${targetMonth}` : null);
+  const { data: selfReportSummary = [] } = useSWR<{ memberId: string; submitted: boolean }[]>(targetMonth ? `/api/self-reports?month=${targetMonth}` : null);
   const loading = closingLoading || invoicesLoading;
+
+  const selfReportMap = useMemo(
+    () => new Map(selfReportSummary.map((s) => [s.memberId, s.submitted])),
+    [selfReportSummary]
+  );
 
   useEffect(() => {
     return () => {
@@ -431,6 +446,7 @@ function AdminClosingView() {
                   <th className="px-4 py-3 text-right font-medium">人件費</th>
                   <th className="px-4 py-3 text-left font-medium">勤怠確認</th>
                   <th className="px-4 py-3 text-left font-medium">請求書受領</th>
+                  <th className="px-4 py-3 text-left font-medium">申告</th>
                   <th className="px-4 py-3 text-left font-medium">操作</th>
                 </tr>
               </thead>
@@ -441,13 +457,14 @@ function AdminClosingView() {
                     rec={rec}
                     sendingSlackId={sendingSlackId}
                     forcingId={forcingId}
+                    selfReportSubmitted={selfReportMap.get(rec.memberId)}
                     onSendSlack={handleSendSlack}
                     onForce={handleForce}
                   />
                 ))}
                 {records.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-sm text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-sm text-slate-400">
                       該当するデータがありません
                     </td>
                   </tr>
@@ -747,6 +764,296 @@ interface MyProject {
   projectName: string;
 }
 
+interface SelfReportRow {
+  key: string;
+  projectId: string | null;
+  customLabel: string | null;
+  displayName: string;
+  reportedPercent: number;
+}
+
+interface SelfReportItem {
+  id: string;
+  projectId: string | null;
+  projectName: string | null;
+  customLabel: string | null;
+  reportedPercent: number;
+  reportedHours: number | null;
+  submittedAt: string | null;
+}
+
+function SelfReportCard({
+  month,
+  myProjects,
+}: {
+  month: string;
+  myProjects: MyProject[];
+}) {
+  const { data: selfReports, mutate: mutateSR } = useSWR<SelfReportItem[]>(
+    month ? `/api/self-reports?month=${month}` : null
+  );
+
+  const [rows, setRows] = useState<SelfReportRow[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [customInput, setCustomInput] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submitted = selfReports && selfReports.length > 0 && selfReports.every((r) => r.submittedAt);
+
+  useEffect(() => {
+    if (!selfReports) return;
+    if (selfReports.length > 0) {
+      setRows(
+        selfReports.map((r) => ({
+          key: r.id,
+          projectId: r.projectId,
+          customLabel: r.customLabel,
+          displayName: r.projectName ?? r.customLabel ?? "—",
+          reportedPercent: r.reportedPercent,
+        }))
+      );
+      setEditing(false);
+    } else {
+      setRows(
+        myProjects.map((p) => ({
+          key: p.projectId,
+          projectId: p.projectId,
+          customLabel: null,
+          displayName: p.projectName,
+          reportedPercent: 0,
+        }))
+      );
+      setEditing(true);
+    }
+  }, [selfReports, myProjects]);
+
+  const totalPercent = rows.reduce((s, r) => s + r.reportedPercent, 0);
+  const isValid = totalPercent === 100;
+
+  function updatePercent(key: string, value: number) {
+    setRows((prev) => prev.map((r) => r.key === key ? { ...r, reportedPercent: value } : r));
+  }
+
+  function removeRow(key: string) {
+    setRows((prev) => prev.filter((r) => r.key !== key));
+  }
+
+  function addProject(projectId: string) {
+    const pj = myProjects.find((p) => p.projectId === projectId);
+    if (!pj) return;
+    setRows((prev) => [
+      ...prev,
+      { key: projectId, projectId, customLabel: null, displayName: pj.projectName, reportedPercent: 0 },
+    ]);
+    setShowProjectPicker(false);
+  }
+
+  function addCustomLabel() {
+    const label = customInput.trim();
+    if (!label) return;
+    if (rows.some((r) => r.customLabel === label)) {
+      setError("同名のカスタム項目が既にあります");
+      return;
+    }
+    setRows((prev) => [
+      ...prev,
+      { key: `custom-${label}`, projectId: null, customLabel: label, displayName: label, reportedPercent: 0 },
+    ]);
+    setCustomInput("");
+    setShowCustom(false);
+    setError(null);
+  }
+
+  async function handleSubmit() {
+    if (!isValid) return;
+    setSubmitting(true);
+    setError(null);
+    const res = await fetch("/api/self-reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetMonth: month,
+        allocations: rows.map((r) => ({
+          projectId: r.projectId || undefined,
+          customLabel: r.customLabel || undefined,
+          reportedPercent: r.reportedPercent,
+        })),
+      }),
+    });
+    if (res.ok) {
+      await mutateSR();
+      setEditing(false);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setError(data?.error?.message ?? "申告に失敗しました");
+    }
+    setSubmitting(false);
+  }
+
+  const availableProjects = myProjects.filter(
+    (p) => !rows.some((r) => r.projectId === p.projectId)
+  );
+
+  if (!month) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>月次工数自己申告</CardTitle>
+          {submitted && !editing && (
+            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>修正する</Button>
+          )}
+        </div>
+      </CardHeader>
+
+      {submitted && !editing ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3">
+            <CheckCircle size={15} className="text-green-600" />
+            <span className="text-sm text-green-700 font-medium">申告済み</span>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-100">
+              <tr className="text-xs text-slate-500">
+                <th className="py-2 text-left font-medium">項目</th>
+                <th className="py-2 text-right font-medium">配分</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.key} className="border-b border-slate-50">
+                  <td className="py-2 text-slate-700">{r.displayName}</td>
+                  <td className="py-2 text-right font-medium text-slate-800">{r.reportedPercent}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-slate-400 text-right">合計: {totalPercent}%</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs text-slate-500">
+            各プロジェクトの工数配分を%で入力してください（合計100%）
+          </p>
+
+          {error && (
+            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+          )}
+
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-100">
+              <tr className="text-xs text-slate-500">
+                <th className="py-2 text-left font-medium">項目</th>
+                <th className="py-2 text-right font-medium w-24">配分(%)</th>
+                <th className="py-2 w-8" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.key} className="border-b border-slate-50">
+                  <td className="py-2 text-slate-700">{r.displayName}</td>
+                  <td className="py-2 text-right">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={r.reportedPercent}
+                      onChange={(e) => updatePercent(r.key, Number(e.target.value) || 0)}
+                      className="w-20 rounded border border-slate-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                  </td>
+                  <td className="py-2 text-center">
+                    <button
+                      onClick={() => removeRow(r.key)}
+                      className="text-slate-400 hover:text-red-500 transition-colors"
+                      title="削除"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {availableProjects.length > 0 && (
+              showProjectPicker ? (
+                <select
+                  value=""
+                  onChange={(e) => { if (e.target.value) addProject(e.target.value); }}
+                  className="rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                  autoFocus
+                  onBlur={() => setShowProjectPicker(false)}
+                >
+                  <option value="">プロジェクトを選択...</option>
+                  {availableProjects.map((p) => (
+                    <option key={p.projectId} value={p.projectId}>{p.projectName}</option>
+                  ))}
+                </select>
+              ) : (
+                <button
+                  onClick={() => setShowProjectPicker(true)}
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                >
+                  <Plus size={14} /> プロジェクト追加
+                </button>
+              )
+            )}
+
+            {showCustom ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addCustomLabel(); }}
+                  placeholder="例: 社内業務"
+                  className="w-32 rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                  autoFocus
+                />
+                <Button size="sm" variant="outline" onClick={addCustomLabel}>追加</Button>
+                <button
+                  onClick={() => { setShowCustom(false); setCustomInput(""); }}
+                  className="text-xs text-slate-400 hover:text-slate-600"
+                >
+                  取消
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowCustom(true)}
+                className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-800"
+              >
+                <Plus size={14} /> カスタム追加
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-sm text-slate-600">
+              合計: <span className={`font-bold ${isValid ? "text-green-600" : "text-red-600"}`}>{totalPercent}%</span>
+              {!isValid && <span className="ml-2 text-xs text-red-500">（100%にしてください）</span>}
+            </span>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={submitting || !isValid || rows.length === 0}
+            >
+              {submitting ? "送信中..." : "申告する"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function MemberBillingView({ memberId }: { memberId: string }) {
   const [month, setMonth] = useState("");
   const [closing, setClosing] = useState<ClosingRecord | null>(null);
@@ -935,6 +1242,9 @@ function MemberBillingView({ memberId }: { memberId: string }) {
           ))}
         </select>
       </div>
+
+      {/* 月次工数自己申告 */}
+      <SelfReportCard month={month} myProjects={myProjects} />
 
       {loading ? (
         <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>

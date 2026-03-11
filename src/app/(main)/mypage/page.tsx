@@ -1,19 +1,17 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { useState, memo } from "react";
 import useSWR from "swr";
 import {
   User, Mail, Phone, Calendar, Bell, Shield, ClipboardList, CheckCircle,
-  Award, Pencil, ChevronLeft, ChevronRight, MapPin, CreditCard, Star, Plus,
+  Award, Pencil, ChevronRight, MapPin, CreditCard, Star,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { formatDate, buildMonths } from "@/lib/utils";
-
-const MONTHS = buildMonths(12); // 直近12ヶ月
+import { formatDate } from "@/lib/utils";
 
 const roleLabel: Record<string, string> = {
   admin: "管理者",
@@ -63,13 +61,6 @@ interface MyProject {
   workloadHours: number;
 }
 
-interface SelfReport {
-  projectId: string;
-  projectName: string;
-  reportedHours: number;
-  submittedAt: string | null;
-}
-
 interface EvalRecord {
   id: string;
   targetPeriod: string;
@@ -87,17 +78,6 @@ interface MyPageResponse extends MemberDetail {
 interface MyPageSummaryResponse {
   member: MyPageResponse;
   evaluations: EvalRecord[];
-}
-
-interface AttRecord {
-  id: string;
-  date: string;
-  clockIn: string | null;
-  clockOut: string | null;
-  actualHours: number | null;
-  status: string;
-  confirmStatus: string;
-  isModified: boolean;
 }
 
 // ─── プロフィール編集モーダル ─────────────────────────────
@@ -359,505 +339,6 @@ const TodayAttendanceCard = memo(function TodayAttendanceCard() {
   );
 });
 
-// ─── 勤怠記録セクション（state独立・再レンダー隔離） ─────────
-
-const AttendanceSection = memo(function AttendanceSection() {
-  const [attMonth, setAttMonth] = useState(MONTHS[0]);
-  const [correctionTarget, setCorrectionTarget] = useState<AttRecord | null>(null);
-  const [corrForm, setCorrForm] = useState({ clockIn: "", clockOut: "", breakMinutes: "0" });
-  const [correcting, setCorrecting] = useState(false);
-  const [corrToast, setCorrToast] = useState<string | null>(null);
-  const [newForm, setNewForm] = useState({
-    open: false, date: "", clockIn: "", clockOut: "", breakMinutes: "0", submitting: false, error: "",
-  });
-
-  const { data: attendancesData, isLoading: attLoading, mutate: mutateAttendances } = useSWR<AttRecord[]>(
-    `/api/attendances?month=${attMonth}`
-  );
-  const attendances = attendancesData ?? [];
-
-  function openCorrection(a: AttRecord) {
-    setCorrectionTarget(a);
-    setCorrForm({ clockIn: a.clockIn ?? "", clockOut: a.clockOut ?? "", breakMinutes: "0" });
-  }
-
-  async function handleCorrection() {
-    if (!correctionTarget) return;
-    setCorrecting(true);
-    const res = await fetch(`/api/attendances/${correctionTarget.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clockIn: corrForm.clockIn || null,
-        clockOut: corrForm.clockOut || null,
-        breakMinutes: Number(corrForm.breakMinutes),
-      }),
-    });
-    if (res.ok) {
-      setCorrectionTarget(null);
-      await mutateAttendances();
-      setCorrToast("修正申請を送信しました。管理者の承認をお待ちください。");
-      setTimeout(() => setCorrToast(null), 4000);
-    } else {
-      const err = await res.json();
-      setCorrToast(`エラー: ${err.error?.message ?? "申請失敗"}`);
-      setTimeout(() => setCorrToast(null), 4000);
-    }
-    setCorrecting(false);
-  }
-
-  async function handleNewAttendance(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newForm.date) {
-      setNewForm((f) => ({ ...f, error: "日付を入力してください" }));
-      return;
-    }
-    setNewForm((f) => ({ ...f, submitting: true, error: "" }));
-    const res = await fetch("/api/attendances", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        date: newForm.date,
-        clockIn: newForm.clockIn || null,
-        clockOut: newForm.clockOut || null,
-        breakMinutes: Number(newForm.breakMinutes),
-      }),
-    });
-    if (res.ok) {
-      setNewForm({ open: false, date: "", clockIn: "", clockOut: "", breakMinutes: "0", submitting: false, error: "" });
-      await mutateAttendances();
-      setCorrToast("新規勤怠を申請しました。承認をお待ちください。");
-      setTimeout(() => setCorrToast(null), 4000);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      setNewForm((f) => ({ ...f, submitting: false, error: data?.error?.message ?? "申請に失敗しました" }));
-    }
-  }
-
-  function prevAttMonth() {
-    const idx = MONTHS.indexOf(attMonth);
-    if (idx < MONTHS.length - 1) setAttMonth(MONTHS[idx + 1]);
-  }
-  function nextAttMonth() {
-    const idx = MONTHS.indexOf(attMonth);
-    if (idx > 0) setAttMonth(MONTHS[idx - 1]);
-  }
-
-  const attWorkDays = attendances.filter((a) => a.actualHours != null && a.actualHours > 0).length;
-  const attTotalHours = attendances.reduce((s, a) => s + (a.actualHours ?? 0), 0);
-
-  return (
-    <>
-      {corrToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg bg-slate-800 px-5 py-3 text-sm text-white shadow-lg">
-          <CheckCircle size={15} className="text-green-400" />
-          {corrToast}
-        </div>
-      )}
-
-      {/* ─── 勤怠記録 ─── */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>
-              <ClipboardList size={16} className="inline mr-1" />
-              勤怠記録
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setNewForm((f) => ({ ...f, open: !f.open, error: "" }))}
-              >
-                <Plus size={14} /> 新規申請
-              </Button>
-              <button onClick={prevAttMonth} disabled={MONTHS.indexOf(attMonth) >= MONTHS.length - 1}
-                className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
-                <ChevronLeft size={15} />
-              </button>
-              <span className="min-w-[80px] text-center text-sm font-medium text-slate-700">
-                {attMonth.replace("-", "年")}月
-              </span>
-              <button onClick={nextAttMonth} disabled={MONTHS.indexOf(attMonth) <= 0}
-                className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
-                <ChevronRight size={15} />
-              </button>
-            </div>
-          </div>
-        </CardHeader>
-        {attLoading ? (
-          <p className="py-4 text-center text-sm text-slate-400">読み込み中...</p>
-        ) : (
-          <>
-            {newForm.open && (
-              <form onSubmit={handleNewAttendance} className="mx-4 mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 flex flex-wrap gap-3 items-end">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-slate-600">日付</label>
-                  <input
-                    type="date"
-                    required
-                    min={`${attMonth}-01`}
-                    max={`${attMonth}-31`}
-                    value={newForm.date}
-                    onChange={(e) => setNewForm((f) => ({ ...f, date: e.target.value }))}
-                    className="rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-slate-600">出勤時刻</label>
-                  <input
-                    type="time"
-                    value={newForm.clockIn}
-                    onChange={(e) => setNewForm((f) => ({ ...f, clockIn: e.target.value }))}
-                    className="rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-slate-600">退勤時刻</label>
-                  <input
-                    type="time"
-                    value={newForm.clockOut}
-                    onChange={(e) => setNewForm((f) => ({ ...f, clockOut: e.target.value }))}
-                    className="rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-slate-600">休憩（分）</label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={5}
-                    value={newForm.breakMinutes}
-                    onChange={(e) => setNewForm((f) => ({ ...f, breakMinutes: e.target.value }))}
-                    className="w-24 rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-                <div className="flex items-end gap-2">
-                  <Button type="submit" size="sm" disabled={newForm.submitting}>
-                    {newForm.submitting ? "送信中…" : "承認依頼を送る"}
-                  </Button>
-                  <button
-                    type="button"
-                    className="text-xs text-slate-400 hover:text-slate-600"
-                    onClick={() => setNewForm((f) => ({ ...f, open: false, error: "" }))}
-                  >
-                    キャンセル
-                  </button>
-                </div>
-                {newForm.error && <p className="w-full text-xs text-red-500">{newForm.error}</p>}
-              </form>
-            )}
-
-            {attendances.length === 0 ? (
-              <p className="text-sm text-slate-500">この月の勤怠データがありません。</p>
-            ) : (
-              <>
-                <div className="mb-3 grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-slate-50 px-3 py-2">
-                    <p className="text-xs text-slate-500">稼働日数</p>
-                    <p className="mt-0.5 text-lg font-bold text-slate-800">{attWorkDays}日</p>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 px-3 py-2">
-                    <p className="text-xs text-slate-500">合計時間</p>
-                    <p className="mt-0.5 text-lg font-bold text-slate-800">{attTotalHours.toFixed(1)}h</p>
-                  </div>
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="sticky top-0 border-b border-slate-100 bg-white">
-                      <tr className="text-xs text-slate-500">
-                        <th className="py-2 text-left font-medium">日付</th>
-                        <th className="py-2 text-center font-medium">出勤</th>
-                        <th className="py-2 text-center font-medium">退勤</th>
-                        <th className="py-2 text-right font-medium">実働</th>
-                        <th className="py-2 text-right font-medium">状態</th>
-                        <th className="py-2" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {attendances.map((a) => (
-                        <tr key={a.id} className="border-b border-slate-50 hover:bg-slate-50">
-                          <td className="py-1.5 text-slate-700">{formatDate(a.date)}</td>
-                          <td className="py-1.5 text-center text-slate-600">{a.clockIn ?? "—"}</td>
-                          <td className="py-1.5 text-center text-slate-600">{a.clockOut ?? "—"}</td>
-                          <td className="py-1.5 text-right text-slate-700">
-                            {a.actualHours != null ? `${a.actualHours.toFixed(1)}h` : "—"}
-                          </td>
-                          <td className="py-1.5 text-right">
-                            {a.status === "pending_approval" && <Badge variant="warning">承認待ち</Badge>}
-                            {a.isModified && a.confirmStatus === "confirmed" && (
-                              <Badge variant="success">承認済み</Badge>
-                            )}
-                          </td>
-                          <td className="py-1.5 pl-2">
-                            {a.status !== "pending_approval" && (
-                              <button
-                                onClick={() => openCorrection(a)}
-                                className="text-slate-400 hover:text-blue-600 transition-colors"
-                                title="修正申請"
-                              >
-                                <Pencil size={13} />
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <p className="mt-2 text-xs text-slate-400">
-                  未登録日の勤怠は「新規申請」から追加できます。打刻ミスは鉛筆アイコンから修正申請してください（管理者・マネージャーが承認します）。
-                </p>
-              </>
-            )}
-          </>
-        )}
-      </Card>
-
-      {/* 勤怠修正申請モーダル */}
-      <Modal
-        isOpen={!!correctionTarget}
-        onClose={() => setCorrectionTarget(null)}
-        title="勤怠修正申請"
-        size="sm"
-      >
-        {correctionTarget && (
-          <div className="space-y-4">
-            <p className="text-sm text-slate-600">
-              <span className="font-medium">{formatDate(correctionTarget.date)}</span> の勤怠を修正申請します。
-              承認後に反映されます。
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium text-slate-700">出勤時刻</label>
-                <input
-                  type="time"
-                  value={corrForm.clockIn}
-                  onChange={(e) => setCorrForm({ ...corrForm, clockIn: e.target.value })}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">退勤時刻</label>
-                <input
-                  type="time"
-                  value={corrForm.clockOut}
-                  onChange={(e) => setCorrForm({ ...corrForm, clockOut: e.target.value })}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700">休憩時間（分）</label>
-              <input
-                type="number"
-                min={0}
-                value={corrForm.breakMinutes}
-                onChange={(e) => setCorrForm({ ...corrForm, breakMinutes: e.target.value })}
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-            <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
-              <Button variant="outline" onClick={() => setCorrectionTarget(null)}>キャンセル</Button>
-              <Button
-                variant="primary"
-                onClick={handleCorrection}
-                disabled={correcting || (!corrForm.clockIn && !corrForm.clockOut)}
-              >
-                {correcting ? "送信中..." : "修正申請する"}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-    </>
-  );
-});
-
-// ─── 自己申告セクション（state独立・再レンダー隔離） ──────────
-
-const SelfReportSection = memo(function SelfReportSection({ myProjects }: { myProjects: MyProject[] }) {
-  const { data: selfReportsData } = useSWR<SelfReport[]>(`/api/self-reports?month=${MONTHS[0]}`);
-  const [reportAllocations, setReportAllocations] = useState<{ projectId: string; projectName: string; reportedHours: number }[]>([]);
-  const [reportSubmitted, setReportSubmitted] = useState(false);
-  const [submittingReport, setSubmittingReport] = useState(false);
-  const [notifySlack, setNotifySlack] = useState(true);
-  const [notifyEmail, setNotifyEmail] = useState(false);
-
-  useEffect(() => {
-    if (!selfReportsData || !myProjects.length) return;
-    setReportSubmitted(selfReportsData.length > 0 && selfReportsData.every((r) => r.submittedAt));
-    setReportAllocations(
-      myProjects.map((p) => {
-        const found = selfReportsData.find((r) => r.projectId === p.projectId);
-        return { projectId: p.projectId, projectName: p.projectName, reportedHours: found?.reportedHours ?? 0 };
-      })
-    );
-  }, [selfReportsData, myProjects]);
-
-  async function handleSubmitReport() {
-    setSubmittingReport(true);
-    try {
-      const res = await fetch("/api/self-reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetMonth: MONTHS[0],
-          allocations: reportAllocations.map((a) => ({ projectId: a.projectId, reportedHours: a.reportedHours })),
-        }),
-      });
-      if (res.ok) setReportSubmitted(true);
-    } finally {
-      setSubmittingReport(false);
-    }
-  }
-
-  const totalReported = reportAllocations.reduce((s, a) => s + a.reportedHours, 0);
-
-  return (
-    <>
-      {/* ─── 担当プロジェクト ─── */}
-      <Card>
-        <CardHeader>
-          <CardTitle>担当プロジェクト</CardTitle>
-        </CardHeader>
-        {myProjects.length === 0 ? (
-          <p className="text-sm text-slate-500">担当プロジェクトはありません。</p>
-        ) : (
-          <div className="space-y-2">
-            {myProjects.map((pj) => (
-              <div key={pj.projectId} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                <div>
-                  <span className="text-sm font-medium text-slate-800">{pj.projectName}</span>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    役割: {pj.role} | 稼働: {pj.workloadHours}h/月
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* ─── 月次工数自己申告 ─── */}
-      {myProjects.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <ClipboardList size={16} className="inline mr-1" />
-              月次工数自己申告（{MONTHS[0].replace("-", "年")}月）
-            </CardTitle>
-          </CardHeader>
-          {reportSubmitted ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3">
-                <CheckCircle size={15} className="text-green-600" />
-                <span className="text-sm text-green-700 font-medium">申告済み</span>
-              </div>
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-100">
-                  <tr className="text-xs text-slate-500">
-                    <th className="py-2 text-left font-medium">プロジェクト</th>
-                    <th className="py-2 text-right font-medium">申告時間</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportAllocations.map((a) => (
-                    <tr key={a.projectId} className="border-b border-slate-50">
-                      <td className="py-2 text-slate-700">{a.projectName}</td>
-                      <td className="py-2 text-right font-medium text-slate-800">{a.reportedHours}h</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="text-xs text-slate-400 text-right">合計: {totalReported}h</p>
-              <div className="flex justify-end">
-                <Button variant="outline" size="sm" onClick={() => setReportSubmitted(false)}>修正する</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-500">各プロジェクトに割いた時間を概算で入力してください。</p>
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-100">
-                  <tr className="text-xs text-slate-500">
-                    <th className="py-2 text-left font-medium">プロジェクト</th>
-                    <th className="py-2 text-right font-medium">時間（h）</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportAllocations.map((a, i) => (
-                    <tr key={a.projectId} className="border-b border-slate-50">
-                      <td className="py-2 text-slate-700">{a.projectName}</td>
-                      <td className="py-2 text-right">
-                        <input
-                          type="number"
-                          min={0}
-                          value={a.reportedHours}
-                          onChange={(e) => {
-                            const next = [...reportAllocations];
-                            next[i] = { ...next[i], reportedHours: Number(e.target.value) };
-                            setReportAllocations(next);
-                          }}
-                          className="w-20 rounded border border-slate-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:outline-none"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">
-                  合計: <span className="font-bold text-slate-800">{totalReported}h</span>
-                </span>
-                <Button variant="primary" size="sm" onClick={handleSubmitReport} disabled={submittingReport}>
-                  {submittingReport ? "送信中..." : "申告する"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* ─── 通知設定 ─── */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Bell size={16} className="inline mr-1" />
-            通知設定
-          </CardTitle>
-        </CardHeader>
-        <div className="space-y-3">
-          <label className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3 cursor-pointer">
-            <div>
-              <p className="text-sm font-medium text-slate-800">Slack通知</p>
-              <p className="text-xs text-slate-500">打刻リマインダーをSlackで受け取る</p>
-            </div>
-            <button
-              onClick={() => setNotifySlack(!notifySlack)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notifySlack ? "bg-blue-600" : "bg-slate-200"}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifySlack ? "translate-x-6" : "translate-x-1"}`} />
-            </button>
-          </label>
-          <label className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3 cursor-pointer">
-            <div>
-              <p className="text-sm font-medium text-slate-800">メール通知</p>
-              <p className="text-xs text-slate-500">月次締めのリマインダーをメールで受け取る</p>
-            </div>
-            <button
-              onClick={() => setNotifyEmail(!notifyEmail)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notifyEmail ? "bg-blue-600" : "bg-slate-200"}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifyEmail ? "translate-x-6" : "translate-x-1"}`} />
-            </button>
-          </label>
-        </div>
-      </Card>
-    </>
-  );
-});
-
 // ─── Page ─────────────────────────────────────────────────
 
 export default function MyPage() {
@@ -869,10 +350,7 @@ export default function MyPage() {
     memberId ? "/api/mypage-summary" : null
   );
 
-  // Prefetch: 月別データをサブコンポーネントのために先行取得
   useSWR<TodayAttendance | null>("/api/attendances/today");
-  useSWR<SelfReport[]>(memberId ? `/api/self-reports?month=${MONTHS[0]}` : null);
-  useSWR<AttRecord[]>(memberId ? `/api/attendances?month=${MONTHS[0]}` : null);
 
   const evaluations = summaryData?.evaluations ?? [];
   const evaluationComments = evaluations.filter((ev) => ev.comment).slice(0, 3);
@@ -1089,11 +567,90 @@ export default function MyPage() {
         )}
       </Card>
 
-      {/* ─── 自己申告・プロジェクト・通知設定（state独立） ─── */}
-      <SelfReportSection myProjects={myProjects} />
+      {/* ─── 担当プロジェクト ─── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>担当プロジェクト</CardTitle>
+        </CardHeader>
+        {myProjects.length === 0 ? (
+          <p className="text-sm text-slate-500">担当プロジェクトはありません。</p>
+        ) : (
+          <div className="space-y-2">
+            {myProjects.map((pj) => (
+              <div key={pj.projectId} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                <div>
+                  <span className="text-sm font-medium text-slate-800">{pj.projectName}</span>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    役割: {pj.role} | 稼働: {pj.workloadHours}h/月
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
-      {/* ─── 勤怠記録（state独立） ─── */}
-      <AttendanceSection />
+      {/* ─── 勤怠一覧リンク ─── */}
+      <a href="/attendance/list" className="block">
+        <Card className="transition-colors hover:bg-slate-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+                <ClipboardList size={18} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-800">勤怠一覧・修正依頼</p>
+                <p className="text-xs text-slate-500">過去の打刻確認や修正申請</p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-slate-400" />
+          </div>
+        </Card>
+      </a>
+
+      {/* ─── 月次申告リンク ─── */}
+      <a href="/closing" className="block">
+        <Card className="transition-colors hover:bg-slate-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
+                <ClipboardList size={18} className="text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-800">月次工数申告</p>
+                <p className="text-xs text-slate-500">請求管理から工数配分を申告</p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-slate-400" />
+          </div>
+        </Card>
+      </a>
+
+      {/* ─── 通知設定 ─── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <Bell size={16} className="inline mr-1" />
+            通知設定
+          </CardTitle>
+        </CardHeader>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800">Slack通知</p>
+              <p className="text-xs text-slate-500">打刻リマインダーをSlackで受け取る</p>
+            </div>
+            <span className="text-xs text-slate-400">準備中</span>
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800">メール通知</p>
+              <p className="text-xs text-slate-500">月次締めのリマインダーをメールで受け取る</p>
+            </div>
+            <span className="text-xs text-slate-400">準備中</span>
+          </div>
+        </div>
+      </Card>
 
       {/* ─── セキュリティ ─── */}
       <Card>

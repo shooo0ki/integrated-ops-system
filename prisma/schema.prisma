@@ -577,21 +577,24 @@ model SystemConfig {
 // 18. monthly_self_reports（月次自己申告）
 // ─────────────────────────────────────────────
 model MonthlySelfReport {
-  id            String    @id @default(uuid())
-  memberId      String    @map("member_id")
-  targetMonth   String    @map("target_month") @db.Char(7) // 'YYYY-MM'
-  projectId     String    @map("project_id")
-  reportedHours Decimal   @map("reported_hours") @db.Decimal(6, 2)
-  note          String?   @db.VarChar(500)
-  submittedAt   DateTime? @map("submitted_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(uuid())
+  memberId        String    @map("member_id")
+  targetMonth     String    @map("target_month") @db.Char(7) // 'YYYY-MM'
+  projectId       String?   @map("project_id")
+  customLabel     String?   @map("custom_label") @db.VarChar(100) // "プロジェクト外" 等
+  reportedPercent Int       @default(0) @map("reported_percent")   // 配分 %（合計100）
+  reportedHours   Decimal?  @map("reported_hours") @db.Decimal(6, 2)
+  note            String?   @db.VarChar(500)
+  submittedAt     DateTime? @map("submitted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  member  Member  @relation(fields: [memberId], references: [id])
-  project Project @relation(fields: [projectId], references: [id])
+  member  Member   @relation(fields: [memberId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
 
   @@unique([memberId, targetMonth, projectId])
+  @@unique([memberId, targetMonth, customLabel])
   @@index([memberId, targetMonth])
   @@index([projectId, targetMonth])
   @@index([targetMonth])

@@ -49,11 +49,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "自己申告データがありません", generated: 0 });
   }
 
-  // ── 2. メンバーごとの当月総申告時間を集計 ──────────────────
+  // ── 2. メンバーごとの当月総申告時間を集計（カスタム項目含む） ──
   const memberTotalHours = new Map<string, number>();
   for (const sr of selfReports) {
     const prev = memberTotalHours.get(sr.memberId) ?? 0;
-    memberTotalHours.set(sr.memberId, prev + Number(sr.reportedHours));
+    memberTotalHours.set(sr.memberId, prev + Number(sr.reportedHours ?? 0));
   }
 
   // ── 3. プロジェクトごとに集計 ─────────────────────────────
@@ -63,8 +63,10 @@ export async function POST(req: NextRequest) {
   >();
 
   for (const sr of selfReports) {
+    // カスタム項目（projectId=null）は PL 生成対象外
+    if (!sr.projectId) continue;
     const projId = sr.projectId;
-    const hours = Number(sr.reportedHours);
+    const hours = Number(sr.reportedHours ?? 0);
     const { salaryType, salaryAmount, tools } = sr.member;
     const totalHours = memberTotalHours.get(sr.memberId) ?? 1;
 

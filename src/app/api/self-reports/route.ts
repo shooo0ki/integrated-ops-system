@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
         select: {
           memberId: true,
           projectId: true,
+          customLabel: true,
+          reportedPercent: true,
           reportedHours: true,
           submittedAt: true,
           project: { select: { name: true } },
@@ -45,7 +47,6 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    // メンバーごとに申告データをグルーピング
     const reportsByMember = new Map<string, typeof reports>();
     for (const r of reports) {
       if (!reportsByMember.has(r.memberId)) reportsByMember.set(r.memberId, []);
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       allMembers.map((m) => {
         const memberReports = reportsByMember.get(m.id) ?? [];
-        const totalHours = memberReports.reduce((s, r) => s + Number(r.reportedHours), 0);
+        const totalPercent = memberReports.reduce((s, r) => s + r.reportedPercent, 0);
         const submitted = memberReports.length > 0;
         const submittedAt = submitted
           ? memberReports.reduce((latest, r) =>
@@ -67,12 +68,14 @@ export async function GET(req: NextRequest) {
           memberId: m.id,
           memberName: m.name,
           submitted,
-          totalHours,
+          totalPercent,
           submittedAt,
           projects: memberReports.map((r) => ({
             projectId: r.projectId,
-            projectName: r.project.name,
-            reportedHours: Number(r.reportedHours),
+            projectName: r.project?.name ?? null,
+            customLabel: r.customLabel,
+            reportedPercent: r.reportedPercent,
+            reportedHours: r.reportedHours != null ? Number(r.reportedHours) : null,
           })),
         };
       }),
@@ -86,6 +89,8 @@ export async function GET(req: NextRequest) {
     select: {
       id: true,
       projectId: true,
+      customLabel: true,
+      reportedPercent: true,
       reportedHours: true,
       submittedAt: true,
       project: { select: { name: true } },
@@ -97,8 +102,10 @@ export async function GET(req: NextRequest) {
     reports.map((r) => ({
       id: r.id,
       projectId: r.projectId,
-      projectName: r.project.name,
-      reportedHours: Number(r.reportedHours),
+      projectName: r.project?.name ?? null,
+      customLabel: r.customLabel,
+      reportedPercent: r.reportedPercent,
+      reportedHours: r.reportedHours != null ? Number(r.reportedHours) : null,
       submittedAt: r.submittedAt,
     })),
     { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } }
@@ -106,7 +113,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/self-reports
-// Body: { targetMonth: string; allocations: { projectId: string; reportedHours: number }[] }
+// Body: { targetMonth, allocations: [{ projectId?, customLabel?, reportedPercent }] }
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
@@ -114,37 +121,101 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const { targetMonth, allocations } = body ?? {};
 
-  if (!targetMonth || !Array.isArray(allocations)) {
+  if (!targetMonth || !/^\d{4}-\d{2}$/.test(targetMonth)) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "targetMonth, allocations は必須です" } },
+      { error: { code: "VALIDATION_ERROR", message: "targetMonth は YYYY-MM 形式で必須です" } },
+      { status: 400 }
+    );
+  }
+  if (!Array.isArray(allocations) || allocations.length === 0) {
+    return NextResponse.json(
+      { error: { code: "VALIDATION_ERROR", message: "allocations は必須です" } },
       { status: 400 }
     );
   }
 
-  await Promise.all(
-    (allocations as { projectId: string; reportedHours: number }[]).map(({ projectId, reportedHours }) =>
-      prisma.monthlySelfReport.upsert({
-        where: {
-          memberId_targetMonth_projectId: {
-            memberId: user.memberId,
-            targetMonth,
-            projectId,
-          },
-        },
-        create: {
-          memberId: user.memberId,
-          targetMonth,
-          projectId,
-          reportedHours,
-          submittedAt: new Date(),
-        },
-        update: {
-          reportedHours,
-          submittedAt: new Date(),
-        },
-      })
-    )
-  );
+  // バリデーション
+  const projectIds = new Set<string>();
+  const customLabels = new Set<string>();
+  let totalPercent = 0;
+
+  for (const a of allocations as { projectId?: string; customLabel?: string; reportedPercent?: number }[]) {
+    const hasProject = a.projectId != null && a.projectId !== "";
+    const hasCustom = a.customLabel != null && a.customLabel.trim() !== "";
+    if (!hasProject && !hasCustom) {
+      return NextResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: "各行に projectId または customLabel が必要です" } },
+        { status: 400 }
+      );
+    }
+    if (hasProject && hasCustom) {
+      return NextResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: "projectId と customLabel は同時指定できません" } },
+        { status: 400 }
+      );
+    }
+    if (hasProject) {
+      if (projectIds.has(a.projectId!)) {
+        return NextResponse.json(
+          { error: { code: "VALIDATION_ERROR", message: "projectId が重複しています" } },
+          { status: 400 }
+        );
+      }
+      projectIds.add(a.projectId!);
+    }
+    if (hasCustom) {
+      const label = a.customLabel!.trim();
+      if (customLabels.has(label)) {
+        return NextResponse.json(
+          { error: { code: "VALIDATION_ERROR", message: "customLabel が重複しています" } },
+          { status: 400 }
+        );
+      }
+      customLabels.add(label);
+    }
+    const pct = a.reportedPercent ?? 0;
+    if (pct < 0 || pct > 100) {
+      return NextResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: "reportedPercent は 0〜100 の範囲で入力してください" } },
+        { status: 400 }
+      );
+    }
+    totalPercent += pct;
+  }
+
+  if (totalPercent !== 100) {
+    return NextResponse.json(
+      { error: { code: "VALIDATION_ERROR", message: `配分の合計は100%にしてください（現在: ${totalPercent}%）` } },
+      { status: 400 }
+    );
+  }
+
+  // 勤怠データから実時間を計算
+  const summary = await prisma.monthlyAttendanceSummary.findFirst({
+    where: { memberId: user.memberId, targetMonth },
+    select: { totalMinutes: true },
+  });
+  const totalHours = summary ? Number(summary.totalMinutes) / 60 : null;
+
+  // トランザクションで delete + create
+  await prisma.$transaction(async (tx) => {
+    await tx.monthlySelfReport.deleteMany({
+      where: { memberId: user.memberId, targetMonth },
+    });
+    await tx.monthlySelfReport.createMany({
+      data: (allocations as { projectId?: string; customLabel?: string; reportedPercent: number }[]).map((a) => ({
+        memberId: user.memberId,
+        targetMonth,
+        projectId: a.projectId || null,
+        customLabel: a.customLabel?.trim() || null,
+        reportedPercent: a.reportedPercent,
+        reportedHours: totalHours != null
+          ? Math.round(totalHours * (a.reportedPercent / 100) * 100) / 100
+          : null,
+        submittedAt: new Date(),
+      })),
+    });
+  });
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }
