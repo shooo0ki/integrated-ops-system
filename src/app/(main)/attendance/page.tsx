@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import Link from "@/components/ui/app-link";
-import { Clock, CheckCircle, Building2, Monitor, ClipboardEdit, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle, Building2, Monitor, ClipboardEdit, AlertCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -337,7 +336,7 @@ export default function AttendancePage() {
                 </div>
               )}
               <div className="flex justify-center">
-                <Link href="/attendance/list" className="text-xs text-blue-600 hover:underline">勤怠一覧を見る →</Link>
+                <a href="/attendance/list" className="text-xs text-blue-600 hover:underline">勤怠一覧を見る →</a>
               </div>
             </div>
           )}
@@ -353,6 +352,21 @@ export default function AttendancePage() {
           )}
         </div>
       </Card>
+
+      {/* 勤怠一覧・修正依頼リンク */}
+      <a
+        href="/attendance/list"
+        className="flex max-w-lg items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50"
+      >
+        <div className="flex items-center gap-2.5">
+          <ClipboardEdit size={16} className="text-slate-500" />
+          <div>
+            <p className="text-sm font-medium text-slate-700">勤怠一覧・修正依頼</p>
+            <p className="text-xs text-slate-400">過去の打刻修正や新規申請はこちら</p>
+          </div>
+        </div>
+        <ArrowRight size={14} className="text-slate-400" />
+      </a>
 
       {/* 勤怠修正申請 承認セクション（admin/manager） */}
       {isAdmin && (
