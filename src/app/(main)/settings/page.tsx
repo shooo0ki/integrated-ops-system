@@ -19,7 +19,7 @@ const DEFAULT_FORM = {
 };
 
 export default function SettingsPage() {
-  const { role } = useAuth();
+  const { role, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("slack");
   const [form, setForm] = useState(DEFAULT_FORM);
   const [loading, setLoading] = useState(true);
@@ -74,8 +74,8 @@ export default function SettingsPage() {
     { id: "system", label: "システム情報", icon: <Info size={15} /> },
   ];
 
+  if (authLoading || loading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
   if (role !== "admin") return notFound();
-  if (loading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
 
   return (
     <div className="space-y-6">

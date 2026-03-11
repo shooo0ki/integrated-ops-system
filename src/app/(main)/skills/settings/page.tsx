@@ -19,7 +19,7 @@ interface Category  { id: string; name: string; displayOrder: number; skills: Sk
 // ─── ページ ───────────────────────────────────────────────
 
 export default function SkillSettingsPage() {
-  const { role } = useAuth();
+  const { role, isLoading: authLoading } = useAuth();
   const { data: categories = [], isLoading: loading, mutate: mutateCategories } = useSWR<Category[]>("/api/skill-categories");
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
 
@@ -39,6 +39,7 @@ export default function SkillSettingsPage() {
   const [editingSkill, setEditingSkill] = useState<string | null>(null);
   const [editSkillName, setEditSkillName] = useState("");
 
+  if (authLoading || loading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
   if (role !== "admin") return notFound();
 
   function toggleExpand(catId: string) {
