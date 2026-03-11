@@ -666,13 +666,7 @@ interface SelfReportItem {
 }
 
 // プロジェクト外の定型選択肢
-const NON_PROJECT_OPTIONS = [
-  "社内業務",
-  "研修・勉強会",
-  "採用・面接",
-  "有給・休暇",
-  "その他",
-];
+const NON_PROJECT_OPTIONS = ["プロジェクト外"];
 
 function SelfReportCard({
   month,
