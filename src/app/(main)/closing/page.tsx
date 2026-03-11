@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import useSWR from "swr";
 import {
-  AlertTriangle, Send, RefreshCw, CheckCircle, Zap, ChevronRight, AlertCircle, FileText,
+  AlertTriangle, Send, RefreshCw, CheckCircle, Zap, FileText,
   Plus, Trash2, Download,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,14 +67,6 @@ const confirmLabel: Record<ConfirmStatus, string> = {
   not_sent: "未通知", waiting: "確認中", confirmed: "確認済", forced: "強制確定",
 };
 
-const receiptStatusConfig: Record<InvoiceStatus, { label: string; variant: "default" | "info" | "success" | "warning" }> = {
-  none:            { label: "未提出",           variant: "default" },
-  generated:       { label: "未提出",           variant: "default" },
-  sent:            { label: "提出済み（承認待ち）", variant: "warning" },
-  approved:        { label: "確認済み",         variant: "success" },
-  accounting_sent: { label: "LayerX送付済み",   variant: "info" },
-};
-
 const receiptConfig: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" }> = {
   none:            { label: "未提出",           variant: "default" },
   generated:       { label: "未提出",           variant: "default" },
@@ -96,84 +88,6 @@ function buildMonthOptions() {
   }
   return opts;
 }
-
-// ─── ClosingTableRow（React.memo で行単位の再レンダー防止） ──
-
-interface ClosingTableRowProps {
-  rec: ClosingRecord;
-  sendingSlackId: string | null;
-  forcingId: string | null;
-  selfReportSubmitted: boolean | undefined;
-  onSendSlack: (memberId: string) => void;
-  onForce: (memberId: string) => void;
-}
-
-const ClosingTableRow = memo(function ClosingTableRow({
-  rec,
-  sendingSlackId,
-  forcingId,
-  selfReportSubmitted,
-  onSendSlack,
-  onForce,
-}: ClosingTableRowProps) {
-  const isSending = sendingSlackId === rec.memberId;
-  const isForcing = forcingId === rec.memberId;
-  return (
-    <tr className="border-b border-slate-50 hover:bg-slate-50">
-      <td className="px-4 py-3 font-medium text-slate-800">{rec.memberName}</td>
-      <td className="px-4 py-3 text-slate-500 text-xs">{rec.contractType}</td>
-      <td className="px-4 py-3 text-right text-slate-600">{rec.workDays}日</td>
-      <td className="px-4 py-3 text-right text-slate-600">{rec.totalHours}h</td>
-      <td className={`px-4 py-3 text-right font-medium ${rec.missingDays > 0 ? "text-amber-600" : "text-slate-400"}`}>
-        {rec.missingDays > 0 ? `${rec.missingDays}日` : "—"}
-      </td>
-      <td className="px-4 py-3 text-right font-semibold text-slate-800">
-        {formatCurrency(rec.estimatedAmount)}
-      </td>
-      <td className="px-4 py-3">
-        <Badge variant={confirmVariant[rec.confirmStatus]}>
-          {confirmLabel[rec.confirmStatus]}
-        </Badge>
-      </td>
-      <td className="px-4 py-3">
-        <Badge variant={receiptStatusConfig[rec.invoiceStatus].variant}>
-          {receiptStatusConfig[rec.invoiceStatus].label}
-        </Badge>
-      </td>
-      <td className="px-4 py-3">
-        {selfReportSubmitted === true ? (
-          <Badge variant="success">済</Badge>
-        ) : (
-          <Badge variant="default">未</Badge>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex gap-1.5 flex-wrap">
-          {rec.confirmStatus === "not_sent" && (
-            <Button size="sm" variant="outline" onClick={() => onSendSlack(rec.memberId)} disabled={isSending}>
-              <Send size={12} /> {isSending ? "送信中..." : "Slack通知"}
-            </Button>
-          )}
-          {rec.confirmStatus === "waiting" && (
-            <>
-              <Button size="sm" variant="outline" onClick={() => onSendSlack(rec.memberId)} disabled={isSending}>
-                <RefreshCw size={12} /> {isSending ? "送信中..." : "再通知"}
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => onForce(rec.memberId)} disabled={isForcing}>
-                <Zap size={12} /> {isForcing ? "処理中..." : "強制確定"}
-              </Button>
-            </>
-          )}
-          {(rec.confirmStatus === "confirmed" || rec.confirmStatus === "forced") && (
-            <span className="flex items-center gap-1 text-xs text-green-600">
-              <CheckCircle size={12} /> 確認済み
-            </span>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-});
 
 // ─── Admin View ───────────────────────────────────────────
 
@@ -249,7 +163,7 @@ function AdminClosingView() {
       if (res.ok) {
         const name = memberName ?? records.find((r) => r.memberId === memberId)?.memberName ?? "";
         showToast(`${name} さんにSlack確認依頼を送信しました`);
-        await mutateClosing(); // confirmStatus のみ変わるため invoices は不要
+        await mutateClosing();
       }
     } finally {
       setSendingSlackId(null);
@@ -270,7 +184,7 @@ function AdminClosingView() {
         )
       );
       showToast("未送信メンバー全員にSlack確認依頼を送信しました");
-      await mutateClosing(); // confirmStatus のみ変わるため invoices は不要
+      await mutateClosing();
     } finally {
       setSendingAll(false);
     }
@@ -286,7 +200,7 @@ function AdminClosingView() {
       });
       if (res.ok) {
         showToast("強制確定しました");
-        await mutateClosing(); // confirmStatus のみ変わるため invoices は不要
+        await mutateClosing();
       }
     } finally {
       setForcingId(null);
@@ -301,7 +215,7 @@ function AdminClosingView() {
       });
       if (res.ok) {
         showToast(`${memberName} さんの請求書を LayerX へ送付しました`);
-        await Promise.all([mutateClosing(), mutateInvoices()]); // invoiceStatus が変わるため両方更新
+        await Promise.all([mutateClosing(), mutateInvoices()]);
       }
     } finally {
       setAccountingId(null);
@@ -309,33 +223,30 @@ function AdminClosingView() {
   }, [mutateClosing, mutateInvoices, showToast]);
 
   const {
-    notSentCount, waitingCount, confirmedCount, totalEstimated, hasMissingDays, missingDaysCount,
+    notSentCount, hasMissingDays, missingDaysCount,
     hourlyRecords, salaryRecords, receivedCount, hourlyLaborCost, salaryLaborCost,
-    totalLaborCost, hourlyReceived, notReceivedCount, invoiceMap,
+    totalLaborCost, invoiceMap, selfReportDoneCount,
   } = useMemo(() => {
     const hourlyRecs = records.filter((r) => r.salaryType === "hourly");
     const salaryRecs = records.filter((r) => r.salaryType === "monthly");
     const hourlyLabor = hourlyRecs.reduce((s, r) => s + r.estimatedAmount, 0);
     const salaryLabor = salaryRecs.reduce((s, r) => s + r.salaryAmount, 0);
-    const invReceived = invoices.filter((i) => i.status === "sent").length;
+    const received = hourlyRecs.filter((r) => r.invoiceStatus === "sent" || r.invoiceStatus === "approved" || r.invoiceStatus === "accounting_sent").length;
+    const srDone = records.filter((r) => selfReportMap.get(r.memberId) === true).length;
     return {
-      notSentCount:   records.filter((r) => r.confirmStatus === "not_sent").length,
-      waitingCount:   records.filter((r) => r.confirmStatus === "waiting").length,
-      confirmedCount: records.filter((r) => r.confirmStatus === "confirmed" || r.confirmStatus === "forced").length,
-      totalEstimated: records.reduce((s, r) => s + r.estimatedAmount, 0),
-      hasMissingDays: records.some((r) => r.missingDays > 0),
+      notSentCount:     records.filter((r) => r.confirmStatus === "not_sent").length,
+      hasMissingDays:   records.some((r) => r.missingDays > 0),
       missingDaysCount: records.filter((r) => r.missingDays > 0).length,
-      hourlyRecords:  hourlyRecs,
-      salaryRecords:  salaryRecs,
-      receivedCount:  hourlyRecs.filter((r) => r.invoiceStatus === "sent" || r.invoiceStatus === "approved" || r.invoiceStatus === "accounting_sent").length,
-      hourlyLaborCost: hourlyLabor,
-      salaryLaborCost: salaryLabor,
-      totalLaborCost:  hourlyLabor + salaryLabor,
-      hourlyReceived:  invReceived,
-      notReceivedCount: records.length - invReceived,
-      invoiceMap: new Map(invoices.map((i) => [i.memberId, i])),
+      hourlyRecords:    hourlyRecs,
+      salaryRecords:    salaryRecs,
+      receivedCount:    received,
+      hourlyLaborCost:  hourlyLabor,
+      salaryLaborCost:  salaryLabor,
+      totalLaborCost:   hourlyLabor + salaryLabor,
+      invoiceMap:       new Map(invoices.map((i) => [i.memberId, i])),
+      selfReportDoneCount: srDone,
     };
-  }, [records, invoices]);
+  }, [records, invoices, selfReportMap]);
 
   return (
     <div className="space-y-6">
@@ -363,39 +274,11 @@ function AdminClosingView() {
         </select>
       </div>
 
-      {/* Step flow */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">月末締めフロー</p>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          {[
-            { step: 1, label: "勤怠集計",        done: !loading && records.length > 0 },
-            { step: 2, label: "勤怠確認（Slack）", done: records.some((r) => r.confirmStatus !== "not_sent") },
-            { step: 3, label: "メンバー確認完了",  done: confirmedCount > 0 },
-            { step: 4, label: "請求書受領確認",    done: hourlyRecords.length > 0 && receivedCount === hourlyRecords.length },
-            { step: 5, label: "経理処理",          done: hourlyRecords.length > 0 && hourlyRecords.every((r) => r.invoiceStatus === "accounting_sent") },
-          ].map((item, i) => (
-            <div key={item.step} className="flex items-center gap-1.5">
-              <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                item.done ? "bg-green-500 text-white" : "bg-slate-200 text-slate-500"
-              }`}>{item.step}</span>
-              <span className={item.done ? "text-green-700 font-medium" : "text-slate-500"}>{item.label}</span>
-              {i < 4 && <ChevronRight size={14} className="text-slate-300 mx-0.5" />}
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card>
-          <p className="text-xs text-slate-500">対象メンバー</p>
-          <p className="mt-1 text-2xl font-bold text-slate-800">{records.length}名</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-slate-500">勤怠確認待ち</p>
-          <p className={`mt-1 text-2xl font-bold ${waitingCount > 0 ? "text-amber-600" : "text-slate-400"}`}>
-            {waitingCount}名
-          </p>
+          <p className="text-xs text-slate-500">人件費合計</p>
+          <p className="mt-1 text-xl font-bold text-blue-700">{formatCurrency(totalLaborCost)}</p>
         </Card>
         <Card>
           <p className="text-xs text-slate-500">請求書受領</p>
@@ -404,8 +287,16 @@ function AdminClosingView() {
           </p>
         </Card>
         <Card>
-          <p className="text-xs text-slate-500">人件費合計</p>
-          <p className="mt-1 text-xl font-bold text-blue-700">{formatCurrency(totalEstimated)}</p>
+          <p className="text-xs text-slate-500">月次申告</p>
+          <p className={`mt-1 text-2xl font-bold ${selfReportDoneCount === records.length && records.length > 0 ? "text-green-600" : "text-amber-600"}`}>
+            {selfReportDoneCount}<span className="text-base font-normal text-slate-500">/{records.length}名</span>
+          </p>
+        </Card>
+        <Card>
+          <p className="text-xs text-slate-500">Slack通知</p>
+          <p className={`mt-1 text-2xl font-bold ${notSentCount > 0 ? "text-amber-600" : "text-green-600"}`}>
+            {notSentCount > 0 ? `未通知${notSentCount}名` : "全員通知済"}
+          </p>
         </Card>
       </div>
 
@@ -413,7 +304,7 @@ function AdminClosingView() {
       {!loading && hasMissingDays && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertTriangle size={15} className="shrink-0" />
-          未打刻日があるメンバーがいます。締め前に確認・修正してください。
+          未打刻日があるメンバーが {missingDaysCount}名 います。締め前に確認・修正してください。
         </div>
       )}
 
@@ -429,228 +320,202 @@ function AdminClosingView() {
         )}
       </div>
 
-      {/* Members table */}
+      {/* 請求書受領状況テーブル */}
       {loading ? (
         <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
       ) : (
-        <Card noPadding>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px] text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50">
-                <tr className="text-xs text-slate-500">
-                  <th className="px-4 py-3 text-left font-medium">メンバー</th>
-                  <th className="px-4 py-3 text-left font-medium">区分</th>
-                  <th className="px-4 py-3 text-right font-medium">稼働日数</th>
-                  <th className="px-4 py-3 text-right font-medium">合計時間</th>
-                  <th className="px-4 py-3 text-right font-medium">未打刻日</th>
-                  <th className="px-4 py-3 text-right font-medium">人件費</th>
-                  <th className="px-4 py-3 text-left font-medium">勤怠確認</th>
-                  <th className="px-4 py-3 text-left font-medium">請求書受領</th>
-                  <th className="px-4 py-3 text-left font-medium">申告</th>
-                  <th className="px-4 py-3 text-left font-medium">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((rec) => (
-                  <ClosingTableRow
-                    key={rec.memberId}
-                    rec={rec}
-                    sendingSlackId={sendingSlackId}
-                    forcingId={forcingId}
-                    selfReportSubmitted={selfReportMap.get(rec.memberId)}
-                    onSendSlack={handleSendSlack}
-                    onForce={handleForce}
-                  />
-                ))}
-                {records.length === 0 && (
-                  <tr>
-                    <td colSpan={10} className="py-12 text-center text-sm text-slate-400">
-                      該当するデータがありません
-                    </td>
+        <>
+          {/* 時給制テーブル */}
+          <Card noPadding>
+            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+              <p className="text-xs font-semibold text-slate-600">時給制（インターン・業務委託）</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead className="border-b border-slate-100">
+                  <tr className="text-xs text-slate-500">
+                    <th className="px-4 py-3 text-left font-medium">メンバー</th>
+                    <th className="px-4 py-3 text-right font-medium">稼働時間</th>
+                    <th className="px-4 py-3 text-right font-medium">時給</th>
+                    <th className="px-4 py-3 text-right font-medium">人件費</th>
+                    <th className="px-4 py-3 text-left font-medium">請求書</th>
+                    <th className="px-4 py-3 text-left font-medium">月次申告</th>
+                    <th className="px-4 py-3 text-left font-medium">勤怠確認</th>
+                    <th className="px-4 py-3 text-left font-medium">操作</th>
                   </tr>
+                </thead>
+                <tbody>
+                  {hourlyRecords.map((rec) => {
+                    const inv = invoiceMap.get(rec.memberId);
+                    const invStatus = inv?.status ?? "none";
+                    const displayStatus = invStatus === "confirmed" ? "accounting_sent" : invStatus === "sent" ? "sent" : inv ? "generated" : "none";
+                    const cfg = receiptConfig[displayStatus] ?? receiptConfig["none"];
+                    const isSending = sendingSlackId === rec.memberId;
+                    const isForcing = forcingId === rec.memberId;
+                    const srDone = selfReportMap.get(rec.memberId);
+                    return (
+                      <tr key={rec.memberId} className="border-b border-slate-50 hover:bg-slate-50">
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-slate-800">{rec.memberName}</span>
+                          {rec.missingDays > 0 && (
+                            <span className="ml-1.5 text-xs text-amber-600">未打刻{rec.missingDays}日</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-600">{rec.totalHours}h</td>
+                        <td className="px-4 py-3 text-right text-xs text-slate-500">
+                          {formatCurrency(rec.salaryAmount)}/h
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-slate-800">
+                          {inv ? formatCurrency(inv.amountExclTax) : formatCurrency(rec.estimatedAmount)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-0.5">
+                            <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                            {inv?.invoiceNumber && (
+                              <span className="text-[10px] text-slate-400">{inv.invoiceNumber}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {srDone ? <Badge variant="success">済</Badge> : <Badge variant="default">未</Badge>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={confirmVariant[rec.confirmStatus]}>
+                            {confirmLabel[rec.confirmStatus]}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {rec.confirmStatus === "not_sent" && (
+                              <Button size="sm" variant="outline" onClick={() => handleSendSlack(rec.memberId, rec.memberName)} disabled={isSending}>
+                                <Send size={12} /> {isSending ? "送信中" : "通知"}
+                              </Button>
+                            )}
+                            {rec.confirmStatus === "waiting" && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => handleSendSlack(rec.memberId, rec.memberName)} disabled={isSending}>
+                                  <RefreshCw size={12} /> {isSending ? "送信中" : "再通知"}
+                                </Button>
+                                <Button size="sm" variant="secondary" onClick={() => handleForce(rec.memberId)} disabled={isForcing}>
+                                  <Zap size={12} /> {isForcing ? "処理中" : "強制確定"}
+                                </Button>
+                              </>
+                            )}
+                            {inv && (
+                              <Button size="sm" variant="outline" onClick={() => setDetailInvoice(inv)}>
+                                <FileText size={12} /> 明細
+                              </Button>
+                            )}
+                            {inv && invStatus === "sent" && (
+                              <Button size="sm" variant="primary" onClick={() => handleAccounting(inv.id, rec.memberName)} disabled={accountingId === inv.id}>
+                                <Send size={12} /> {accountingId === inv.id ? "送付中" : "LayerX"}
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {hourlyRecords.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-sm text-slate-400">データがありません</td>
+                    </tr>
+                  )}
+                </tbody>
+                {hourlyRecords.length > 0 && (
+                  <tfoot className="border-t border-slate-200 bg-slate-50">
+                    <tr>
+                      <td colSpan={3} className="px-4 py-2 text-xs font-semibold text-slate-600">小計</td>
+                      <td className="px-4 py-2 text-right font-bold text-slate-700">
+                        {formatCurrency(hourlyLaborCost)}
+                      </td>
+                      <td colSpan={4} />
+                    </tr>
+                  </tfoot>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-
-      {/* Slack message preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Slack 確認依頼メッセージ（プレビュー）</CardTitle>
-        </CardHeader>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-sm text-slate-600 space-y-1">
-          <p><span className="text-purple-600 font-bold">@[氏名]</span>さん、今月の勤怠内容をご確認ください 📋</p>
-          <p className="text-slate-500">---</p>
-          <p>勤務日数: <strong>X日</strong> / 合計時間: <strong>Yh</strong> / 人件費: <strong>¥Z</strong></p>
-          <p className="text-slate-500">---</p>
-          <p>内容に問題なければ、請求書を提出してください。</p>
-        </div>
-      </Card>
-
-      {/* ─── 請求書受領状況セクション ─── */}
-      <div className="border-t border-slate-200 pt-6">
-        <h2 className="mb-4 text-base font-bold text-slate-800">請求書受領状況</h2>
-
-        {notReceivedCount > 0 && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <AlertCircle size={15} className="shrink-0" />
-            請求書が未受領のメンバーが <strong>{notReceivedCount}名</strong> います。
-          </div>
-        )}
-
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <Card>
-            <p className="text-xs text-slate-500">総人件費（当月見込み）</p>
-            <p className="mt-1 text-xl font-bold text-blue-700">{formatCurrency(totalLaborCost)}</p>
+              </table>
+            </div>
           </Card>
-          <Card>
-            <p className="text-xs text-slate-500">受領済み</p>
-            <p className={`mt-1 text-2xl font-bold ${hourlyReceived > 0 ? "text-green-600" : "text-slate-400"}`}>
-              {hourlyReceived}
-              <span className="ml-1 text-sm font-normal text-slate-500">/ {records.length}名</span>
-            </p>
-          </Card>
-          <Card>
-            <p className="text-xs text-slate-500">未受領</p>
-            <p className={`mt-1 text-2xl font-bold ${notReceivedCount > 0 ? "text-amber-600" : "text-slate-400"}`}>
-              {notReceivedCount}
-              <span className="ml-1 text-sm font-normal text-slate-500">名</span>
-            </p>
-          </Card>
-        </div>
 
-        {!loading && (
-          <>
-            {/* 時給制テーブル */}
+          {/* 月給制テーブル */}
+          {salaryRecords.length > 0 && (
             <Card noPadding>
               <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-                <p className="text-xs font-semibold text-slate-600">時給制（インターン・業務委託）</p>
+                <p className="text-xs font-semibold text-slate-600">月給制（正社員・役員）</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px] text-sm">
+                <table className="w-full min-w-[700px] text-sm">
                   <thead className="border-b border-slate-100">
                     <tr className="text-xs text-slate-500">
                       <th className="px-4 py-3 text-left font-medium">メンバー</th>
-                      <th className="px-4 py-3 text-right font-medium">稼働時間</th>
-                      <th className="px-4 py-3 text-right font-medium">時給</th>
-                      <th className="px-4 py-3 text-right font-medium">人件費</th>
-                      <th className="px-4 py-3 text-left font-medium">請求書受領</th>
-                      <th className="px-4 py-3 text-left font-medium">請求書番号</th>
+                      <th className="px-4 py-3 text-right font-medium">月額</th>
+                      <th className="px-4 py-3 text-left font-medium">月次申告</th>
+                      <th className="px-4 py-3 text-left font-medium">勤怠確認</th>
                       <th className="px-4 py-3 text-left font-medium">操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {hourlyRecords.map((rec) => {
-                      const inv = invoiceMap.get(rec.memberId);
-                      const invStatus = inv?.status ?? "none";
-                      const displayStatus = invStatus === "confirmed" ? "accounting_sent" : invStatus === "sent" ? "sent" : inv ? "generated" : "none";
-                      const cfg = receiptConfig[displayStatus] ?? receiptConfig["none"];
+                    {salaryRecords.map((rec) => {
+                      const isSending = sendingSlackId === rec.memberId;
+                      const isForcing = forcingId === rec.memberId;
+                      const srDone = selfReportMap.get(rec.memberId);
                       return (
                         <tr key={rec.memberId} className="border-b border-slate-50 hover:bg-slate-50">
-                          <td className="px-4 py-3 font-medium text-slate-800">{rec.memberName}</td>
-                          <td className="px-4 py-3 text-right text-slate-600">{rec.totalHours}h</td>
-                          <td className="px-4 py-3 text-right text-xs text-slate-500">
-                            {formatCurrency(rec.salaryAmount)}/h
+                          <td className="px-4 py-3">
+                            <span className="font-medium text-slate-800">{rec.memberName}</span>
+                            {rec.missingDays > 0 && (
+                              <span className="ml-1.5 text-xs text-amber-600">未打刻{rec.missingDays}日</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                            {inv ? formatCurrency(inv.amountExclTax) : formatCurrency(rec.estimatedAmount)}
+                            {formatCurrency(rec.salaryAmount)}
                           </td>
                           <td className="px-4 py-3">
-                            <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                            {srDone ? <Badge variant="success">済</Badge> : <Badge variant="default">未</Badge>}
                           </td>
-                          <td className="px-4 py-3 text-xs text-slate-500">
-                            {inv?.invoiceNumber ?? "—"}
+                          <td className="px-4 py-3">
+                            <Badge variant={confirmVariant[rec.confirmStatus]}>
+                              {confirmLabel[rec.confirmStatus]}
+                            </Badge>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              {inv && (
-                                <Button size="sm" variant="outline" onClick={() => setDetailInvoice(inv)}>
-                                  <FileText size={12} /> 明細
+                              {rec.confirmStatus === "not_sent" && (
+                                <Button size="sm" variant="outline" onClick={() => handleSendSlack(rec.memberId, rec.memberName)} disabled={isSending}>
+                                  <Send size={12} /> {isSending ? "送信中" : "通知"}
                                 </Button>
                               )}
-                              {inv && invStatus === "sent" && (
-                                <Button size="sm" variant="primary" onClick={() => handleAccounting(inv.id, rec.memberName)} disabled={accountingId === inv.id}>
-                                  <Send size={12} /> {accountingId === inv.id ? "送付中..." : "LayerXへ送付"}
-                                </Button>
-                              )}
-                              {invStatus === "confirmed" && (
-                                <span className="flex items-center gap-1 text-xs text-green-600">
-                                  <CheckCircle size={12} /> LayerX送付済み
-                                </span>
+                              {rec.confirmStatus === "waiting" && (
+                                <>
+                                  <Button size="sm" variant="outline" onClick={() => handleSendSlack(rec.memberId, rec.memberName)} disabled={isSending}>
+                                    <RefreshCw size={12} /> {isSending ? "送信中" : "再通知"}
+                                  </Button>
+                                  <Button size="sm" variant="secondary" onClick={() => handleForce(rec.memberId)} disabled={isForcing}>
+                                    <Zap size={12} /> {isForcing ? "処理中" : "強制確定"}
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </td>
                         </tr>
                       );
                     })}
-                    {hourlyRecords.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="py-6 text-center text-sm text-slate-400">データがありません</td>
-                      </tr>
-                    )}
                   </tbody>
-                  {hourlyRecords.length > 0 && (
-                    <tfoot className="border-t border-slate-200 bg-slate-50">
-                      <tr>
-                        <td colSpan={3} className="px-4 py-2 text-xs font-semibold text-slate-600">小計</td>
-                        <td className="px-4 py-2 text-right font-bold text-slate-700">
-                          {formatCurrency(hourlyLaborCost)}
-                        </td>
-                        <td colSpan={3} />
-                      </tr>
-                    </tfoot>
-                  )}
+                  <tfoot className="border-t border-slate-200 bg-slate-50">
+                    <tr>
+                      <td className="px-4 py-2 text-xs font-semibold text-slate-600">小計</td>
+                      <td className="px-4 py-2 text-right font-bold text-slate-700">
+                        {formatCurrency(salaryLaborCost)}
+                      </td>
+                      <td colSpan={3} />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </Card>
-
-            {/* 給与制テーブル */}
-            {salaryRecords.length > 0 && (
-              <Card noPadding className="mt-4">
-                <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-                  <p className="text-xs font-semibold text-slate-600">月給制（正社員・役員）</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="border-b border-slate-100">
-                      <tr className="text-xs text-slate-500">
-                        <th className="px-4 py-3 text-left font-medium">メンバー</th>
-                        <th className="px-4 py-3 text-right font-medium">月額</th>
-                        <th className="px-4 py-3 text-left font-medium">請求書受領</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {salaryRecords.map((m) => (
-                        <tr key={m.memberId} className="border-b border-slate-50 hover:bg-slate-50">
-                          <td className="px-4 py-3 font-medium text-slate-800">{m.memberName}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                            {formatCurrency(m.salaryAmount)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant="default">未受領</Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="border-t border-slate-200 bg-slate-50">
-                      <tr>
-                        <td className="px-4 py-2 text-xs font-semibold text-slate-600">小計</td>
-                        <td className="px-4 py-2 text-right font-bold text-slate-700">
-                          {formatCurrency(salaryLaborCost)}
-                        </td>
-                        <td />
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </Card>
-            )}
-
-          </>
-        )}
-      </div>
+          )}
+        </>
+      )}
 
       {/* 集計確認モーダル */}
       <Modal
