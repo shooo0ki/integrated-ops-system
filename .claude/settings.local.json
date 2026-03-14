@@ -13,7 +13,14 @@
       "Bash(psql postgres:*)",
       "Bash(npx prisma:*)",
       "Bash(npx tsc:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git remote set-url origin https://github.com/SALT2-Boost/SALT2-ops-app.git)",
+      "Bash(DATABASE_URL=\"postgresql://postgres.frzldulfpoobvtriudtt:Yone_04141124@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1\" npx prisma migrate deploy)",
+      "Bash(PRISMA_MIGRATE_SKIP_GENERATE=1 DATABASE_URL=\"postgresql://postgres.frzldulfpoobvtriudtt:Yone_04141124@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1\" npx dotenv -e /dev/null -- prisma migrate deploy)",
+      "Bash(env -i DATABASE_URL=\"postgresql://postgres.frzldulfpoobvtriudtt:Yone_04141124@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1\" PATH=\"$PATH\" npx prisma migrate deploy)",
+      "Bash(cat /Users/shouki/integrated-ops-system/src/app/\\\\\\(main\\\\\\)/dashboard/page.tsx)",
+      "Bash(npm run lint)"
     ]
   }
 }

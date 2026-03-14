@@ -2,8 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, User, Menu, ChevronLeft } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/auth-context";
+import { Button } from "@/components/common/button";
 
 interface HeaderProps {
   onMenuClick: () => void;
