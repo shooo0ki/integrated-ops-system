@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import Link from "@/frontend/components/common/app-link";
+import Link from "@/frontend/components/common/prefetch-link";
 import { ArrowLeft, Download, CheckCircle, XCircle, Plus, Pencil } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";

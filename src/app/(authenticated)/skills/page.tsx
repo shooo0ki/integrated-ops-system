@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import Link from "@/frontend/components/common/app-link";
+import Link from "@/frontend/components/common/prefetch-link";
 import { Star, Settings, ClipboardEdit } from "lucide-react";
 import { Button } from "@/frontend/components/common/button";
 import { useAuth } from "@/frontend/contexts/auth-context";

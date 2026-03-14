@@ -5,8 +5,8 @@ import {
   HOUR_PX, START_HOUR, END_HOUR, GRID_H, TIME_W, DAY_MIN_W, HOURS, COLORS,
 } from "@/frontend/constants/calendar";
 import type { CalMember, CalData, AttEntry, SchedEntry } from "@/shared/types/calendar";
-import type { WeekDay } from "./utils";
-import { timeToY, spanPx, nowTimeStr, nowY } from "./utils";
+import type { WeekDay } from "./calendar-utils";
+import { timeToY, spanPx, nowTimeStr, nowY } from "./calendar-utils";
 import { LocationBadge } from "./location-badge";
 
 export function WeekView({ weekDays, visible, calData }: {

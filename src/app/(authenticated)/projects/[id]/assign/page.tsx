@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "@/frontend/components/common/app-link";
+import Link from "@/frontend/components/common/prefetch-link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";

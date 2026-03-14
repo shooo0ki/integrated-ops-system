@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { COLORS } from "@/frontend/constants/calendar";
 import type { CalData, ViewMode } from "@/shared/types/calendar";
-import { localDateStr, buildWeekDays, buildMonthGrid } from "@/frontend/components/domain/calendar/utils";
+import { localDateStr, buildWeekDays, buildMonthGrid } from "@/frontend/components/domain/calendar/calendar-utils";
 
 export function useCalendarData() {
   const { memberId: myMemberId, role } = useAuth();

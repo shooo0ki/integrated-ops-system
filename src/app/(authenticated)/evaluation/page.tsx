@@ -7,9 +7,9 @@ import { useAuth } from "@/frontend/contexts/auth-context";
 import { buildMonths } from "@/shared/utils";
 
 import type { EvalRow, OwnEval } from "@/shared/types/evaluation";
-import { StarBar, ScoreBadge } from "@/frontend/components/domain/evaluation/star-bar";
-import { EditModal } from "@/frontend/components/domain/evaluation/edit-modal";
-import type { ModalState } from "@/frontend/components/domain/evaluation/edit-modal";
+import { StarBar, ScoreBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
+import { EditModal } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
+import type { ModalState } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
 
 const MONTHS = buildMonths(12);
 

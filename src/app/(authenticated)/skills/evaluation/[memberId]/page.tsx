@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "@/frontend/components/common/app-link";
+import Link from "@/frontend/components/common/prefetch-link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronRight, Save, CheckCircle, User } from "lucide-react";
 import { Card } from "@/frontend/components/common/card";

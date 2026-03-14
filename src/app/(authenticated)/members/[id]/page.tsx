@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import Link from "@/frontend/components/common/app-link";
+import Link from "@/frontend/components/common/prefetch-link";
 import {
   ArrowLeft, Mail, Phone, Calendar, Edit, Save, X,
   Wrench, Plus, Trash2, BookOpen, MapPin, CreditCard,

@@ -3,7 +3,7 @@
 import { useMemo, useCallback } from "react";
 import { COLORS } from "@/frontend/constants/calendar";
 import type { CalMember, CalData, AttEntry, SchedEntry } from "@/shared/types/calendar";
-import type { MonthDay } from "./utils";
+import type { MonthDay } from "./calendar-utils";
 import { LocationBadge } from "./location-badge";
 
 const MAX_PER_CELL = 3;

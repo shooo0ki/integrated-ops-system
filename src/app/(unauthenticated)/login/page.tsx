@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { preload } from "swr";
 import { Building2, Mail, Lock, AlertCircle } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
-import { fetcher } from "@/frontend/contexts/swr-config";
+import { fetcher } from "@/frontend/contexts/swr-provider";
 import { Button } from "@/frontend/components/common/button";
 import { Input } from "@/frontend/components/common/input";
 

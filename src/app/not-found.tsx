@@ -1,4 +1,4 @@
-import Link from "@/frontend/components/common/app-link";
+import Link from "@/frontend/components/common/prefetch-link";
 
 export default function NotFound() {
   return (

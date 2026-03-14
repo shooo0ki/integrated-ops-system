@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "@/frontend/components/common/app-link";
+import Link from "@/frontend/components/common/prefetch-link";
 import { ArrowLeft, Plus, Trash2, CheckCircle } from "lucide-react";
 import { Button } from "@/frontend/components/common/button";
 import { Input, Select } from "@/frontend/components/common/input";

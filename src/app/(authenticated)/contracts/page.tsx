@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "@/frontend/components/common/app-link";
+import Link from "@/frontend/components/common/prefetch-link";
 import {
   FileCheck, Send, Clock, CheckCircle, XCircle, FilePlus, Download,
 } from "lucide-react";
@@ -10,7 +10,7 @@ import { Modal } from "@/frontend/components/common/modal";
 import type { ContractStatus } from "@/shared/types/contracts";
 import { STATUS_ORDER, formatDate } from "@/frontend/constants/contracts";
 import { useContracts } from "@/frontend/hooks/contracts/use-contracts";
-import { StatusFlow } from "@/frontend/components/domain/contracts/status-flow";
+import { StatusFlow } from "@/frontend/components/domain/contracts/contract-status-flow";
 
 const statusConfig: Record<ContractStatus, {
   label: string;
