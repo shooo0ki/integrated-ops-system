@@ -9,6 +9,7 @@ import { Button } from "@/frontend/components/common/button";
 import { Modal } from "@/frontend/components/common/modal";
 import { Input, Select } from "@/frontend/components/common/input";
 import { formatCurrency, formatDate } from "@/shared/utils";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 interface ToolEntry {
   id: string;
@@ -158,27 +159,25 @@ export default function ToolsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <select
+        <Select
           value={toolFilter}
           onChange={(e) => setToolFilter(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="ALL">全ツール</option>
           {toolNames.map((name) => <option key={name} value={name}>{name}</option>)}
-        </select>
-        <select
+        </Select>
+        <Select
           value={memberFilter}
           onChange={(e) => setMemberFilter(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="ALL">全メンバー</option>
           {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
+        </Select>
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <Card noPadding>
           <div className="overflow-x-auto">

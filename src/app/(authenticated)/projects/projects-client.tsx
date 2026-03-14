@@ -1,10 +1,14 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { memo, useState } from "react";
 import useSWR from "swr";
 import { FolderOpen, Users, Calendar, ArrowRight, Plus } from "lucide-react";
 import { Card } from "@/frontend/components/common/card";
 import { Badge } from "@/frontend/components/common/badge";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
+import { formatDate, formatCurrency } from "@/shared/utils";
+import { PROJECT_STATUS_LABELS as STATUS_LABELS, PROJECT_STATUS_COLORS as statusColor, companyDisplay } from "@/frontend/constants/projects";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -30,32 +34,6 @@ interface Project {
   assignments: Assignment[];
 }
 
-// ─── スタイル・ユーティリティ ─────────────────────────────
-
-const statusColor: Record<string, "success" | "default" | "warning"> = {
-  active: "success",
-  completed: "default",
-  on_hold: "warning",
-  planning: "warning",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "進行中",
-  completed: "完了",
-  on_hold: "一時停止",
-  planning: "計画中",
-};
-
-const companyDisplay = (c: string) => (c === "boost" ? "Boost" : "SALT2");
-
-function formatDate(d: string | null): string {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("ja-JP", { year: "numeric", month: "numeric", day: "numeric" });
-}
-
-function formatCurrency(n: number): string {
-  return n.toLocaleString("ja-JP", { style: "currency", currency: "JPY" });
-}
 
 // ─── ProjectCard (memo) ──────────────────────────────────
 
@@ -165,31 +143,29 @@ export default function ProjectsClient({ role }: ProjectsClientProps) {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <select
+        <Select
           value={companyFilter}
           onChange={(e) => setCompanyFilter(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="">全社</option>
           <option value="boost">Boost</option>
           <option value="salt2">SALT2</option>
-        </select>
-        <select
+        </Select>
+        <Select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="">全ステータス</option>
           <option value="active">進行中</option>
           <option value="planning">計画中</option>
           <option value="completed">完了</option>
           <option value="on_hold">一時停止</option>
-        </select>
+        </Select>
       </div>
 
       {/* Project cards */}
       {loading ? (
-        <div className="py-20 text-center text-slate-400 text-sm">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <div className="space-y-4">
           {projects.map((project) => (

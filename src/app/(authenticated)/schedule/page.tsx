@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
@@ -227,14 +228,14 @@ export default function SchedulePage() {
 
                   {!entry.isOff && (
                     <>
-                      <select
+                      <Select
                         value={entry.workType}
                         onChange={(e) => update(i, "workType", e.target.value as WorkType)}
-                        className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
+                        className="px-2 py-1"
                       >
                         <option>出社</option>
                         <option>オンライン</option>
-                      </select>
+                      </Select>
 
                       <div className="flex items-center gap-2">
                         <input

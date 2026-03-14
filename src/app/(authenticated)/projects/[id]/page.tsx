@@ -11,6 +11,9 @@ import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Modal } from "@/frontend/components/common/modal";
 import { Input, Select } from "@/frontend/components/common/input";
 import { useAuth } from "@/frontend/contexts/auth-context";
+import { DetailPageSkeleton } from "@/frontend/components/common/skeleton";
+import { formatDate, formatCurrency, toJSTDateString } from "@/shared/utils";
+import { PROJECT_STATUS_LABELS as STATUS_LABELS, PROJECT_STATUS_COLORS as STATUS_COLOR, CONTRACT_TYPE_LABELS as CONTRACT_LABELS } from "@/frontend/constants/projects";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -65,28 +68,9 @@ interface MemberOption {
   company: string;
 }
 
-// ─── ユーティリティ ──────────────────────────────────────
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "進行中", completed: "完了", on_hold: "一時停止", planning: "計画中",
-};
-const STATUS_COLOR: Record<string, "success" | "default" | "warning"> = {
-  active: "success", completed: "default", on_hold: "warning", planning: "warning",
-};
-const CONTRACT_LABELS: Record<string, string> = {
-  quasi_mandate: "準委任", contract: "請負", in_house: "自社開発", other: "その他",
-};
-
-function formatDate(d: string | null): string {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("ja-JP", { year: "numeric", month: "numeric", day: "numeric" });
-}
-function formatCurrency(n: number): string {
-  return n.toLocaleString("ja-JP", { style: "currency", currency: "JPY" });
-}
 function toDateInput(d: string | null): string {
   if (!d) return "";
-  return new Date(d).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+  return toJSTDateString(new Date(d));
 }
 
 // ─── ページ ───────────────────────────────────────────────
@@ -129,7 +113,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [newPositionName, setNewPositionName] = useState("");
 
   useEffect(() => {
-    setAssignForm((prev) => ({ ...prev, startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) }));
+    setAssignForm((prev) => ({ ...prev, startDate: toJSTDateString() }));
   }, []);
 
   // Redirect on 404
@@ -209,7 +193,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     setAssignError("");
     setPositionMode(project && project.positions.length > 0 ? "existing" : "new");
     setNewPositionName("");
-    setAssignForm({ memberId: "", positionId: "", workloadHours: "80", startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) });
+    setAssignForm({ memberId: "", positionId: "", workloadHours: "80", startDate: toJSTDateString() });
     setAddOpen(true);
   }
 
@@ -290,7 +274,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
   // ─── レンダー ─────────────────────────────────────────
 
-  if (loading) return <div className="py-20 text-center text-slate-400 text-sm">読み込み中...</div>;
+  if (loading) return <DetailPageSkeleton rows={5} cols={5} />;
   if (!project) return null;
 
   const companyDisplay = project.company === "boost" ? "Boost" : "SALT2";
@@ -328,7 +312,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-600 mb-1">プロジェクト名 *</label>
                 <input type="text" value={form.name} onChange={set("name")}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  className="w-full" />
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-600 mb-1">説明</label>
@@ -337,44 +321,44 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">ステータス</label>
-                <select value={form.status} onChange={set("status")}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                <Select value={form.status} onChange={set("status")}
+                  className="w-full">
                   <option value="planning">計画中</option>
                   <option value="active">進行中</option>
                   <option value="on_hold">一時停止</option>
                   <option value="completed">完了</option>
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">クライアント名</label>
                 <input type="text" value={form.clientName} onChange={set("clientName")}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  className="w-full" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">契約種別</label>
-                <select value={form.contractType} onChange={set("contractType")}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                <Select value={form.contractType} onChange={set("contractType")}
+                  className="w-full">
                   <option value="">未設定</option>
                   <option value="quasi_mandate">準委任</option>
                   <option value="contract">請負</option>
                   <option value="in_house">自社開発</option>
                   <option value="other">その他</option>
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">月額契約金額（円）</label>
                 <input type="number" min={0} value={form.monthlyContractAmount} onChange={set("monthlyContractAmount")}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  className="w-full" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">開始日</label>
                 <input type="date" value={form.startDate} onChange={set("startDate")}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  className="w-full" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">終了日（任意）</label>
                 <input type="date" value={form.endDate} onChange={set("endDate")}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  className="w-full" />
               </div>
             </div>
           </div>

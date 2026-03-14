@@ -7,27 +7,8 @@ import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/frontend/components/common/button";
 import { Input, Select } from "@/frontend/components/common/input";
 import { Card } from "@/frontend/components/common/card";
-
-// ステータスからロールを自動導出
-function roleFromStatus(status: string): string {
-  if (status === "executive") return "admin";
-  if (status === "employee") return "manager";
-  return "member";
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  executive: "役員",
-  employee: "社員",
-  intern_full: "インターン（長期）",
-  intern_training: "インターン（研修）",
-  training_member: "研修生",
-};
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: "管理者",
-  manager: "マネージャー",
-  member: "メンバー",
-};
+import { MEMBER_STATUS_LABELS as STATUS_LABELS, roleFromStatus } from "@/frontend/constants/members";
+import { roleLabel as ROLE_LABELS } from "@/frontend/constants/common";
 
 const INITIAL_FORM = {
   name: "",

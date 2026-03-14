@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
@@ -8,6 +9,8 @@ import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";
 import { useAuth } from "@/frontend/contexts/auth-context";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
+import { formatCurrency, buildMonths } from "@/shared/utils";
 
 const PLChart = dynamic(
   () => import("@/frontend/components/domain/charts/pl-chart").then((m) => m.PLChart),
@@ -40,22 +43,6 @@ interface PLRecord {
 }
 
 type TabCompany = "合算" | "boost" | "salt2";
-
-// ─── ユーティリティ ──────────────────────────────────────
-
-function formatCurrency(v: number) {
-  return new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY" }).format(v);
-}
-
-function buildMonths(n = 6): string[] {
-  const months: string[] = [];
-  const base = new Date();
-  for (let i = 0; i < n; i++) {
-    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  }
-  return months;
-}
 
 const MONTHS = buildMonths(6);
 
@@ -197,15 +184,14 @@ export default function PLSummaryPage() {
               {generating ? "集計中..." : "PL自動集計"}
             </Button>
           )}
-          <select
+          <Select
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {MONTHS.map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -231,7 +217,7 @@ export default function PLSummaryPage() {
       </div>
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-slate-400">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <>
           {/* データなし案内 */}
@@ -606,7 +592,7 @@ export default function PLSummaryPage() {
                 </div>
               </CardHeader>
               {reportLoading ? (
-                <p className="text-sm text-slate-400">読み込み中...</p>
+                <InlineSkeleton />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">

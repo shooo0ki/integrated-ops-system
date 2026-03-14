@@ -1,4 +1,6 @@
 "use client";
+import { toJSTDateString, downloadBlob } from "@/shared/utils";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
@@ -8,6 +10,7 @@ import { useAuth } from "@/frontend/contexts/auth-context";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -56,7 +59,7 @@ export default function AttendanceListPage() {
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     setMonth(currentMonth);
-    setJstToday(now.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }));
+    setJstToday(toJSTDateString(now));
     const opts: string[] = [];
     for (let i = 0; i < 6; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -195,12 +198,7 @@ export default function AttendanceListPage() {
       .join("\r\n");
     const bom = "\uFEFF";
     const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `勤怠_${targetMember?.name ?? "自分"}_${month}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `勤怠_${targetMember?.name ?? "自分"}_${month}.csv`);
   }
 
   return (
@@ -215,24 +213,22 @@ export default function AttendanceListPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">
         {isAdmin && (
-          <select
+          <Select
             value={selectedMemberId}
             onChange={(e) => setSelectedMemberId(e.target.value)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
             <option value="">自分</option>
             {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
+          </Select>
         )}
-        <select
+        <Select
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           {monthOptions.map((m) => (
             <option key={m} value={m}>{m.replace("-", "年")}月</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* Monthly summary */}
@@ -255,7 +251,7 @@ export default function AttendanceListPage() {
 
       {/* Daily table */}
       {loading ? (
-        <div className="py-12 text-center text-slate-400 text-sm">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <Card noPadding>
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">

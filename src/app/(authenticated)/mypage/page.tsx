@@ -16,6 +16,7 @@ import { roleLabel } from "@/frontend/constants/common";
 import { ProfileEditModal } from "@/frontend/components/domain/mypage/profile-edit-modal";
 import { PasswordChangeModal } from "@/frontend/components/domain/mypage/password-change-modal";
 import { TodayAttendanceCard } from "@/frontend/components/domain/mypage/today-attendance-card";
+import { MyPageSkeleton } from "@/frontend/components/common/skeleton";
 
 const levelLabels = ["", "★", "★★", "★★★", "★★★★", "★★★★★"];
 
@@ -46,7 +47,7 @@ export default function MyPage() {
   const evaluations = summaryData?.evaluations ?? [];
   const evaluationComments = evaluations.filter((ev) => ev.comment).slice(0, 3);
 
-  if (mypageLoading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
+  if (mypageLoading) return <MyPageSkeleton />;
   const memberDetail = summaryData?.member ?? null;
   if (!memberDetail) return null;
 

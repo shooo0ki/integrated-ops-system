@@ -10,6 +10,7 @@ import { Input } from "@/frontend/components/common/input";
 import { Badge } from "@/frontend/components/common/badge";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { notFound } from "next/navigation";
+import { FormPageSkeleton } from "@/frontend/components/common/skeleton";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ export default function SkillSettingsPage() {
   const [editingSkill, setEditingSkill] = useState<string | null>(null);
   const [editSkillName, setEditSkillName] = useState("");
 
-  if (authLoading || loading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
+  if (authLoading || loading) return <FormPageSkeleton fields={5} />;
   if (role !== "admin") return notFound();
 
   function toggleExpand(catId: string) {
@@ -157,7 +158,7 @@ export default function SkillSettingsPage() {
   }
 
   if (loading) {
-    return <div className="py-20 text-center text-slate-400 text-sm">読み込み中...</div>;
+    return <FormPageSkeleton fields={5} />;
   }
 
   return (

@@ -1,4 +1,5 @@
 "use client";
+import { toJSTDateString } from "@/shared/utils";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "@/frontend/components/common/prefetch-link";
@@ -9,6 +10,7 @@ import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Modal } from "@/frontend/components/common/modal";
 import { Input, Select } from "@/frontend/components/common/input";
 import { useAuth } from "@/frontend/contexts/auth-context";
+import { DetailPageSkeleton } from "@/frontend/components/common/skeleton";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -77,7 +79,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
   }, [id]);
 
   useEffect(() => {
-    setForm((prev) => ({ ...prev, startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) }));
+    setForm((prev) => ({ ...prev, startDate: toJSTDateString() }));
   }, []);
 
   useEffect(() => {
@@ -137,7 +139,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
     if (res.ok) {
       await loadProject();
       setAddOpen(false);
-      setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) });
+      setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: toJSTDateString() });
       setPositionMode("existing");
       setNewPositionName("");
     } else {
@@ -155,7 +157,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
     }
   }
 
-  if (loading) return <div className="py-20 text-center text-slate-400 text-sm">読み込み中...</div>;
+  if (loading) return <DetailPageSkeleton rows={4} cols={4} />;
   if (!project) return null;
 
   return (
@@ -172,7 +174,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
             setError("");
             setPositionMode(project.positions.length > 0 ? "existing" : "new");
             setNewPositionName("");
-            setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) });
+            setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: toJSTDateString() });
             setAddOpen(true);
           }}>
             <Plus size={14} /> アサイン追加

@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState } from "react";
 import useSWR from "swr";
@@ -10,6 +11,7 @@ import { Badge } from "@/frontend/components/common/badge";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { formatCurrency, buildMonths } from "@/shared/utils";
 import { notFound } from "next/navigation";
+import { DashboardPageSkeleton, InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 const CashflowChart = dynamic(
   () => import("@/frontend/components/domain/charts/cashflow-chart").then((m) => m.CashflowChart),
@@ -70,7 +72,7 @@ export default function CashflowPage() {
   })();
   const records: Record<string, CfRecord> = { ...fetchedRecords, ...localRecords };
 
-  if (authLoading || loading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
+  if (authLoading || loading) return <DashboardPageSkeleton kpiCount={4} rows={5} cols={6} />;
   if (role !== "admin") return notFound();
 
   function getRecord(m: string): CfRecord {
@@ -155,14 +157,13 @@ export default function CashflowPage() {
           <p className="text-sm text-slate-500">月次の入出金と残高推移を管理します</p>
         </div>
         <div className="flex items-center gap-2">
-          <select
+          <Select
             value={company}
             onChange={(e) => setCompany(e.target.value as Company)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
             <option value="boost">Boost</option>
             <option value="salt2">SALT2</option>
-          </select>
+          </Select>
           <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
             {saved ? <CheckCircle size={15} /> : <Save size={15} />}
             {saved ? "保存済み" : saving ? "保存中..." : "保存"}
@@ -193,7 +194,7 @@ export default function CashflowPage() {
       </div>
 
       {loading ? (
-        <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <>
           {/* KPI summary */}

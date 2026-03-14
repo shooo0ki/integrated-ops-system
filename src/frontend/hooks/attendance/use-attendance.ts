@@ -1,8 +1,10 @@
 "use client";
+import { toJSTDateString } from "@/shared/utils";
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { useAuth } from "@/frontend/contexts/auth-context";
+import { useToast } from "@/frontend/hooks/use-toast";
 import type { AttendanceStatus, TodayRecord, CorrectionRecord } from "@/shared/types/attendance";
 
 export function useAttendance() {
@@ -13,7 +15,7 @@ export function useAttendance() {
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
     const now = new Date();
-    setTodayStr(now.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }));
+    setTodayStr(toJSTDateString(now));
     setTodayLabel(now.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric", weekday: "long" }));
   }, []);
 
@@ -24,7 +26,7 @@ export function useAttendance() {
   );
   const corrections = Array.isArray(correctionsData) ? correctionsData : [];
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [corrToast, setCorrToast] = useState<string | null>(null);
+  const toast = useToast();
 
   const [workLocation, setWorkLocation] = useState<"オフィス" | "オンライン" | "">("");
   const locationTypeMap: Record<string, string> = { "オフィス": "office", "オンライン": "online" };
@@ -115,8 +117,7 @@ export function useAttendance() {
       body: JSON.stringify({ confirmStatus: "confirmed" }),
     });
     if (res.ok) {
-      setCorrToast("修正を承認しました");
-      setTimeout(() => setCorrToast(null), 3000);
+      toast.show("修正を承認しました");
     }
     await mutateCorrections();
     setApprovingId(null);
@@ -130,7 +131,7 @@ export function useAttendance() {
     todayPlan, setTodayPlan, todayDone, setTodayDone,
     tomorrowPlan, setTomorrowPlan, breakMinutes, setBreakMinutes,
     clockInError, clockingIn, clockingOut, actionLog,
-    approvingId, corrToast,
+    approvingId, toast,
     clockIn, clockOut, validateClockOut, handleApprove,
   };
 }

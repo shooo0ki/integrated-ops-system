@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState } from "react";
 import useSWR from "swr";
@@ -10,6 +11,7 @@ import type { EvalRow, OwnEval } from "@/shared/types/evaluation";
 import { StarBar, ScoreBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
 import { EditModal } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
 import type { ModalState } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 const MONTHS = buildMonths(12);
 
@@ -59,7 +61,7 @@ export default function EvaluationPage() {
 
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium text-slate-600">月:</label>
-          <select
+          <Select
             value={month}
             onChange={(e) => setMonth(e.target.value)}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none"
@@ -67,11 +69,11 @@ export default function EvaluationPage() {
             {MONTHS.map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {loading ? (
-          <p className="text-sm text-slate-400">読み込み中...</p>
+          <InlineSkeleton />
         ) : !ownEval ? (
           <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
             <p className="text-slate-400">{month} の評価はまだありません</p>
@@ -190,7 +192,7 @@ export default function EvaluationPage() {
         <h1 className="text-xl font-bold text-slate-800">人事評価</h1>
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium text-slate-600">月:</label>
-          <select
+          <Select
             value={month}
             onChange={(e) => setMonth(e.target.value)}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none"
@@ -198,7 +200,7 @@ export default function EvaluationPage() {
             {MONTHS.map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -216,7 +218,7 @@ export default function EvaluationPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-400">読み込み中...</p>
+        <InlineSkeleton />
       ) : (
         <div className="space-y-6">
           {rows.length > 0 ? renderTable("全メンバー", rows) : (

@@ -1,4 +1,6 @@
 "use client";
+import { downloadBlob } from "@/shared/utils";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
@@ -9,6 +11,7 @@ import { Button } from "@/frontend/components/common/button";
 import type { ClosingRecord, Invoice, LineItem, ExpenseItem, MyProject } from "@/shared/types/closing";
 import { formatCurrency, buildMonthOptions } from "@/frontend/constants/closing";
 import { SelfReportCard } from "./self-report-card";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 export function MemberBillingView({ memberId }: { memberId: string }) {
   const [month, setMonth] = useState("");
@@ -150,12 +153,7 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") ?? "";
       const filename = cd.match(/filename="(.+?)"/)?.[1] ?? `invoice-${month}.xlsx`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, filename);
       setSubmitted(true);
       await mutateInvoice();
     }
@@ -188,22 +186,21 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
           <h1 className="text-xl font-bold text-slate-800">請求管理</h1>
           <p className="text-sm text-slate-500">{month.replace("-", "年")}月</p>
         </div>
-        <select
+        <Select
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           {monthOptions.map((m) => (
             <option key={m} value={m}>{m.replace("-", "年")}月</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* 月次工数自己申告 */}
       <SelfReportCard month={month} myProjects={myProjects} />
 
       {loading ? (
-        <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <>
           {/* 稼働サマリー */}
@@ -281,7 +278,7 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
                               value={item.name}
                               onChange={(e) => updateItem(item.id, "name", e.target.value)}
                               placeholder="項目名"
-                              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                              className="w-full px-2 py-1.5"
                             />
                           )}
                         </td>
@@ -358,7 +355,7 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
               <div className="rounded-lg border border-slate-200 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-semibold text-slate-700">交通費</label>
-                  <select
+                  <Select
                     value={hasTransport}
                     onChange={(e) => {
                       const v = e.target.value as "none" | "yes";
@@ -370,7 +367,7 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
                   >
                     <option value="none">なし</option>
                     <option value="yes">あり</option>
-                  </select>
+                  </Select>
                 </div>
                 {hasTransport === "yes" && (
                   <div className="space-y-3">
@@ -418,7 +415,7 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
               <div className="rounded-lg border border-slate-200 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-semibold text-slate-700">経費</label>
-                  <select
+                  <Select
                     value={hasExpense}
                     onChange={(e) => {
                       const v = e.target.value as "none" | "yes";
@@ -430,7 +427,7 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
                   >
                     <option value="none">なし</option>
                     <option value="yes">あり</option>
-                  </select>
+                  </Select>
                 </div>
                 {hasExpense === "yes" && (
                   <div className="space-y-3">
@@ -440,22 +437,22 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
                     {expenses.map((exp) => (
                       <div key={exp.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-start">
                         <div className="space-y-1">
-                          <select
+                          <Select
                             value={exp.projectId}
                             onChange={(e) => updateExpense(exp.id, "projectId", e.target.value)}
-                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                            className="w-full px-2 py-1.5"
                           >
                             <option value="">プロジェクト外（SALT2計上）</option>
                             {myProjects.map((p) => (
                               <option key={p.projectId} value={p.projectId}>{p.projectName}</option>
                             ))}
-                          </select>
+                          </Select>
                           <input
                             type="text"
                             value={exp.description}
                             onChange={(e) => updateExpense(exp.id, "description", e.target.value)}
                             placeholder="説明（例: 参考書代）"
-                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                            className="w-full px-2 py-1.5"
                           />
                         </div>
                         <div className="w-28">

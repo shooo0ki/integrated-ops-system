@@ -7,6 +7,7 @@ import { Button } from "@/frontend/components/common/button";
 import { Input } from "@/frontend/components/common/input";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { notFound } from "next/navigation";
+import { FormPageSkeleton } from "@/frontend/components/common/skeleton";
 
 type Tab = "slack" | "company" | "system";
 
@@ -74,7 +75,7 @@ export default function SettingsPage() {
     { id: "system", label: "システム情報", icon: <Info size={15} /> },
   ];
 
-  if (authLoading || loading) return <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>;
+  if (authLoading || loading) return <FormPageSkeleton fields={4} />;
   if (role !== "admin") return notFound();
 
   return (

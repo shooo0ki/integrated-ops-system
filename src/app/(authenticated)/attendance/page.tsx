@@ -4,6 +4,7 @@ import { Clock, CheckCircle, Building2, Monitor, ClipboardEdit, AlertCircle, Arr
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";
+import { Toast } from "@/frontend/components/common/toast";
 import { statusVariant, STATUS_LABELS } from "@/frontend/constants/attendance";
 import { useAttendance } from "@/frontend/hooks/attendance/use-attendance";
 
@@ -16,19 +17,13 @@ export default function AttendancePage() {
     todayPlan, setTodayPlan, todayDone, setTodayDone,
     tomorrowPlan, setTomorrowPlan, breakMinutes, setBreakMinutes,
     clockInError, clockingIn, clockingOut, actionLog,
-    approvingId, corrToast,
+    approvingId, toast,
     clockIn, clockOut, validateClockOut, handleApprove,
   } = useAttendance();
 
   return (
     <div className="space-y-6">
-      {/* Toast */}
-      {corrToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg bg-slate-800 px-5 py-3 text-sm text-white shadow-lg">
-          <CheckCircle size={15} className="text-green-400" />
-          {corrToast}
-        </div>
-      )}
+      <Toast message={toast.message} />
 
       <div>
         <h1 className="text-xl font-bold text-slate-800">打刻</h1>

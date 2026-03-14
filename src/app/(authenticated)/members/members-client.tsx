@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState } from "react";
 import useSWR from "swr";
@@ -7,6 +8,8 @@ import { Search, Plus, User } from "lucide-react";
 import { Card } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
 import { roleLabel } from "@/frontend/constants/common";
+import { MEMBER_STATUS_LABELS as statusLabel, MEMBER_STATUS_COLORS as statusColor } from "@/frontend/constants/members";
+import { CardGridPageSkeleton } from "@/frontend/components/common/skeleton";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -20,24 +23,6 @@ interface MemberListItem {
   email: string;
   role: string;
 }
-
-// ─── スタイル・ユーティリティ ─────────────────────────────
-
-const statusLabel: Record<string, string> = {
-  executive: "役員",
-  employee: "社員",
-  intern_full: "インターン（長期）",
-  intern_training: "インターン（研修）",
-  training_member: "研修生",
-};
-
-const statusColor: Record<string, string> = {
-  executive: "bg-purple-50 text-purple-700",
-  employee: "bg-blue-50 text-blue-700",
-  intern_full: "bg-orange-50 text-orange-700",
-  intern_training: "bg-orange-50 text-orange-700",
-  training_member: "bg-slate-50 text-slate-700",
-};
 
 // ─── クライアントコンポーネント ───────────────────────────
 
@@ -87,21 +72,20 @@ export default function MembersClient({ role }: MembersClientProps) {
             className="w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        <select
+        <Select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="">全ロール</option>
           <option value="admin">管理者</option>
           <option value="manager">マネージャー</option>
           <option value="member">メンバー</option>
-        </select>
+        </Select>
       </div>
 
       {/* Member grid */}
       {loading ? (
-        <div className="py-16 text-center text-slate-400 text-sm">読み込み中...</div>
+        <CardGridPageSkeleton count={6} cols={3} />
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">

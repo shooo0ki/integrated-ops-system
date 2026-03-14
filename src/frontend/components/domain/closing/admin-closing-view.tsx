@@ -1,6 +1,7 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import {
   AlertTriangle, Send, RefreshCw, CheckCircle, Zap, FileText,
@@ -9,6 +10,8 @@ import { Card } from "@/frontend/components/common/card";
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";
 import { Modal } from "@/frontend/components/common/modal";
+import { Toast } from "@/frontend/components/common/toast";
+import { useToast } from "@/frontend/hooks/use-toast";
 
 import type {
   ConfirmStatus, ClosingRecord, Invoice, MyProject,
@@ -18,6 +21,7 @@ import {
   formatCurrency, buildMonthOptions,
 } from "@/frontend/constants/closing";
 import { SelfReportCard } from "./self-report-card";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 export function AdminClosingView() {
   const [targetMonth, setTargetMonth] = useState("");
@@ -27,11 +31,9 @@ export function AdminClosingView() {
   const [sendingSlackId, setSendingSlackId] = useState<string | null>(null);
   const [forcingId, setForcingId] = useState<string | null>(null);
   const [accountingId, setAccountingId] = useState<string | null>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null);
   const [monthOptions, setMonthOptions] = useState<string[]>([]);
-
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     const opts = buildMonthOptions();
@@ -51,17 +53,7 @@ export function AdminClosingView() {
     [selfReportSummary]
   );
 
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
-
-  const showToast = useCallback((msg: string) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToastMsg(msg);
-    toastTimerRef.current = setTimeout(() => setToastMsg(null), 3000);
-  }, []);
+  const showToast = toast.show;
 
   function handleAggregate() {
     if (records.some((r) => r.missingDays > 0)) {
@@ -180,28 +172,21 @@ export function AdminClosingView() {
 
   return (
     <div className="space-y-6">
-      {/* Toast */}
-      {toastMsg && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg bg-slate-800 px-5 py-3 text-sm text-white shadow-lg">
-          <CheckCircle size={15} className="text-green-400" />
-          {toastMsg}
-        </div>
-      )}
+      <Toast message={toast.message} />
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-800">請求管理</h1>
           <p className="text-sm text-slate-500">月末締め・請求書受領管理</p>
         </div>
-        <select
+        <Select
           value={targetMonth}
           onChange={(e) => setTargetMonth(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           {monthOptions.map((m) => (
             <option key={m} value={m}>{m.replace("-", "年")}月</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* KPI cards */}
@@ -268,7 +253,7 @@ export function AdminClosingView() {
 
       {/* 請求書受領状況テーブル */}
       {loading ? (
-        <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <>
           {/* 時給制テーブル */}

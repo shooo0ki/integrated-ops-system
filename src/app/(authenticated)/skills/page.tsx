@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "@/frontend/components/common/prefetch-link";
@@ -8,6 +9,7 @@ import { useAuth } from "@/frontend/contexts/auth-context";
 
 import type { SkillCategory as Category, MemberRow, MatrixData } from "@/shared/types/skills";
 import { levelStyle, levelBg, PAGE_SIZE } from "@/frontend/constants/skills";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 // ─── スタイル ────────────────────────────────────────────
 
@@ -115,32 +117,30 @@ export default function SkillsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <select
+        <Select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="">全カテゴリ</option>
           {allCategories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={minLevel}
           onChange={(e) => setMinLevel(Number(e.target.value))}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value={0}>最低レベル: 指定なし</option>
           <option value={2}>Lv2 以上</option>
           <option value={3}>Lv3 以上</option>
           <option value={4}>Lv4 以上</option>
           <option value={5}>Lv5 のみ</option>
-        </select>
+        </Select>
       </div>
 
       {/* Matrix table */}
       {loading ? (
-        <div className="py-20 text-center text-slate-400 text-sm">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <>
           <div className="rounded-xl border border-slate-200 bg-white overflow-auto">

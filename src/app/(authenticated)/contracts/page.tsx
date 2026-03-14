@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import Link from "@/frontend/components/common/prefetch-link";
 import {
@@ -10,6 +11,7 @@ import { Modal } from "@/frontend/components/common/modal";
 import type { ContractStatus } from "@/shared/types/contracts";
 import { STATUS_ORDER, formatDate } from "@/frontend/constants/contracts";
 import { useContracts } from "@/frontend/hooks/contracts/use-contracts";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 import { StatusFlow } from "@/frontend/components/domain/contracts/contract-status-flow";
 
 const statusConfig: Record<ContractStatus, {
@@ -87,31 +89,29 @@ export default function ContractsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <select
+        <Select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as ContractStatus | "ALL")}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="ALL">全ステータス</option>
           {STATUS_ORDER.map((s) => (
             <option key={s} value={s}>{statusConfig[s].label}</option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={memberFilter}
           onChange={(e) => setMemberFilter(e.target.value)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="ALL">全メンバー</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>{m.name}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <Card noPadding>
           <div className="overflow-x-auto">
@@ -293,16 +293,16 @@ export default function ContractsPage() {
             <>
               <div>
                 <label className="text-sm font-medium text-slate-700">メンバー <span className="text-red-500">*</span></label>
-                <select
+                <Select
                   value={form.memberId}
                   onChange={(e) => setForm({ ...form, memberId: e.target.value })}
-                  className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="mt-1 w-full"
                 >
                   <option value="">選択してください</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>{m.name}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700">署名者メール <span className="text-red-500">*</span></label>
@@ -340,17 +340,17 @@ export default function ContractsPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700">ステータス <span className="text-red-500">*</span></label>
-                  <select
+                  <Select
                     value={form.newStatus}
                     onChange={(e) => setForm({ ...form, newStatus: e.target.value })}
-                    className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    className="mt-1 w-full"
                   >
                     <option value="executive">役員</option>
                     <option value="employee">社員</option>
                     <option value="intern_full">インターン（長期）</option>
                     <option value="intern_training">インターン（研修）</option>
                     <option value="training_member">研修生</option>
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700">電話番号</label>
@@ -424,13 +424,13 @@ export default function ContractsPage() {
               <label className="text-sm font-medium text-slate-700">
                 DocuSign テンプレート <span className="text-red-500">*</span>
               </label>
-              <select
+              <Select
                 value={form.templateId}
                 onChange={(e) => {
                   const tpl = dsTemplates.find((t) => t.templateId === e.target.value);
                   setForm({ ...form, templateId: e.target.value, templateName: tpl?.name ?? "" });
                 }}
-                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:text-slate-400"
+                className="mt-1 w-full disabled:text-slate-400"
                 disabled={templatesLoading}
               >
                 <option value="">
@@ -439,7 +439,7 @@ export default function ContractsPage() {
                 {dsTemplates.map((t) => (
                   <option key={t.templateId} value={t.templateId}>{t.name}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>

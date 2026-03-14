@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
@@ -202,10 +203,10 @@ export function SelfReportCard({
               {rows.map((r) => (
                 <tr key={r.key} className="border-b border-slate-50">
                   <td className="py-2">
-                    <select
+                    <Select
                       value={getSelectValue(r)}
                       onChange={(e) => handleSelectChange(r.key, e.target.value)}
-                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                      className="w-full px-2 py-1.5"
                     >
                       <option value="">選択してください</option>
                       <optgroup label="プロジェクト">
@@ -230,7 +231,7 @@ export function SelfReportCard({
                           </option>
                         ))}
                       </optgroup>
-                    </select>
+                    </Select>
                   </td>
                   <td className="py-2 text-right">
                     <input

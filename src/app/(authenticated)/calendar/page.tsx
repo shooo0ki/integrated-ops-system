@@ -6,6 +6,7 @@ import type { ViewMode } from "@/shared/types/calendar";
 import { useCalendarData } from "@/frontend/hooks/calendar/use-calendar-data";
 import { WeekView } from "@/frontend/components/domain/calendar/week-view";
 import { MonthView } from "@/frontend/components/domain/calendar/month-view";
+import { CalendarSkeleton, InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 export default function CalendarPage() {
   const {
@@ -15,7 +16,7 @@ export default function CalendarPage() {
   } = useCalendarData();
 
   if (!anchor) {
-    return <div className="py-16 text-center text-slate-400 text-sm">読み込み中...</div>;
+    return <CalendarSkeleton />;
   }
 
   return (
@@ -146,7 +147,7 @@ export default function CalendarPage() {
 
       {/* ─ カレンダー本体 ─ */}
       {loading ? (
-        <div className="py-16 text-center text-sm text-slate-400">読み込み中...</div>
+        <InlineSkeleton />
       ) : view === "week" ? (
         <WeekView weekDays={weekDays} visible={visibleMembers} calData={calData} />
       ) : (

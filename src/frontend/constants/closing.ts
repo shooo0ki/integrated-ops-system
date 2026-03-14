@@ -1,4 +1,5 @@
 import type { ConfirmStatus } from "@/shared/types/closing";
+import { formatCurrency, buildMonths } from "@/shared/utils";
 
 export const confirmVariant: Record<ConfirmStatus, "default" | "warning" | "success" | "info" | "danger"> = {
   not_sent: "default", waiting: "warning", confirmed: "success", forced: "info",
@@ -18,16 +19,8 @@ export const receiptConfig: Record<string, { label: string; variant: "default" |
 
 export const NON_PROJECT_OPTIONS = ["プロジェクト外"];
 
-export function formatCurrency(v: number) {
-  return new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY" }).format(v);
-}
+export { formatCurrency };
 
 export function buildMonthOptions() {
-  const opts: string[] = [];
-  const base = new Date();
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    opts.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  }
-  return opts;
+  return buildMonths(6);
 }

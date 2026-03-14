@@ -13,6 +13,8 @@ import { Button } from "@/frontend/components/common/button";
 import { Input, Select } from "@/frontend/components/common/input";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { roleLabel } from "@/frontend/constants/common";
+import { MEMBER_STATUS_LABELS as statusLabel, SALARY_TYPE_LABELS as salaryTypeLabel, CONTRACT_STATUS_LABELS as contractStatusLabel, roleFromStatus } from "@/frontend/constants/members";
+import { DetailPageSkeleton } from "@/frontend/components/common/skeleton";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -63,24 +65,7 @@ interface MemberDetail {
   contracts: ContractItem[];
 }
 
-// ─── 表示用マップ ─────────────────────────────────────────
-
-const statusLabel: Record<string, string> = {
-  executive: "役員", employee: "社員",
-  intern_full: "インターン（長期）", intern_training: "インターン（研修）",
-  training_member: "研修生",
-};
-function roleFromStatus(status: string): string {
-  if (status === "executive") return "admin";
-  if (status === "employee") return "manager";
-  return "member";
-}
-const salaryTypeLabel: Record<string, string> = { monthly: "月給制", hourly: "時給制" };
 const levelStars = (n: number) => "★".repeat(n) + "☆".repeat(5 - n);
-const contractStatusLabel: Record<string, string> = {
-  draft: "下書き", sent: "送付済み", waiting_sign: "署名待ち",
-  completed: "完了", voided: "無効",
-};
 const fmt = (n: number) => n.toLocaleString("ja-JP") + "円";
 
 // ─── ページ ───────────────────────────────────────────────
@@ -221,9 +206,8 @@ export default function MemberDetailPage({
   }
 
   if (loading) {
-    return <div className="py-20 text-center text-slate-400 text-sm">読み込み中...</div>;
-  }
-  if (!member) return null;
+    return <DetailPageSkeleton rows={4} cols={4} />;
+  }  if (!member) return null;
 
   const byCategory = member.skills.reduce<Record<string, SkillItem[]>>((acc, s) => {
     if (!acc[s.categoryName]) acc[s.categoryName] = [];

@@ -1,4 +1,5 @@
 "use client";
+import { toJSTDateString } from "@/shared/utils";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "@/frontend/components/common/prefetch-link";
@@ -8,6 +9,7 @@ import { Card } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
 import { Badge } from "@/frontend/components/common/badge";
 import { useAuth } from "@/frontend/contexts/auth-context";
+import { DetailPageSkeleton } from "@/frontend/components/common/skeleton";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -62,7 +64,7 @@ export default function SkillEvaluationPage({
 
   const [today, setToday] = useState("");
   useEffect(() => {
-    setToday(new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }));
+    setToday(toJSTDateString());
   }, []);
 
   const [member, setMember] = useState<MemberInfo | null>(null);
@@ -179,7 +181,7 @@ export default function SkillEvaluationPage({
 
   // ─── 表示 ────────────────────────────────────────────────
 
-  if (loading) return <div className="py-20 text-center text-slate-400 text-sm">読み込み中...</div>;
+  if (loading) return <DetailPageSkeleton rows={6} cols={3} />;
   if (!member) return null;
 
   const activeCatData = categories.find((c) => c.id === activeCat);

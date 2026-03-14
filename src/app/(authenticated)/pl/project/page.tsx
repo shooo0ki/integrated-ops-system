@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import useSWR from "swr";
@@ -7,6 +8,8 @@ import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
 import { Badge } from "@/frontend/components/common/badge";
 import { useAuth } from "@/frontend/contexts/auth-context";
+import { DashboardPageSkeleton } from "@/frontend/components/common/skeleton";
+import { formatCurrency, buildMonths } from "@/shared/utils";
 
 const ProjectPLAreaChart = dynamic(
   () => import("@/frontend/components/domain/charts/pl-chart").then((m) => m.ProjectPLAreaChart),
@@ -40,23 +43,6 @@ interface ProjectTab {
   name: string;
   company: string;
   projectType: string;
-}
-
-// ─── ユーティリティ ──────────────────────────────────────
-
-function formatCurrency(v: number) {
-  return new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY" }).format(v);
-}
-
-// 過去6ヶ月の YYYY-MM リストを生成
-function buildMonths(n = 6): string[] {
-  const months: string[] = [];
-  const base = new Date();
-  for (let i = 0; i < n; i++) {
-    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  }
-  return months;
 }
 
 const MONTHS = buildMonths(6); // 新しい順（index 0 = 当月）
@@ -196,16 +182,8 @@ export default function ProjectPLPage() {
   }
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">プロジェクト別 PL</h1>
-        </div>
-        <div className="py-12 text-center text-sm text-slate-400">読み込み中...</div>
-      </div>
-    );
+    return <DashboardPageSkeleton kpiCount={4} rows={4} cols={4} />;
   }
-
   return (
     <div className="space-y-6">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
@@ -216,15 +194,14 @@ export default function ProjectPLPage() {
           <h1 className="text-xl font-bold text-slate-800">プロジェクト別 PL</h1>
           <p className="text-sm text-slate-500">プロジェクトごとの損益明細</p>
         </div>
-        <select
+        <Select
           value={selectedMonth}
           onChange={(e) => { setSelectedMonth(e.target.value); setSimMarkup(""); }}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {MONTHS.map((m) => (
             <option key={m} value={m}>{m}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {projects.length === 0 ? (

@@ -3,13 +3,14 @@
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { AdminClosingView } from "@/frontend/components/domain/closing/admin-closing-view";
 import { MemberBillingView } from "@/frontend/components/domain/closing/member-billing-view";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 export default function ClosingPage() {
   const { role, memberId, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
+      <InlineSkeleton />
     );
   }
 

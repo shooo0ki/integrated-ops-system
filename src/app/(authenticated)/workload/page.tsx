@@ -1,10 +1,12 @@
 "use client";
+import { Select } from "@/frontend/components/common/input";
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import Link from "@/frontend/components/common/prefetch-link";
 import { Card } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
+import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -88,15 +90,14 @@ export default function WorkloadPage() {
           <p className="text-sm text-slate-500">メンバー × プロジェクト 月間工数マトリクス</p>
         </div>
         <div className="flex gap-2">
-          <select
+          <Select
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
             {monthOptions.map((m) => (
               <option key={m} value={m}>{m.replace("-", "年")}月</option>
             ))}
-          </select>
+          </Select>
           {editMode ? (
             <Button variant="primary" size="sm" onClick={saveAll} disabled={saving}>
               {saving ? "保存中..." : "保存"}
@@ -115,7 +116,7 @@ export default function WorkloadPage() {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-400 text-sm">読み込み中...</div>
+        <InlineSkeleton />
       ) : (
         <Card noPadding>
           <div className="overflow-x-auto">
