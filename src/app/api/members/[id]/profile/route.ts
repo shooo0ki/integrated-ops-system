@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
-import { updateProfileSchema } from "@/lib/validations/member";
-import { sendEmail } from "@/lib/email";
+import { prisma } from "@/backend/db";
+import { getSessionUser } from "@/backend/auth";
+import { updateProfileSchema } from "@/backend/validations/member";
+import { sendEmail } from "@/backend/email";
 
 type Params = { params: Promise<{ id: string }> };
 

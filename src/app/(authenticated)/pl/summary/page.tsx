@@ -4,18 +4,18 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { TrendingUp, TrendingDown, ArrowRight, RefreshCw, CheckCircle, AlertCircle, Pencil, Save, X } from "lucide-react";
-import { Card, CardHeader, CardTitle } from "@/components/common/card";
-import { Badge } from "@/components/common/badge";
-import { Button } from "@/components/common/button";
-import { useAuth } from "@/contexts/auth-context";
+import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Badge } from "@/frontend/components/common/badge";
+import { Button } from "@/frontend/components/common/button";
+import { useAuth } from "@/frontend/contexts/auth-context";
 
 const PLChart = dynamic(
-  () => import("@/components/domain/charts/pl-chart").then((m) => m.PLChart),
+  () => import("@/frontend/components/domain/charts/pl-chart").then((m) => m.PLChart),
   { ssr: false, loading: () => <div className="h-[280px] animate-pulse rounded bg-slate-100" /> }
 );
 
 const PLTrendLine = dynamic(
-  () => import("@/components/domain/charts/pl-chart").then((m) => m.PLTrendLine),
+  () => import("@/frontend/components/domain/charts/pl-chart").then((m) => m.PLTrendLine),
   { ssr: false, loading: () => <div className="h-[200px] animate-pulse rounded bg-slate-100" /> }
 );
 

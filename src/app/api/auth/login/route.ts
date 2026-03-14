@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { compare } from "bcryptjs";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
-import { getSession, type AppRole } from "@/lib/auth";
+import { prisma } from "@/backend/db";
+import { getSession, type AppRole } from "@/backend/auth";
 
 const loginSchema = z.object({
   email: z.email(),

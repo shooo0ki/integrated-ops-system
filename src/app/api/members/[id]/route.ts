@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
-import { updateMemberSchema } from "@/lib/validations/member";
+import { prisma } from "@/backend/db";
+import { getSessionUser } from "@/backend/auth";
+import { updateMemberSchema } from "@/backend/validations/member";
 
 function unauthorized() {
   return NextResponse.json(

@@ -4,10 +4,10 @@ import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { preload } from "swr";
 import { Building2, Mail, Lock, AlertCircle } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
-import { fetcher } from "@/contexts/swr-config";
-import { Button } from "@/components/common/button";
-import { Input } from "@/components/common/input";
+import { useAuth } from "@/frontend/contexts/auth-context";
+import { fetcher } from "@/frontend/contexts/swr-config";
+import { Button } from "@/frontend/components/common/button";
+import { Input } from "@/frontend/components/common/input";
 
 export default function LoginPage() {
   const { login, isLoggedIn } = useAuth();

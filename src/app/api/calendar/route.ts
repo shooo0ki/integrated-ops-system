@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/backend/auth";
+import { prisma } from "@/backend/db";
 import { ProjectStatus } from "@prisma/client";
 
 const toHHMM = (dt: Date | null) => {

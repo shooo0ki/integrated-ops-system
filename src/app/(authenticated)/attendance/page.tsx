@@ -1,11 +1,11 @@
 "use client";
 
 import { Clock, CheckCircle, Building2, Monitor, ClipboardEdit, AlertCircle, ArrowRight } from "lucide-react";
-import { Card, CardHeader, CardTitle } from "@/components/common/card";
-import { Badge } from "@/components/common/badge";
-import { Button } from "@/components/common/button";
-import { statusVariant, STATUS_LABELS } from "@/constants/attendance";
-import { useAttendance } from "@/hooks/attendance/use-attendance";
+import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Badge } from "@/frontend/components/common/badge";
+import { Button } from "@/frontend/components/common/button";
+import { statusVariant, STATUS_LABELS } from "@/frontend/constants/attendance";
+import { useAttendance } from "@/frontend/hooks/attendance/use-attendance";
 
 export default function AttendancePage() {
   const {

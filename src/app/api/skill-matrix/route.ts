@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/backend/db";
+import { getSessionUser } from "@/backend/auth";
 
 // ─── GET /api/skill-matrix ────────────────────────────────
 // query: company (boost|salt2), categoryId, minLevel (1-5)

@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import { ArrowLeft, Download, CheckCircle, XCircle, Plus, Pencil } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
-import { Card, CardHeader, CardTitle } from "@/components/common/card";
-import { Badge } from "@/components/common/badge";
-import { Button } from "@/components/common/button";
+import { useAuth } from "@/frontend/contexts/auth-context";
+import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Badge } from "@/frontend/components/common/badge";
+import { Button } from "@/frontend/components/common/button";
 
 // ─── 型定義 ──────────────────────────────────────────────
 

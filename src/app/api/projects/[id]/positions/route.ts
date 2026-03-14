@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/backend/db";
+import { getSessionUser } from "@/backend/auth";
 
 type Params = { params: Promise<{ id: string }> };
 

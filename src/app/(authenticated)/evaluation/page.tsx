@@ -3,13 +3,13 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { notFound } from "next/navigation";
-import { useAuth } from "@/contexts/auth-context";
-import { buildMonths } from "@/lib/utils";
+import { useAuth } from "@/frontend/contexts/auth-context";
+import { buildMonths } from "@/shared/utils";
 
-import type { EvalRow, OwnEval } from "@/types/evaluation";
-import { StarBar, ScoreBadge } from "@/components/domain/evaluation/star-bar";
-import { EditModal } from "@/components/domain/evaluation/edit-modal";
-import type { ModalState } from "@/components/domain/evaluation/edit-modal";
+import type { EvalRow, OwnEval } from "@/shared/types/evaluation";
+import { StarBar, ScoreBadge } from "@/frontend/components/domain/evaluation/star-bar";
+import { EditModal } from "@/frontend/components/domain/evaluation/edit-modal";
+import type { ModalState } from "@/frontend/components/domain/evaluation/edit-modal";
 
 const MONTHS = buildMonths(12);
 

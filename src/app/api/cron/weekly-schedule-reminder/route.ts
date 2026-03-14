@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getSlackMention, sendSlack } from "@/lib/slack";
+import { prisma } from "@/backend/db";
+import { getSlackMention, sendSlack } from "@/backend/slack";
 
 // 翌週月曜〜日曜の範囲を返す
 function getNextWeekRange() {

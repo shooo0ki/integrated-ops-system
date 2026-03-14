@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
-import { sendSlack } from "@/lib/slack";
+import { getSessionUser } from "@/backend/auth";
+import { sendSlack } from "@/backend/slack";
 
 export async function POST() {
   const user = await getSessionUser();

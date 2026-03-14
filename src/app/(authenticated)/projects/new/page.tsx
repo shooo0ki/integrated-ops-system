@@ -2,11 +2,11 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import { ArrowLeft, Plus, Trash2, CheckCircle } from "lucide-react";
-import { Button } from "@/components/common/button";
-import { Input, Select } from "@/components/common/input";
-import { Card } from "@/components/common/card";
+import { Button } from "@/frontend/components/common/button";
+import { Input, Select } from "@/frontend/components/common/input";
+import { Card } from "@/frontend/components/common/card";
 
 interface PositionInput {
   positionName: string;

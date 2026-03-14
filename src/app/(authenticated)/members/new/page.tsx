@@ -2,11 +2,11 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
-import { Button } from "@/components/common/button";
-import { Input, Select } from "@/components/common/input";
-import { Card } from "@/components/common/card";
+import { Button } from "@/frontend/components/common/button";
+import { Input, Select } from "@/frontend/components/common/input";
+import { Card } from "@/frontend/components/common/card";
 
 // ステータスからロールを自動導出
 function roleFromStatus(status: string): string {

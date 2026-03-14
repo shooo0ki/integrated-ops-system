@@ -6,7 +6,7 @@ import {
   Clock, CalendarDays, FileText, TrendingUp, Wallet, Award,
   FolderOpen, BarChart2, Star, Users, Wrench, FileCheck, ArrowRight,
 } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/frontend/contexts/auth-context";
 
 interface NavItem {
   label: string;

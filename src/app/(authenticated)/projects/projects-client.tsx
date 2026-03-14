@@ -3,8 +3,8 @@
 import { memo, useState } from "react";
 import useSWR from "swr";
 import { FolderOpen, Users, Calendar, ArrowRight, Plus } from "lucide-react";
-import { Card } from "@/components/common/card";
-import { Badge } from "@/components/common/badge";
+import { Card } from "@/frontend/components/common/card";
+import { Badge } from "@/frontend/components/common/badge";
 
 // ─── 型定義 ──────────────────────────────────────────────
 

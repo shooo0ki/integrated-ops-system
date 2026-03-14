@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import { Star, Settings, ClipboardEdit } from "lucide-react";
-import { Button } from "@/components/common/button";
-import { useAuth } from "@/contexts/auth-context";
+import { Button } from "@/frontend/components/common/button";
+import { useAuth } from "@/frontend/contexts/auth-context";
 
-import type { SkillCategory as Category, MemberRow, MatrixData } from "@/types/skills";
-import { levelStyle, levelBg, PAGE_SIZE } from "@/constants/skills";
+import type { SkillCategory as Category, MemberRow, MatrixData } from "@/shared/types/skills";
+import { levelStyle, levelBg, PAGE_SIZE } from "@/frontend/constants/skills";
 
 // ─── スタイル ────────────────────────────────────────────
 

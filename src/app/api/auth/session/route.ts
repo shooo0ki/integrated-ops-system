@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/backend/auth";
 
 // Edge Runtime: コールドスタートなし、全世界のエッジノードで即時起動
 export const runtime = "edge";

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { type UserRole } from "@prisma/client";
-import { prisma } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
-import { createMemberSchema } from "@/lib/validations/member";
+import { prisma } from "@/backend/db";
+import { getSessionUser } from "@/backend/auth";
+import { createMemberSchema } from "@/backend/validations/member";
 
 // ─── 共通レスポンスヘルパー ────────────────────────────────
 function unauthorized() {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
-import { getTemplates } from "@/lib/docusign";
+import { getSessionUser } from "@/backend/auth";
+import { getTemplates } from "@/backend/docusign";
 
 function unauthorized() {
   return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "ログインが必要です" } }, { status: 401 });

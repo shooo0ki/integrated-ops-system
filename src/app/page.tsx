@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/frontend/contexts/auth-context";
 
 export default function HomePage() {
   const { isLoggedIn } = useAuth();

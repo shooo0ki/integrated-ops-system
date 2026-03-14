@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronRight, Save, CheckCircle, User } from "lucide-react";
-import { Card } from "@/components/common/card";
-import { Button } from "@/components/common/button";
-import { Badge } from "@/components/common/badge";
-import { useAuth } from "@/contexts/auth-context";
+import { Card } from "@/frontend/components/common/card";
+import { Button } from "@/frontend/components/common/button";
+import { Badge } from "@/frontend/components/common/badge";
+import { useAuth } from "@/frontend/contexts/auth-context";
 
 // ─── 型定義 ──────────────────────────────────────────────
 

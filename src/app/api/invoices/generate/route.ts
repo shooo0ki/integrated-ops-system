@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { generateInvoiceExcel } from "@/lib/invoice-excel";
+import { getSessionUser } from "@/backend/auth";
+import { prisma } from "@/backend/db";
+import { generateInvoiceExcel } from "@/backend/invoice-excel";
 
 function calcAmounts(items: { amount: number; taxable?: boolean }[]) {
   const taxableTotal = items.filter((i) => i.taxable !== false).reduce((s, i) => s + i.amount, 0);

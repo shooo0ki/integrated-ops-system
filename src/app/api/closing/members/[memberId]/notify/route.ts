@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { getSlackUserId, sendSlackDM } from "@/lib/slack";
+import { getSessionUser } from "@/backend/auth";
+import { prisma } from "@/backend/db";
+import { getSlackUserId, sendSlackDM } from "@/backend/slack";
 
 export async function PATCH(
   req: NextRequest,

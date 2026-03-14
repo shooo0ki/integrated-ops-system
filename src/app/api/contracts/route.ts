@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type MemberContractStatus } from "@prisma/client";
-import { prisma } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/backend/db";
+import { getSessionUser } from "@/backend/auth";
 import { z } from "zod";
 
 const newMemberContractSchema = z.object({

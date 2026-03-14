@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import { Search, Plus, User } from "lucide-react";
-import { Card } from "@/components/common/card";
-import { Button } from "@/components/common/button";
-import { roleLabel } from "@/constants/common";
+import { Card } from "@/frontend/components/common/card";
+import { Button } from "@/frontend/components/common/button";
+import { roleLabel } from "@/frontend/constants/common";
 
 // ─── 型定義 ──────────────────────────────────────────────
 

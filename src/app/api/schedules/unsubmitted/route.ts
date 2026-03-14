@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/backend/db";
+import { getSessionUser } from "@/backend/auth";
 
 // 翌週の月曜〜日曜を返す
 function getNextWeekRange(): { from: Date; to: Date; fromStr: string; toStr: string } {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
-import { updateCategorySchema } from "@/lib/validations/skill";
+import { prisma } from "@/backend/db";
+import { getSessionUser } from "@/backend/auth";
+import { updateCategorySchema } from "@/backend/validations/skill";
 
 function unauthorized() {
   return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "ログインが必要です" } }, { status: 401 });

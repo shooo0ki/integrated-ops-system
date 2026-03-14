@@ -3,16 +3,16 @@
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import {
   ArrowLeft, Mail, Phone, Calendar, Edit, Save, X,
   Wrench, Plus, Trash2, BookOpen, MapPin, CreditCard,
 } from "lucide-react";
-import { Badge } from "@/components/common/badge";
-import { Button } from "@/components/common/button";
-import { Input, Select } from "@/components/common/input";
-import { useAuth } from "@/contexts/auth-context";
-import { roleLabel } from "@/constants/common";
+import { Badge } from "@/frontend/components/common/badge";
+import { Button } from "@/frontend/components/common/button";
+import { Input, Select } from "@/frontend/components/common/input";
+import { useAuth } from "@/frontend/contexts/auth-context";
+import { roleLabel } from "@/frontend/constants/common";
 
 // ─── 型定義 ──────────────────────────────────────────────
 

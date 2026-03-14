@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/backend/auth";
+import { prisma } from "@/backend/db";
 
 export async function PATCH(
   req: NextRequest,

@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ArrowLeft, Check, X } from "lucide-react";
-import { Card, CardHeader, CardTitle } from "@/components/common/card";
-import { Button } from "@/components/common/button";
-import { Input } from "@/components/common/input";
-import { Badge } from "@/components/common/badge";
-import { useAuth } from "@/contexts/auth-context";
+import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Button } from "@/frontend/components/common/button";
+import { Input } from "@/frontend/components/common/input";
+import { Badge } from "@/frontend/components/common/badge";
+import { useAuth } from "@/frontend/contexts/auth-context";
 import { notFound } from "next/navigation";
 
 // ─── 型定義 ──────────────────────────────────────────────

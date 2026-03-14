@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
-import { Badge } from "@/components/common/badge";
-import { Button } from "@/components/common/button";
-import { Card, CardHeader, CardTitle } from "@/components/common/card";
-import { Modal } from "@/components/common/modal";
-import { Input, Select } from "@/components/common/input";
-import { useAuth } from "@/contexts/auth-context";
+import { Badge } from "@/frontend/components/common/badge";
+import { Button } from "@/frontend/components/common/button";
+import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Modal } from "@/frontend/components/common/modal";
+import { Input, Select } from "@/frontend/components/common/input";
+import { useAuth } from "@/frontend/contexts/auth-context";
 
 // ─── 型定義 ──────────────────────────────────────────────
 

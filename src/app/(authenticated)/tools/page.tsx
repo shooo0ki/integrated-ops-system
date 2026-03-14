@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import Link from "@/components/common/app-link";
+import Link from "@/frontend/components/common/app-link";
 import { Wrench, Plus, TrendingUp, Edit2, Trash2 } from "lucide-react";
-import { Card, CardHeader, CardTitle } from "@/components/common/card";
-import { Button } from "@/components/common/button";
-import { Modal } from "@/components/common/modal";
-import { Input, Select } from "@/components/common/input";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Button } from "@/frontend/components/common/button";
+import { Modal } from "@/frontend/components/common/modal";
+import { Input, Select } from "@/frontend/components/common/input";
+import { formatCurrency, formatDate } from "@/shared/utils";
 
 interface ToolEntry {
   id: string;

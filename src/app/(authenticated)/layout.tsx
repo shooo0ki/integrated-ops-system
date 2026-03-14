@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Header } from "@/components/layout/header";
-import { useAuth } from "@/contexts/auth-context";
+import { Sidebar } from "@/frontend/components/layout/sidebar";
+import { Header } from "@/frontend/components/layout/header";
+import { useAuth } from "@/frontend/contexts/auth-context";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading } = useAuth();

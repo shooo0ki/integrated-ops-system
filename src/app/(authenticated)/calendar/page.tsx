@@ -1,11 +1,11 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Users, FolderOpen, Building2, Monitor } from "lucide-react";
-import { COLORS } from "@/constants/calendar";
-import type { ViewMode } from "@/types/calendar";
-import { useCalendarData } from "@/hooks/calendar/use-calendar-data";
-import { WeekView } from "@/components/domain/calendar/week-view";
-import { MonthView } from "@/components/domain/calendar/month-view";
+import { COLORS } from "@/frontend/constants/calendar";
+import type { ViewMode } from "@/shared/types/calendar";
+import { useCalendarData } from "@/frontend/hooks/calendar/use-calendar-data";
+import { WeekView } from "@/frontend/components/domain/calendar/week-view";
+import { MonthView } from "@/frontend/components/domain/calendar/month-view";
 
 export default function CalendarPage() {
   const {

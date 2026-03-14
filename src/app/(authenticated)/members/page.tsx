@@ -1,4 +1,4 @@
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser } from "@/backend/auth";
 import { redirect } from "next/navigation";
 import MembersClient from "./members-client";
 

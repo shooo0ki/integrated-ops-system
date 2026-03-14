@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { Copy, CheckCircle, RotateCcw, Save, AlertTriangle } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
-import { Card } from "@/components/common/card";
-import { Button } from "@/components/common/button";
+import { useAuth } from "@/frontend/contexts/auth-context";
+import { Card } from "@/frontend/components/common/card";
+import { Button } from "@/frontend/components/common/button";
 
 type WorkType = "出社" | "オンライン" | "休み";
 

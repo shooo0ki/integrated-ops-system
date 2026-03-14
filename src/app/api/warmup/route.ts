@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/backend/db";
 
 // Warmup エンドポイント: Vercel Cron から5分ごとに呼ばれ、
 // Serverless 関数とDBコネクションを温め続ける

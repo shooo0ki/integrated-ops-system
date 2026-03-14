@@ -4,15 +4,15 @@ import { useState } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight, Save, CheckCircle, TrendingDown, TrendingUp } from "lucide-react";
-import { Card, CardHeader, CardTitle } from "@/components/common/card";
-import { Button } from "@/components/common/button";
-import { Badge } from "@/components/common/badge";
-import { useAuth } from "@/contexts/auth-context";
-import { formatCurrency, buildMonths } from "@/lib/utils";
+import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Button } from "@/frontend/components/common/button";
+import { Badge } from "@/frontend/components/common/badge";
+import { useAuth } from "@/frontend/contexts/auth-context";
+import { formatCurrency, buildMonths } from "@/shared/utils";
 import { notFound } from "next/navigation";
 
 const CashflowChart = dynamic(
-  () => import("@/components/domain/charts/cashflow-chart").then((m) => m.CashflowChart),
+  () => import("@/frontend/components/domain/charts/cashflow-chart").then((m) => m.CashflowChart),
   { ssr: false }
 );
 

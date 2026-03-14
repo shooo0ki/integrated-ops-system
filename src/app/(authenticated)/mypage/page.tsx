@@ -6,16 +6,16 @@ import {
   User, Mail, Phone, Calendar, Bell, Shield, ClipboardList,
   Award, Pencil, ChevronRight, MapPin, CreditCard, Star,
 } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
-import { Card, CardHeader, CardTitle } from "@/components/common/card";
-import { Badge } from "@/components/common/badge";
-import { Button } from "@/components/common/button";
-import { formatDate } from "@/lib/utils";
-import type { TodayAttendance, MyPageSummaryResponse } from "@/types/mypage";
-import { roleLabel } from "@/constants/common";
-import { ProfileEditModal } from "@/components/domain/mypage/profile-edit-modal";
-import { PasswordChangeModal } from "@/components/domain/mypage/password-change-modal";
-import { TodayAttendanceCard } from "@/components/domain/mypage/today-attendance-card";
+import { useAuth } from "@/frontend/contexts/auth-context";
+import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Badge } from "@/frontend/components/common/badge";
+import { Button } from "@/frontend/components/common/button";
+import { formatDate } from "@/shared/utils";
+import type { TodayAttendance, MyPageSummaryResponse } from "@/shared/types/mypage";
+import { roleLabel } from "@/frontend/constants/common";
+import { ProfileEditModal } from "@/frontend/components/domain/mypage/profile-edit-modal";
+import { PasswordChangeModal } from "@/frontend/components/domain/mypage/password-change-modal";
+import { TodayAttendanceCard } from "@/frontend/components/domain/mypage/today-attendance-card";
 
 const levelLabels = ["", "★", "★★", "★★★", "★★★★", "★★★★★"];
 

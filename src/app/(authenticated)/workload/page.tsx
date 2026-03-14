@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import Link from "@/components/common/app-link";
-import { Card } from "@/components/common/card";
-import { Button } from "@/components/common/button";
+import Link from "@/frontend/components/common/app-link";
+import { Card } from "@/frontend/components/common/card";
+import { Button } from "@/frontend/components/common/button";
 
 // ─── 型定義 ──────────────────────────────────────────────
 

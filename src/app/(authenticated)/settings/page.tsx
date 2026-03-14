@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Settings, Slack, Building2, Info, Save, CheckCircle, XCircle, Loader2 } from "lucide-react";
-import { Card, CardHeader, CardTitle } from "@/components/common/card";
-import { Button } from "@/components/common/button";
-import { Input } from "@/components/common/input";
-import { useAuth } from "@/contexts/auth-context";
+import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Button } from "@/frontend/components/common/button";
+import { Input } from "@/frontend/components/common/input";
+import { useAuth } from "@/frontend/contexts/auth-context";
 import { notFound } from "next/navigation";
 
 type Tab = "slack" | "company" | "system";

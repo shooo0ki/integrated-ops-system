@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type MemberContractStatus } from "@prisma/client";
-import { prisma } from "@/lib/db";
-import { verifyWebhookSignature } from "@/lib/docusign";
+import { prisma } from "@/backend/db";
+import { verifyWebhookSignature } from "@/backend/docusign";
 
 // DocuSign Connect Webhook ステータスマッピング
 const DOCUSIGN_STATUS_MAP: Record<string, MemberContractStatus> = {

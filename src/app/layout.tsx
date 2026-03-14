@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "@/contexts/auth-context";
-import { SWRProvider } from "@/contexts/swr-config";
+import { AuthProvider } from "@/frontend/contexts/auth-context";
+import { SWRProvider } from "@/frontend/contexts/swr-config";
 
 export const metadata: Metadata = {
   title: "統合業務管理システム",

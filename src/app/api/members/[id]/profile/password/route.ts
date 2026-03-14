@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { compare, hash } from "bcryptjs";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/backend/db";
+import { getSessionUser } from "@/backend/auth";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "現在のパスワードを入力してください"),

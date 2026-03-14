@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { generateInvoiceExcel } from "@/lib/invoice-excel";
-import { sendEmail } from "@/lib/email";
+import { getSessionUser } from "@/backend/auth";
+import { prisma } from "@/backend/db";
+import { generateInvoiceExcel } from "@/backend/invoice-excel";
+import { sendEmail } from "@/backend/email";
 
 // PATCH /api/invoices/[invoiceId]/accounting
 // admin/manager: LayerX へメール送付 → status を confirmed に更新

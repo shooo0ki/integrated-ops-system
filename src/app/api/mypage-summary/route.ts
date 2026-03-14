@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/backend/auth";
+import { prisma } from "@/backend/db";
 
 function scoreLabel(n: number) {
   return ["", "要改善", "普通以下", "標準", "優秀", "卓越"][n] ?? "—";
