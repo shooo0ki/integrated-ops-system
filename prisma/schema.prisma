@@ -119,6 +119,7 @@ model UserAccount {
   updatedConfigs       SystemConfig[]      @relation("ConfigUpdatedBy")
   auditLogs            AuditLog[]          @relation("AuditOperator")
   submittedEvaluations PersonnelEvaluation[] @relation("EvaluationEvaluator")
+  submittedSkillAssessments SkillAssessment[] @relation("SkillAssessmentEvaluator")
 
   @@map("user_accounts")
 }
@@ -161,6 +162,7 @@ model Member {
   contracts             MemberContract[]
   selfReports           MonthlySelfReport[]
   personnelEvaluations  PersonnelEvaluation[]
+  skillAssessments      SkillAssessment[]
   attendanceSummaries   MonthlyAttendanceSummary[]
 
   @@index([deletedAt])
@@ -626,7 +628,31 @@ model PersonnelEvaluation {
 }
 
 // ─────────────────────────────────────────────
-// 20. monthly_attendance_summaries（月次勤怠サマリー・非正規化）
+// 20. skill_assessments（スキル評価 5軸 — 人事評価とは別データ）
+// scores: { "1-1-a": "A"|"B"|"C"|"D"|null, ... }
+// ─────────────────────────────────────────────
+model SkillAssessment {
+  id           String   @id @default(uuid())
+  memberId     String   @map("member_id")
+  evaluatorId  String   @map("evaluator_id")
+  targetPeriod String   @map("target_period") @db.Char(7) // 'YYYY-MM'
+  scores       Json     // { itemId: grade|null } — 5軸スキルスコア
+  comment      String?  @db.VarChar(1000)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  member    Member      @relation(fields: [memberId], references: [id])
+  evaluator UserAccount @relation("SkillAssessmentEvaluator", fields: [evaluatorId], references: [id])
+
+  @@unique([memberId, targetPeriod])
+  @@index([memberId, targetPeriod(sort: Desc)])
+  @@index([evaluatorId])
+  @@map("skill_assessments")
+}
+
+// ─────────────────────────────────────────────
+// 21. monthly_attendance_summaries（月次勤怠サマリー・非正規化）
 // 勤怠書き込み時に更新。closing/notifyはこのテーブルを読む。
 // ─────────────────────────────────────────────
 model MonthlyAttendanceSummary {

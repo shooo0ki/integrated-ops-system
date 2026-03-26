@@ -5,7 +5,7 @@ export function localDateStr(d: Date): string {
 }
 
 function normalizeHour(h: number): number {
-  return h < START_HOUR ? h + 24 : h;
+  return h;
 }
 
 export function timeToY(t: string): number {

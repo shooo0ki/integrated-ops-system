@@ -31,14 +31,11 @@ export async function GET() {
   //   - prevRec に clockIn があり clockOut がない → 昨日から継続勤務中
   //   - prevRec の clockOut が JST今日の00:00以降 かつ JST 8:00未満 → 日またぎ退勤済み表示（早朝のみ）
   //     JST 8:00以降は新しい勤務日として扱い、今日の出勤を可能にする
-  const jstTodayMidnight = new Date(today.getTime() - 9 * 60 * 60 * 1000);
-  const jstHour = jstNow.getUTCHours(); // jstNow は UTC+9 済みなので UTCHours = JST hours
-  const isEarlyMorning = jstHour < 8;
-  const prevDayActive =
+  const prevDayCarryOver =
     prevRec?.clockIn &&
-    (!prevRec.clockOut || // 昨日出勤で未退勤（継続勤務中）
-     (prevRec.clockOut >= jstTodayMidnight && isEarlyMorning)); // 日またぎ退勤済み（8時前のみ）
-  const attendance = todayRec ?? (prevDayActive ? prevRec : null);
+    !prevRec.clockOut && // 昨日出勤で未退勤（継続勤務中）のみ
+    !todayRec; // 今日のレコードがまだなければ前日を表示
+  const attendance = todayRec ?? (prevDayCarryOver ? prevRec : null);
 
   if (!attendance) {
     return NextResponse.json(null);

@@ -31,10 +31,14 @@ export function EditModal({
   initial,
   onClose,
   onSaved,
+  apiEndpoint = "/api/evaluations",
+  title = "人事評価",
 }: {
   initial: ModalState;
   onClose: () => void;
   onSaved: (row: EvalRow) => void;
+  apiEndpoint?: string;
+  title?: string;
 }) {
   const [scores, setScores] = useState<EvalScores>({ ...initial.scores });
   const [comment, setComment] = useState(initial.comment);
@@ -52,7 +56,7 @@ export function EditModal({
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/evaluations", {
+      const res = await fetch(apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -88,7 +92,7 @@ export function EditModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
-        <h2 className="mb-1 text-lg font-bold text-slate-800">人事評価 — {initial.memberName}</h2>
+        <h2 className="mb-1 text-lg font-bold text-slate-800">{title} — {initial.memberName}</h2>
         <p className="mb-4 text-sm text-slate-500">対象月: {initial.targetPeriod}</p>
 
         {/* 総合スコア */}

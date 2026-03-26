@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useMemo } from "react";
 import {
-  HOUR_PX, START_HOUR, END_HOUR, GRID_H, TIME_W, DAY_MIN_W, HOURS, COLORS,
+  HOUR_PX, START_HOUR, END_HOUR, GRID_H, TIME_W, DAY_MIN_W, HOURS, COLORS, DEFAULT_SCROLL_HOUR,
 } from "@/frontend/constants/calendar";
 import type { CalMember, CalData, AttEntry, SchedEntry } from "@/shared/types/calendar";
 import type { WeekDay } from "./calendar-utils";
@@ -19,7 +19,7 @@ export function WeekView({ weekDays, visible, calData }: {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = Math.max(0, nowY() - 120);
+      scrollRef.current.scrollTop = (DEFAULT_SCROLL_HOUR - START_HOUR) * HOUR_PX;
     }
   }, []);
 
@@ -62,7 +62,8 @@ export function WeekView({ weekDays, visible, calData }: {
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div
         ref={scrollRef}
-        className="overflow-x-auto"
+        className="overflow-auto"
+        style={{ maxHeight: 14 * HOUR_PX + 60 }}
       >
         <div style={{ minWidth: TIME_W + DAY_MIN_W * 7 }}>
 

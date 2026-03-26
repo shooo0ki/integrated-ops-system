@@ -49,6 +49,13 @@ export async function POST(req: NextRequest) {
 
   const { amountExclTax, expenseAmount, amountInclTax } = calcAmounts(items);
 
+  // 勤怠サマリーから最新の勤務時間を取得
+  const summary = await prisma.monthlyAttendanceSummary.findUnique({
+    where: { memberId_targetMonth: { memberId: user.memberId, targetMonth } },
+    select: { totalMinutes: true },
+  });
+  const workHoursTotal = summary ? Math.round((summary.totalMinutes / 60) * 100) / 100 : 0;
+
   const existing = await prisma.invoice.findUnique({
     where: { memberId_targetMonth: { memberId: user.memberId, targetMonth } },
   });
@@ -60,6 +67,7 @@ export async function POST(req: NextRequest) {
     inv = await prisma.invoice.update({
       where: { id: existing.id },
       data: {
+        workHoursTotal,
         amountExclTax,
         expenseAmount,
         amountInclTax,
@@ -84,7 +92,7 @@ export async function POST(req: NextRequest) {
         invoiceNumber,
         memberId: user.memberId,
         targetMonth,
-        workHoursTotal: 0,
+        workHoursTotal,
         unitPrice: 0,
         amountExclTax,
         expenseAmount,

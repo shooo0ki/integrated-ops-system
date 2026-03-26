@@ -5,6 +5,7 @@ import useSWR from "swr";
 import {
   User, Mail, Phone, Calendar, Bell, Shield,
   Award, Pencil, MapPin, CreditCard, Star,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
@@ -17,8 +18,9 @@ import { ProfileEditModal } from "@/frontend/components/domain/mypage/profile-ed
 import { PasswordChangeModal } from "@/frontend/components/domain/mypage/password-change-modal";
 import { TodayAttendanceCard } from "@/frontend/components/domain/mypage/today-attendance-card";
 import { MyPageSkeleton } from "@/frontend/components/common/skeleton";
-import { EVALUATION_AXES } from "@/shared/constants/evaluation-taxonomy";
-import { AvgBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
+import { EVALUATION_AXES, type ScoreGrade } from "@/shared/constants/evaluation-taxonomy";
+import { AvgBadge, GradeBadge, avgToGradeLabel } from "@/frontend/components/domain/evaluation/evaluation-score-display";
+import { Select } from "@/frontend/components/common/input";
 
 const levelLabels = ["", "★", "★★", "★★★", "★★★★", "★★★★★"];
 
@@ -26,6 +28,8 @@ export default function MyPage() {
   const { memberId, role } = useAuth();
   const [editingProfile, setEditingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [evalMonth, setEvalMonth] = useState<string>("");
+  const [expandedEvalId, setExpandedEvalId] = useState<string | null>(null);
 
   const { data: summaryData, isLoading: mypageLoading, mutate: mutateMypage } = useSWR<MyPageSummaryResponse | null>(
     memberId ? "/api/mypage-summary" : null
@@ -34,7 +38,8 @@ export default function MyPage() {
   useSWR<TodayAttendance | null>("/api/attendances/today");
 
   const evaluations = summaryData?.evaluations ?? [];
-  const evaluationComments = evaluations.filter((ev) => ev.comment).slice(0, 3);
+  const evalMonths = Array.from(new Set(evaluations.map((ev) => ev.targetPeriod))).sort().reverse();
+  const filteredEvals = evalMonth ? evaluations.filter((ev) => ev.targetPeriod === evalMonth) : evaluations;
 
   if (mypageLoading) return <MyPageSkeleton />;
   const memberDetail = summaryData?.member ?? null;
@@ -191,58 +196,101 @@ export default function MyPage() {
       {/* ─── 人事評価（5軸） ─── */}
       <Card>
         <CardHeader>
-          <CardTitle>
-            <Award size={15} className="inline mr-1" />
-            人事評価
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              <Award size={15} className="inline mr-1" />
+              人事評価
+            </CardTitle>
+            {evalMonths.length > 0 && (
+              <Select
+                value={evalMonth}
+                onChange={(e) => { setEvalMonth(e.target.value); setExpandedEvalId(null); }}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none"
+              >
+                <option value="">全期間</option>
+                {evalMonths.map((m) => (
+                  <option key={m} value={m}>{m.replace("-", "年")}月</option>
+                ))}
+              </Select>
+            )}
+          </div>
         </CardHeader>
         {evaluations.length === 0 ? (
           <p className="text-sm text-slate-500">人事評価の記録がまだありません。</p>
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-100">
-                  <tr className="text-xs text-slate-500">
-                    <th className="py-2 text-left font-medium">対象期間</th>
-                    {EVALUATION_AXES.map((axis) => (
-                      <th key={axis.id} className="py-2 text-center font-medium whitespace-nowrap">
-                        {axis.id}. {axis.key.charAt(0).toUpperCase() + axis.key.slice(1, 5)}
-                      </th>
-                    ))}
-                    <th className="py-2 text-center font-medium">総合</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {evaluations.map((ev) => (
-                    <tr key={ev.id} className="border-b border-slate-50 hover:bg-slate-50">
-                      <td className="py-2 font-medium text-slate-800">
-                        {ev.targetPeriod.replace("-", "年")}月
-                      </td>
+          <div className="space-y-3">
+            {filteredEvals.map((ev) => {
+              const isExpanded = expandedEvalId === ev.id;
+              return (
+                <div key={ev.id} className="rounded-lg border border-slate-100">
+                  {/* サマリー行 */}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <span className="text-sm font-medium text-slate-800 min-w-[80px]">
+                      {ev.targetPeriod.replace("-", "年")}月
+                    </span>
+                    <div className="flex items-center gap-2 flex-1 flex-wrap">
                       {EVALUATION_AXES.map((axis) => (
-                        <td key={axis.id} className="py-2 text-center">
+                        <div key={axis.id} className="flex items-center gap-1 text-xs">
+                          <span className="text-slate-400">{axis.id}.</span>
                           <AvgBadge avg={ev.axisAverages[axis.key] ?? null} />
-                        </td>
+                        </div>
                       ))}
-                      <td className="py-2 text-center font-semibold text-blue-700">
-                        {ev.totalAvg != null ? ev.totalAvg.toFixed(2) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {evaluationComments.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {evaluationComments.map((ev) => (
-                  <div key={ev.id} className="rounded-md bg-blue-50 px-3 py-2 text-sm">
-                    <p className="text-xs text-blue-600 font-medium mb-0.5">{ev.targetPeriod.replace("-", "年")}月 コメント</p>
-                    <p className="text-slate-700">{ev.comment}</p>
+                      <div className="flex items-center gap-1 text-xs ml-1">
+                        <span className="text-slate-500 font-medium">総合:</span>
+                        <span className="font-semibold text-blue-700">
+                          {ev.totalAvg != null ? avgToGradeLabel(ev.totalAvg) : "—"}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setExpandedEvalId(isExpanded ? null : ev.id)}
+                      className="rounded-md px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 flex items-center gap-1"
+                    >
+                      詳細
+                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-          </>
+
+                  {/* コメント */}
+                  {ev.comment && (
+                    <div className="mx-4 mb-3 rounded-md bg-blue-50 px-3 py-2 text-sm">
+                      <p className="text-xs text-blue-600 font-medium mb-0.5">コメント</p>
+                      <p className="text-slate-700">{ev.comment}</p>
+                    </div>
+                  )}
+
+                  {/* 詳細: 小項目ごとの評価 */}
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 px-4 py-3 space-y-3">
+                      {EVALUATION_AXES.map((axis) => (
+                        <div key={axis.id}>
+                          <p className="text-xs font-semibold text-slate-600 mb-1.5">
+                            {axis.id}. {axis.label}
+                          </p>
+                          {axis.subCategories.map((sc) => (
+                            <div key={sc.id} className="mb-2">
+                              <p className="text-[10px] text-slate-400 mb-1">{sc.label}</p>
+                              <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+                                {sc.items.map((item) => {
+                                  const grade = (ev.scores[item.id] as ScoreGrade) ?? null;
+                                  return (
+                                    <div key={item.id} className="flex items-center justify-between rounded bg-slate-50 px-2 py-1">
+                                      <span className="text-xs text-slate-600 truncate mr-1">{item.label}</span>
+                                      <GradeBadge grade={grade} />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </Card>
 

@@ -1,10 +1,11 @@
 export const HOUR_PX    = 40;
-export const START_HOUR = 8;
-export const END_HOUR   = 22;
-export const GRID_H     = (END_HOUR - START_HOUR) * HOUR_PX; // 14 * 40 = 560
+export const START_HOUR = 0;
+export const END_HOUR   = 24;
+export const GRID_H     = (END_HOUR - START_HOUR) * HOUR_PX; // 24 * 40 = 960
 export const TIME_W     = 52;
 export const DAY_MIN_W  = 120;
-export const HOURS      = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i); // 8..22
+export const HOURS      = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i); // 0..24
+export const DEFAULT_SCROLL_HOUR = 8; // デフォルトスクロール位置
 
 export const DOW_JP = ["日", "月", "火", "水", "木", "金", "土"];
 

@@ -23,7 +23,7 @@ const MONTHS = buildMonths(12);
 const GRADE_BG: Record<string, string> = {
   A: "bg-green-50",
   B: "bg-blue-50",
-  C: "bg-slate-50",
+  C: "bg-amber-50",
   D: "bg-red-50",
 };
 
@@ -43,7 +43,7 @@ export default function SkillsPage() {
   const [month, setMonth] = useState(MONTHS[0]);
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  const adminKey = (isAdmin || isManager) ? `/api/evaluations?month=${month}` : null;
+  const adminKey = (isAdmin || isManager) ? `/api/skills?month=${month}` : null;
   const { data: rowsData, isLoading: rowsLoading, error: rowsError } = useSWR<EvalRow[]>(adminKey);
   const rows = rowsData ?? [];
   const loading = authLoading || rowsLoading || (adminKey != null && rowsData === undefined && !rowsError);
@@ -54,7 +54,7 @@ export default function SkillsPage() {
       memberId: row.memberId,
       memberName: row.memberName,
       targetPeriod: month,
-      scores: row.scores ?? {},
+      scores: row.scores ?? row.prevScores ?? {},
       comment: row.comment ?? "",
     });
   }
@@ -128,7 +128,6 @@ export default function SkillsPage() {
                     </th>
                   );
                 })}
-                {canEdit && <th rowSpan={2} className="border border-slate-200 px-2 py-2 bg-slate-50 min-w-[60px]" />}
               </tr>
               {/* 小項目ヘッダ行 */}
               <tr className="bg-white">
@@ -147,7 +146,17 @@ export default function SkillsPage() {
               {rows.map((row) => (
                 <tr key={row.memberId} className="hover:bg-slate-50">
                   <td className="sticky left-0 z-10 bg-white border border-slate-200 px-4 py-2 font-medium text-slate-700 whitespace-nowrap">
-                    {row.memberName}
+                    <span className="inline-flex items-center gap-2">
+                      {canEdit && (
+                        <button
+                          onClick={() => openModal(row)}
+                          className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                        >
+                          {row.evaluated ? "編集" : "評価"}
+                        </button>
+                      )}
+                      {row.memberName}
+                    </span>
                   </td>
                   {row.evaluated ? (
                     ALL_ITEMS.map((item) => {
@@ -166,16 +175,6 @@ export default function SkillsPage() {
                       未評価
                     </td>
                   )}
-                  {canEdit && (
-                    <td className="border border-slate-100 px-2 py-2 text-center">
-                      <button
-                        onClick={() => openModal(row)}
-                        className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                      >
-                        {row.evaluated ? "編集" : "評価"}
-                      </button>
-                    </td>
-                  )}
                 </tr>
               ))}
             </tbody>
@@ -188,6 +187,8 @@ export default function SkillsPage() {
           initial={modal}
           onClose={() => setModal(null)}
           onSaved={() => {}}
+          apiEndpoint="/api/skills"
+          title="スキル評価"
         />
       )}
     </div>

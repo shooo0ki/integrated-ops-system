@@ -14,6 +14,7 @@ export type EvalRow = {
   totalAvg?: number | null;
   comment?: string;
   updatedAt?: string;
+  prevScores?: EvalScores | null; // 前月スコア（未評価時のデフォルト値用）
 };
 
 /** 一般ユーザー自分の評価 */

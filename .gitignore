@@ -17,3 +17,5 @@ out/
 # その他
 *.log
 .vercel
+.claude/settings.local.json
+tsconfig.tsbuildinfo
