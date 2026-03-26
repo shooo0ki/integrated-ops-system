@@ -1,253 +1,194 @@
 "use client";
 import { Select } from "@/frontend/components/common/input";
 
-import { useState, useEffect, useMemo } from "react";
-import Link from "@/frontend/components/common/prefetch-link";
-import { Star, Settings, ClipboardEdit } from "lucide-react";
-import { Button } from "@/frontend/components/common/button";
+import { useState } from "react";
+import useSWR from "swr";
 import { useAuth } from "@/frontend/contexts/auth-context";
-
-import type { SkillCategory as Category, MemberRow, MatrixData } from "@/shared/types/skills";
-import { levelStyle, levelBg, PAGE_SIZE } from "@/frontend/constants/skills";
+import { buildMonths } from "@/shared/utils";
+import {
+  EVALUATION_AXES,
+  GRADES,
+  GRADE_LABELS,
+  type EvalScores,
+  type ScoreGrade,
+} from "@/shared/constants/evaluation-taxonomy";
+import type { EvalRow } from "@/shared/types/evaluation";
+import { GradeBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
+import { EditModal } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
+import type { ModalState } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
-// ─── スタイル ────────────────────────────────────────────
+const MONTHS = buildMonths(12);
 
-function LevelCell({ level }: { level: number | null }) {
-  if (level === null) {
-    return <td className="border border-slate-100 px-2 py-2 text-center text-xs text-slate-300">—</td>;
-  }
-  return (
-    <td className={`border border-slate-100 px-2 py-2 text-center text-xs ${levelBg[level]}`}>
-      <span className={`inline-block rounded px-1.5 py-0.5 ${levelStyle[level]}`}>{level}</span>
-    </td>
-  );
-}
+const GRADE_BG: Record<string, string> = {
+  A: "bg-green-50",
+  B: "bg-blue-50",
+  C: "bg-slate-50",
+  D: "bg-red-50",
+};
 
-// ─── ページ ───────────────────────────────────────────────
+// 全小項目をフラット化
+const ALL_ITEMS = EVALUATION_AXES.flatMap((axis) =>
+  axis.subCategories.flatMap((sc) =>
+    sc.items.map((item) => ({ ...item, axisId: axis.id, axisKey: axis.key, scId: sc.id, scLabel: sc.label }))
+  )
+);
 
 export default function SkillsPage() {
-  const { role } = useAuth();
-  const canEval = role === "admin" || role === "manager";
+  const { role, isLoading: authLoading } = useAuth();
+  const isAdmin = role === "admin";
+  const isManager = role === "manager";
+  const canEdit = isAdmin;
 
-  const [data, setData] = useState<MatrixData | null>(null);
-  const [allCategories, setAllCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [month, setMonth] = useState(MONTHS[0]);
+  const [modal, setModal] = useState<ModalState | null>(null);
 
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [minLevel, setMinLevel] = useState(0);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const adminKey = (isAdmin || isManager) ? `/api/evaluations?month=${month}` : null;
+  const { data: rowsData, isLoading: rowsLoading, error: rowsError } = useSWR<EvalRow[]>(adminKey);
+  const rows = rowsData ?? [];
+  const loading = authLoading || rowsLoading || (adminKey != null && rowsData === undefined && !rowsError);
 
-  // カテゴリ一覧（フィルタ用）は初回のみ取得
-  useEffect(() => {
-    fetch("/api/skill-categories")
-      .then((r) => r.json())
-      .then(setAllCategories)
-      .catch(() => {});
-  }, []);
-
-  // マトリクスデータ（フィルタ変更ごとに再取得）
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (categoryFilter) params.set("categoryId", categoryFilter);
-    if (minLevel > 0) params.set("minLevel", String(minLevel));
-
-    setLoading(true);
-    setVisibleCount(PAGE_SIZE);
-    fetch(`/api/skill-matrix?${params}`)
-      .then((r) => r.json())
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, [categoryFilter, minLevel]);
-
-  const allSkills = useMemo(
-    () => data?.categories.flatMap((c) => c.skills.map((s) => ({ ...s, categoryId: c.id }))) ?? [],
-    [data]
-  );
-
-  const skillStats = useMemo(() => {
-    const map = new Map<string, { avg: string; maxLevel: number }>();
-    for (const cat of data?.categories ?? []) {
-      for (const skill of cat.skills) {
-        const levels = (data?.members ?? [])
-          .map((m) => data?.levelMap[m.id]?.[skill.id] ?? 0)
-          .filter((l) => l > 0);
-        map.set(skill.id, {
-          avg: levels.length > 0 ? (levels.reduce((s, l) => s + l, 0) / levels.length).toFixed(1) : "—",
-          maxLevel: levels.length > 0 ? Math.max(...levels) : 0,
-        });
-      }
-    }
-    return map;
-  }, [data]);
+  function openModal(row: EvalRow) {
+    if (!canEdit) return;
+    setModal({
+      memberId: row.memberId,
+      memberName: row.memberName,
+      targetPeriod: month,
+      scores: row.scores ?? {},
+      comment: row.comment ?? "",
+    });
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800">スキルマトリクス</h1>
-          <p className="text-sm text-slate-500">全メンバーのスキルレベル一覧</p>
+          <p className="text-sm text-slate-500">5軸評価の全メンバー一覧</p>
         </div>
-        {role === "admin" && (
-          <Link href="/skills/settings">
-            <Button variant="outline" size="sm">
-              <Settings size={14} /> スキル設定
-            </Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-slate-600">月:</label>
+          <Select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none"
+          >
+            {MONTHS.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xs font-medium text-slate-500">レベル:</span>
-        {[
-          { v: "—", label: "未評価", cls: "bg-slate-100 text-slate-400" },
-          { v: "1", label: "1: 初学者", cls: "bg-slate-200 text-slate-600" },
-          { v: "2", label: "2: 基礎", cls: "bg-yellow-100 text-yellow-700" },
-          { v: "3", label: "3: 実務可", cls: "bg-green-100 text-green-700" },
-          { v: "4", label: "4: 熟練", cls: "bg-blue-100 text-blue-700" },
-          { v: "5", label: "5: エキスパート", cls: "bg-purple-100 text-purple-700 font-bold" },
-        ].map((item) => (
-          <span key={item.v} className="flex items-center gap-1 text-xs">
-            <span className={`rounded px-1.5 py-0.5 ${item.cls}`}>{item.v}</span>
-            <span className="text-slate-500">{item.label}</span>
+        <span className="text-xs font-medium text-slate-500">評価:</span>
+        {GRADES.map((g) => (
+          <span key={g} className="flex items-center gap-1 text-xs">
+            <GradeBadge grade={g} />
+            <span className="text-slate-500">{GRADE_LABELS[g]}</span>
           </span>
         ))}
+        <span className="flex items-center gap-1 text-xs">
+          <GradeBadge grade={null} />
+          <span className="text-slate-500">未評価</span>
+        </span>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <Select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-        >
-          <option value="">全カテゴリ</option>
-          {allCategories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </Select>
-        <Select
-          value={minLevel}
-          onChange={(e) => setMinLevel(Number(e.target.value))}
-        >
-          <option value={0}>最低レベル: 指定なし</option>
-          <option value={2}>Lv2 以上</option>
-          <option value={3}>Lv3 以上</option>
-          <option value={4}>Lv4 以上</option>
-          <option value={5}>Lv5 のみ</option>
-        </Select>
-      </div>
-
-      {/* Matrix table */}
-      {loading ? (
+      {/* Matrix */}
+      {rowsError ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          データ取得に失敗しました: {rowsError.message}
+        </div>
+      ) : loading ? (
         <InlineSkeleton />
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-slate-400">メンバーが見つかりません</p>
       ) : (
-        <>
-          <div className="rounded-xl border border-slate-200 bg-white overflow-auto">
-            <table className="text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-50">
-                  <th className="sticky left-0 z-10 bg-slate-50 border border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600 min-w-[160px]">
-                    メンバー
-                  </th>
-                  {data?.categories.map((cat) => (
+        <div className="rounded-xl border border-slate-200 bg-white overflow-auto">
+          <table className="text-sm border-collapse">
+            <thead>
+              {/* 軸ヘッダ行 */}
+              <tr className="bg-slate-50">
+                <th
+                  rowSpan={2}
+                  className="sticky left-0 z-10 bg-slate-50 border border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600 min-w-[140px]"
+                >
+                  メンバー
+                </th>
+                {EVALUATION_AXES.map((axis) => {
+                  const itemCount = axis.subCategories.reduce((s, sc) => s + sc.items.length, 0);
+                  return (
                     <th
-                      key={cat.id}
-                      colSpan={cat.skills.length || 1}
+                      key={axis.id}
+                      colSpan={itemCount}
                       className="border border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-600 bg-slate-100"
                     >
-                      {cat.name}
+                      {axis.id}. {axis.key.charAt(0).toUpperCase() + axis.key.slice(1)}
                     </th>
-                  ))}
-                </tr>
-                <tr className="bg-white">
-                  <th className="sticky left-0 z-10 bg-white border border-slate-200 px-4 py-2 text-left text-xs text-slate-400">
-                    スキル →
+                  );
+                })}
+                {canEdit && <th rowSpan={2} className="border border-slate-200 px-2 py-2 bg-slate-50 min-w-[60px]" />}
+              </tr>
+              {/* 小項目ヘッダ行 */}
+              <tr className="bg-white">
+                {ALL_ITEMS.map((item) => (
+                  <th
+                    key={item.id}
+                    className="border border-slate-100 px-1.5 py-1.5 text-center text-[10px] font-medium text-slate-500 whitespace-nowrap min-w-[56px]"
+                    title={`${item.scLabel} > ${item.label}`}
+                  >
+                    {item.id}
                   </th>
-                  {allSkills.map((skill) => (
-                    <th
-                      key={skill.id}
-                      className="border border-slate-100 px-2 py-2 text-center text-xs font-medium text-slate-600 whitespace-nowrap min-w-[72px]"
-                    >
-                      {skill.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(data?.members ?? []).slice(0, visibleCount).map((member) => (
-                  <tr key={member.id} className="hover:bg-slate-50">
-                    <td className="sticky left-0 z-10 bg-white border border-slate-200 px-4 py-2 font-medium">
-                      <div className="flex items-center gap-2">
-                        <Link href={`/members/${member.id}`} className="text-slate-700 hover:text-blue-600">
-                          {member.name}
-                        </Link>
-                        {canEval && (
-                          <Link
-                            href={`/skills/evaluation/${member.id}`}
-                            className="rounded p-0.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600"
-                            title="評価入力"
-                          >
-                            <ClipboardEdit size={13} />
-                          </Link>
-                        )}
-                      </div>
-                    </td>
-                    {allSkills.map((skill) => {
-                      const level = data?.levelMap[member.id]?.[skill.id] ?? null;
-                      return <LevelCell key={skill.id} level={level} />;
-                    })}
-                  </tr>
                 ))}
-              </tbody>
-            </table>
-            {(data?.members.length ?? 0) === 0 && (
-              <div className="py-12 text-center text-sm text-slate-400">
-                <Star size={24} className="mx-auto mb-2 text-slate-300" />
-                条件に該当するメンバーがいません
-              </div>
-            )}
-            {(data?.members.length ?? 0) > visibleCount && (
-              <div className="flex items-center justify-center gap-3 border-t border-slate-100 py-3 text-xs text-slate-500">
-                <span>{visibleCount}/{data!.members.length}名表示中</span>
-                <button
-                  onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
-                  className="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  もっと見る
-                </button>
-              </div>
-            )}
-          </div>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.memberId} className="hover:bg-slate-50">
+                  <td className="sticky left-0 z-10 bg-white border border-slate-200 px-4 py-2 font-medium text-slate-700 whitespace-nowrap">
+                    {row.memberName}
+                  </td>
+                  {row.evaluated ? (
+                    ALL_ITEMS.map((item) => {
+                      const grade = (row.scores?.[item.id] as ScoreGrade) ?? null;
+                      return (
+                        <td
+                          key={item.id}
+                          className={`border border-slate-100 px-1 py-1.5 text-center ${grade ? GRADE_BG[grade] ?? "" : ""}`}
+                        >
+                          <GradeBadge grade={grade} />
+                        </td>
+                      );
+                    })
+                  ) : (
+                    <td colSpan={ALL_ITEMS.length} className="border border-slate-100 px-4 py-2 text-center text-slate-400 text-xs">
+                      未評価
+                    </td>
+                  )}
+                  {canEdit && (
+                    <td className="border border-slate-100 px-2 py-2 text-center">
+                      <button
+                        onClick={() => openModal(row)}
+                        className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                      >
+                        {row.evaluated ? "編集" : "評価"}
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-          {/* Per-skill summary */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {(data?.categories ?? []).map((cat) => (
-              <div key={cat.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                <h3 className="mb-3 text-sm font-semibold text-slate-700">{cat.name}</h3>
-                <div className="space-y-2">
-                  {cat.skills.map((skill) => {
-                    const stats = skillStats.get(skill.id) ?? { avg: "—", maxLevel: 0 };
-                    const { avg, maxLevel } = stats;
-                    return (
-                      <div key={skill.id} className="flex items-center justify-between">
-                        <span className="text-xs text-slate-600">{skill.name}</span>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-slate-400">avg {avg}</span>
-                          {maxLevel > 0 && (
-                            <span className={`rounded px-1.5 py-0.5 ${levelStyle[maxLevel]}`}>
-                              max {maxLevel}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
+      {modal && (
+        <EditModal
+          initial={modal}
+          onClose={() => setModal(null)}
+          onSaved={() => {}}
+        />
       )}
     </div>
   );
