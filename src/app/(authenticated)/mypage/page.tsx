@@ -22,8 +22,6 @@ import { EVALUATION_AXES, type ScoreGrade } from "@/shared/constants/evaluation-
 import { AvgBadge, GradeBadge, avgToGradeLabel } from "@/frontend/components/domain/evaluation/evaluation-score-display";
 import { Select } from "@/frontend/components/common/input";
 
-const levelLabels = ["", "★", "★★", "★★★", "★★★★", "★★★★★"];
-
 export default function MyPage() {
   const { memberId, role } = useAuth();
   const [editingProfile, setEditingProfile] = useState(false);
@@ -40,6 +38,7 @@ export default function MyPage() {
   const evaluations = summaryData?.evaluations ?? [];
   const evalMonths = Array.from(new Set(evaluations.map((ev) => ev.targetPeriod))).sort().reverse();
   const filteredEvals = evalMonth ? evaluations.filter((ev) => ev.targetPeriod === evalMonth) : evaluations;
+  const skillAssessment = summaryData?.skillAssessment ?? null;
 
   if (mypageLoading) return <MyPageSkeleton />;
   const memberDetail = summaryData?.member ?? null;
@@ -154,7 +153,7 @@ export default function MyPage() {
       {/* ─── 本日の勤怠（SWR独立） ─── */}
       <TodayAttendanceCard />
 
-      {/* ─── スキル ─── */}
+      {/* ─── スキル（5軸） ─── */}
       <Card>
         <CardHeader>
           <CardTitle>
@@ -162,33 +161,42 @@ export default function MyPage() {
             スキル
           </CardTitle>
         </CardHeader>
-        {memberDetail.skills.length === 0 ? (
+        {!skillAssessment ? (
           <p className="text-sm text-slate-500">スキル評価がまだ登録されていません。</p>
         ) : (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {memberDetail.skills.map((skill) => (
-              <div key={skill.id} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-slate-400">{skill.categoryName}</p>
-                    <p className="text-sm font-medium text-slate-800">{skill.skillName}</p>
+          <div className="space-y-3">
+            <p className="text-xs text-slate-400">対象月: {skillAssessment.targetPeriod.replace("-", "年")}月</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {EVALUATION_AXES.map((axis) => (
+                <div key={axis.id} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-800">
+                      {axis.id}. {axis.label}
+                    </p>
+                    <AvgBadge avg={skillAssessment.axisAverages[axis.key] ?? null} />
                   </div>
-                  <span className="text-xs text-amber-500 font-medium">{levelLabels[skill.level]}</span>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {axis.subCategories.flatMap((sc) =>
+                      sc.items.map((item) => {
+                        const grade = (skillAssessment.scores[item.id] as ScoreGrade) ?? null;
+                        return (
+                          <div key={item.id} title={item.label} className="flex items-center gap-0.5">
+                            <span className="text-[10px] text-slate-400">{item.id}</span>
+                            <GradeBadge grade={grade} />
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-                <div className="mt-1.5 flex gap-0.5">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <div
-                      key={n}
-                      className={`h-1.5 flex-1 rounded-full ${n <= skill.level ? "bg-blue-500" : "bg-slate-200"}`}
-                    />
-                  ))}
-                </div>
-                {skill.memo && (
-                  <p className="mt-1 text-xs text-slate-400 truncate">{skill.memo}</p>
-                )}
-                <p className="mt-0.5 text-xs text-slate-300">評価日: {formatDate(skill.evaluatedAt)}</p>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className="flex items-center justify-between rounded-md bg-blue-50 px-3 py-2">
+              <span className="text-sm font-medium text-slate-700">総合</span>
+              <span className="font-semibold text-blue-700">
+                {skillAssessment.totalAvg != null ? avgToGradeLabel(skillAssessment.totalAvg) : "—"}
+              </span>
+            </div>
           </div>
         )}
       </Card>

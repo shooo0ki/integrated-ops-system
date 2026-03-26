@@ -23,7 +23,7 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) return unauthorized();
 
-  const [member, assignments, evaluations] = await Promise.all([
+  const [member, assignments, evaluations, latestSkillAssessment] = await Promise.all([
     prisma.member.findFirst({
       where: { id: user.memberId, deletedAt: null },
       select: {
@@ -72,6 +72,11 @@ export async function GET() {
       orderBy: { targetPeriod: "desc" },
       take: 6,
     }),
+    prisma.skillAssessment.findFirst({
+      where: { memberId: user.memberId },
+      orderBy: { targetPeriod: "desc" },
+      select: { targetPeriod: true, scores: true, updatedAt: true },
+    }),
   ]);
 
   if (!member) return apiError("NOT_FOUND", "メンバーが見つかりません", 404);
@@ -108,6 +113,15 @@ export async function GET() {
         workloadHours: a.workloadHours,
       })),
     },
+    skillAssessment: latestSkillAssessment ? (() => {
+      const scores = (latestSkillAssessment.scores ?? {}) as EvalScores;
+      return {
+        targetPeriod: latestSkillAssessment.targetPeriod,
+        scores,
+        axisAverages: buildAxisAverages(scores),
+        totalAvg: calcTotalAverage(scores),
+      };
+    })() : null,
     evaluations: evaluations.map((ev) => {
       const scores = (ev.scores ?? {}) as EvalScores;
       return {

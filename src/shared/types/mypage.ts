@@ -53,8 +53,16 @@ export interface MyPageResponse extends MemberDetail {
   projects: MyPageProject[];
 }
 
+export interface SkillAssessmentSummary {
+  targetPeriod: string;
+  scores: Record<string, string | null>;
+  axisAverages: Record<string, number | null>;
+  totalAvg: number | null;
+}
+
 export interface MyPageSummaryResponse {
   member: MyPageResponse;
+  skillAssessment: SkillAssessmentSummary | null;
   evaluations: EvalRecord[];
 }
 
