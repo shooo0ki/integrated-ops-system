@@ -1,10 +1,10 @@
-export const HOUR_PX    = 64;
-export const START_HOUR = 7;
-export const END_HOUR   = 31;  // 翌7時 (24+7)
-export const GRID_H     = (END_HOUR - START_HOUR) * HOUR_PX; // 24 * 64 = 1536
+export const HOUR_PX    = 40;
+export const START_HOUR = 8;
+export const END_HOUR   = 22;
+export const GRID_H     = (END_HOUR - START_HOUR) * HOUR_PX; // 14 * 40 = 560
 export const TIME_W     = 52;
 export const DAY_MIN_W  = 120;
-export const HOURS      = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i); // 7..30
+export const HOURS      = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i); // 8..22
 
 export const DOW_JP = ["日", "月", "火", "水", "木", "金", "土"];
 

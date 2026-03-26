@@ -14,7 +14,7 @@ export function useCalendarData() {
   const [anchor, setAnchor] = useState<Date | null>(null);
   const [displayYear, setDisplayYear] = useState(0);
   const [displayMonth, setDisplayMonth] = useState(0);
-  const [selectedIds, setSelectedIds] = useState<Set<string> | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string> | null>(new Set());
   const [selectedProjId, setSelectedProjId] = useState<string>("");
   const [today, setToday] = useState("");
 

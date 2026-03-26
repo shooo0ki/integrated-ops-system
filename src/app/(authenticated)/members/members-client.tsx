@@ -4,14 +4,11 @@ import { Select } from "@/frontend/components/common/input";
 import { useState } from "react";
 import useSWR from "swr";
 import Link from "@/frontend/components/common/prefetch-link";
-import { Search, Plus, User } from "lucide-react";
-import { Card } from "@/frontend/components/common/card";
+import { Search, Plus } from "lucide-react";
 import { Button } from "@/frontend/components/common/button";
 import { roleLabel } from "@/frontend/constants/common";
-import { MEMBER_STATUS_LABELS as statusLabel, MEMBER_STATUS_COLORS as statusColor } from "@/frontend/constants/members";
-import { CardGridPageSkeleton } from "@/frontend/components/common/skeleton";
-
-// ─── 型定義 ──────────────────────────────────────────────
+import { MEMBER_STATUS_LABELS as statusLabel } from "@/frontend/constants/members";
+import { TablePageSkeleton } from "@/frontend/components/common/skeleton";
 
 interface MemberListItem {
   id: string;
@@ -23,8 +20,6 @@ interface MemberListItem {
   email: string;
   role: string;
 }
-
-// ─── クライアントコンポーネント ───────────────────────────
 
 interface MembersClientProps {
   role: string;
@@ -44,7 +39,7 @@ export default function MembersClient({ role }: MembersClientProps) {
   const { data: members = [], isLoading: loading } = useSWR<MemberListItem[]>(swrKey);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800">メンバー一覧</h1>
@@ -83,46 +78,48 @@ export default function MembersClient({ role }: MembersClientProps) {
         </Select>
       </div>
 
-      {/* Member grid */}
+      {/* Member table */}
       {loading ? (
-        <CardGridPageSkeleton count={6} cols={3} />
+        <TablePageSkeleton rows={6} cols={4} />
+      ) : members.length === 0 ? (
+        <div className="py-16 text-center text-sm text-slate-500">
+          該当するメンバーが見つかりません
+        </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {members.map((member) => (
-              <Link key={member.id} href={`/members/${member.id}`} prefetch={false}>
-                <Card className="cursor-pointer transition-shadow hover:shadow-md">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                      <User size={18} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-slate-800">{member.name}</span>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
-                        <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-xs ${statusColor[member.status] ?? "bg-slate-50 text-slate-700"}`}
-                        >
-                          {statusLabel[member.status] ?? member.status}
-                        </span>
-                        <span className="text-xs text-slate-500">{roleLabel[member.role] ?? member.role}</span>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-400 truncate">{member.email}</p>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
-
-          {members.length === 0 && (
-            <div className="py-16 text-center text-slate-500">
-              <User size={32} className="mx-auto mb-2 text-slate-300" />
-              <p>該当するメンバーが見つかりません</p>
-            </div>
-          )}
-        </>
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50">
+                <th className="px-4 py-2.5 text-left font-medium text-slate-500">名前</th>
+                <th className="px-4 py-2.5 text-left font-medium text-slate-500">ステータス</th>
+                <th className="px-4 py-2.5 text-left font-medium text-slate-500">ロール</th>
+                <th className="px-4 py-2.5 text-left font-medium text-slate-500">メール</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {members.map((m) => (
+                <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-2.5">
+                    <Link
+                      href={`/members/${m.id}`}
+                      prefetch={false}
+                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {m.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-700">
+                    {statusLabel[m.status] ?? m.status}
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-700">
+                    {roleLabel[m.role] ?? m.role}
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-500">{m.email}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

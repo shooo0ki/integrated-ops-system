@@ -62,8 +62,7 @@ export function WeekView({ weekDays, visible, calData }: {
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div
         ref={scrollRef}
-        className="overflow-auto"
-        style={{ maxHeight: "calc(100vh - 260px)", minHeight: 360 }}
+        className="overflow-x-auto"
       >
         <div style={{ minWidth: TIME_W + DAY_MIN_W * 7 }}>
 
@@ -96,7 +95,7 @@ export function WeekView({ weekDays, visible, calData }: {
             >
               {HOURS.map(h => (
                 <div key={h} className="absolute w-full" style={{ top: (h - START_HOUR) * HOUR_PX - 8, left: 0 }}>
-                  <span className={`block pr-2 text-right text-xs leading-none ${h === 24 ? "font-bold text-slate-600" : "text-slate-400"}`}>
+                  <span className="block pr-2 text-right text-xs leading-none text-slate-400">
                     {String(h % 24).padStart(2, "0")}:00
                   </span>
                 </div>
@@ -112,7 +111,7 @@ export function WeekView({ weekDays, visible, calData }: {
               >
                 <div className="relative" style={{ height: GRID_H }}>
                   {HOURS.map(h => (
-                    <div key={h} className={`absolute inset-x-0 border-t ${h === 24 ? "border-slate-400 border-dashed z-[1]" : "border-slate-100"}`}
+                    <div key={h} className="absolute inset-x-0 border-t border-slate-100"
                       style={{ top: (h - START_HOUR) * HOUR_PX }} />
                   ))}
                   {HOURS.map(h => (

@@ -2,78 +2,19 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Clock, CalendarDays, FileText, TrendingUp, Wallet, Award,
-  FolderOpen, BarChart2, Star, Users, Wrench, FileCheck, ArrowRight,
-} from "lucide-react";
+import useSWR from "swr";
 import { useAuth } from "@/frontend/contexts/auth-context";
+import { formatCurrency } from "@/shared/utils";
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ElementType;
-  description: string;
-}
-
-const DAILY: NavItem[] = [
-  { label: "打刻",       href: "/attendance", icon: Clock,        description: "出退勤の記録" },
-  { label: "カレンダー", href: "/calendar",   icon: CalendarDays, description: "チームの勤怠確認" },
-];
-
-const MONTHLY: NavItem[] = [
-  { label: "請求書管理",       href: "/closing",      icon: FileText,   description: "月次締め・請求" },
-  { label: "PLサマリー",       href: "/pl/summary",   icon: TrendingUp, description: "損益サマリー" },
-  { label: "キャッシュフロー", href: "/pl/cashflow",  icon: Wallet,     description: "CF管理" },
-  { label: "人事評価",         href: "/evaluation",   icon: Award,      description: "PAS評価" },
-];
-
-const PROJECTS: NavItem[] = [
-  { label: "プロジェクト",     href: "/projects", icon: FolderOpen, description: "PJ一覧・管理" },
-  { label: "工数管理",         href: "/workload",  icon: BarChart2,  description: "稼働状況" },
-  { label: "スキルマトリクス", href: "/skills",    icon: Star,       description: "スキル評価" },
-];
-
-const MEMBERS: NavItem[] = [
-  { label: "メンバー",   href: "/members",   icon: Users,     description: "メンバー管理" },
-  { label: "ツール関連", href: "/tools",     icon: Wrench,    description: "ツールコスト" },
-  { label: "契約関連",  href: "/contracts", icon: FileCheck, description: "契約書管理" },
-];
-
-function NavCard({ label, href, icon: Icon, description }: NavItem) {
-  return (
-    <a
-      href={href}
-      className="group flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 transition-all hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm"
-    >
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-          <Icon size={16} />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-slate-800">{label}</p>
-          <p className="text-xs text-slate-400">{description}</p>
-        </div>
-      </div>
-      <ArrowRight size={14} className="text-slate-300 group-hover:text-blue-400 transition-colors" />
-    </a>
-  );
-}
-
-function Section({ title, items }: { title: string; items: NavItem[] }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h2>
-      <div className="space-y-2">
-        {items.map((item) => (
-          <NavCard key={item.href} {...item} />
-        ))}
-      </div>
-    </div>
-  );
+interface DashboardData {
+  today: string;
+  teamAttendance?: { working: number; done: number; total: number };
+  plSummary?: { boost: { revenue: number; profit: number }; salt2: { revenue: number; profit: number } };
+  notStartedCount?: number;
 }
 
 export default function DashboardPage() {
-  const { role, isLoading: authLoading } = useAuth();
+  const { role, name, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -82,21 +23,70 @@ export default function DashboardPage() {
     }
   }, [authLoading, role, router]);
 
-  // auth確定待ち、またはmemberリダイレクト中は何も表示しない
+  const { data } = useSWR<DashboardData>(
+    !authLoading && role !== "member" ? "/api/dashboard" : null
+  );
+
   if (authLoading || role === "member") return null;
 
+  const team = data?.teamAttendance;
+  const pl = data?.plSummary;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-800">ダッシュボード</h1>
-        <p className="text-sm text-slate-500">業務メニュー</p>
+        <p className="text-sm text-slate-500">{name}さん、お疲れ様です</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Section title="毎日使うもの" items={DAILY} />
-        <Section title="月末確認" items={MONTHLY} />
-        <Section title="プロジェクト関連" items={PROJECTS} />
-        <Section title="メンバー関連" items={MEMBERS} />
+      {/* KPI テーブル */}
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 bg-slate-50">
+              <th className="px-4 py-2.5 text-left font-medium text-slate-500">項目</th>
+              <th className="px-4 py-2.5 text-right font-medium text-slate-500">値</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {team && (
+              <>
+                <tr>
+                  <td className="px-4 py-2.5 text-slate-700">本日の出勤</td>
+                  <td className="px-4 py-2.5 text-right font-medium text-slate-800">
+                    {team.working + team.done} / {team.total}名
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-2.5 text-slate-700">勤務中</td>
+                  <td className="px-4 py-2.5 text-right font-medium text-blue-600">{team.working}名</td>
+                </tr>
+              </>
+            )}
+            {data?.notStartedCount !== undefined && data.notStartedCount > 0 && (
+              <tr>
+                <td className="px-4 py-2.5 text-slate-700">未出勤</td>
+                <td className="px-4 py-2.5 text-right font-medium text-orange-600">{data.notStartedCount}名</td>
+              </tr>
+            )}
+            {pl && (
+              <>
+                <tr>
+                  <td className="px-4 py-2.5 text-slate-700">Boost 売上 / 利益</td>
+                  <td className="px-4 py-2.5 text-right font-medium text-slate-800">
+                    {formatCurrency(pl.boost.revenue)} / {formatCurrency(pl.boost.profit)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-2.5 text-slate-700">SALT2 売上 / 利益</td>
+                  <td className="px-4 py-2.5 text-right font-medium text-slate-800">
+                    {formatCurrency(pl.salt2.revenue)} / {formatCurrency(pl.salt2.profit)}
+                  </td>
+                </tr>
+              </>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

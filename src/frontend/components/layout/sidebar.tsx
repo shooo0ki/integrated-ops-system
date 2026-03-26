@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   Clock,
   FileText,
   TrendingUp,
@@ -12,7 +11,15 @@ import {
   CalendarClock,
   Settings,
   X,
-  ChevronLeft,
+  FolderOpen,
+  BarChart2,
+  Star,
+  Users,
+  Wrench,
+  FileCheck,
+  Wallet,
+  Award,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/shared/utils";
 import { useAuth } from "@/frontend/contexts/auth-context";
@@ -23,24 +30,58 @@ interface NavItem {
   icon: React.ElementType;
 }
 
-// admin/manager がダッシュボードハブから遷移するページ（戻るリンクを表示）
-const HUB_PAGES = ["/dashboard", "/mypage", "/settings"];
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
 
-// admin / manager: ダッシュボード（ハブ）・マイページ・設定のみ
-const PRIVILEGED_NAV: NavItem[] = [
-  { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
-  { href: "/mypage",    label: "マイページ",     icon: User },
-  { href: "/settings",  label: "設定",           icon: Settings },
-];
+const DAILY: NavGroup = {
+  title: "毎日使うもの",
+  items: [
+    { href: "/attendance", label: "打刻",       icon: Clock },
+    { href: "/calendar",   label: "カレンダー", icon: CalendarDays },
+    { href: "/schedule",   label: "勤務予定",   icon: CalendarClock },
+  ],
+};
 
-// member / intern: 日常業務のナビゲーション
-const MEMBER_NAV: NavItem[] = [
-  { href: "/attendance", label: "打刻",     icon: Clock },
-  { href: "/calendar",   label: "カレンダー", icon: CalendarDays },
-  { href: "/schedule",   label: "勤務予定",  icon: CalendarClock },
-  { href: "/closing",    label: "請求管理",  icon: FileText },
-  { href: "/pl/summary", label: "PLサマリー", icon: TrendingUp },
-  { href: "/mypage",     label: "マイページ", icon: User },
+const MONTHLY: NavGroup = {
+  title: "月末確認",
+  items: [
+    { href: "/closing",     label: "請求管理",       icon: FileText },
+    { href: "/pl/summary",  label: "PLサマリー",     icon: TrendingUp },
+    { href: "/pl/cashflow", label: "キャッシュフロー", icon: Wallet },
+    { href: "/evaluation",  label: "人事評価",       icon: Award },
+  ],
+};
+
+const PROJECTS: NavGroup = {
+  title: "プロジェクト関連",
+  items: [
+    { href: "/projects", label: "プロジェクト",     icon: FolderOpen },
+    { href: "/workload", label: "工数管理",         icon: BarChart2 },
+    { href: "/skills",   label: "スキルマトリクス", icon: Star },
+  ],
+};
+
+const MEMBERS_GROUP: NavGroup = {
+  title: "メンバー関連",
+  items: [
+    { href: "/members",   label: "メンバー", icon: Users },
+    { href: "/tools",     label: "ツール",   icon: Wrench },
+    { href: "/contracts", label: "契約",     icon: FileCheck },
+  ],
+};
+
+// admin/manager: 全グループ表示
+const ADMIN_GROUPS: NavGroup[] = [DAILY, MONTHLY, PROJECTS, MEMBERS_GROUP];
+
+// member: 日常業務のみ（月末確認は請求管理・PLまで）
+const MEMBER_GROUPS: NavGroup[] = [
+  DAILY,
+  { title: "月末確認", items: [
+    { href: "/closing",    label: "請求管理",   icon: FileText },
+    { href: "/pl/summary", label: "PLサマリー", icon: TrendingUp },
+  ]},
 ];
 
 interface SidebarProps {
@@ -53,8 +94,23 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { role, isLoading } = useAuth();
 
   const isPrivileged = role === "admin" || role === "manager";
-  const navItems = isPrivileged ? PRIVILEGED_NAV : MEMBER_NAV;
-  const showBackLink = isPrivileged && !HUB_PAGES.includes(pathname);
+  const groups = isPrivileged ? ADMIN_GROUPS : MEMBER_GROUPS;
+
+  // 下部固定リンク
+  const bottomItems: NavItem[] = isPrivileged
+    ? [
+        { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
+        { href: "/mypage",    label: "マイページ",     icon: User },
+        { href: "/settings",  label: "設定",           icon: Settings },
+      ]
+    : [
+        { href: "/mypage", label: "マイページ", icon: User },
+      ];
+
+  function isActive(href: string) {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname === href || pathname.startsWith(href + "/");
+  }
 
   return (
     <>
@@ -80,59 +136,68 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3" suppressHydrationWarning>
+        {/* Nav groups */}
+        <nav className="flex-1 overflow-y-auto py-2" suppressHydrationWarning>
           {isLoading ? (
             <div className="space-y-1.5 px-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-9 rounded-md bg-slate-100 animate-pulse" />
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-8 rounded-md bg-slate-100 animate-pulse" />
               ))}
             </div>
           ) : (
-          <ul className="space-y-0.5 px-2">
-            {/* モバイル: 非ハブページにいる admin/manager 向け戻るリンク */}
-            {showBackLink && (
-              <li className="md:hidden">
-                <a
-                  href="/dashboard"
-                  onClick={onClose}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                >
-                  <ChevronLeft size={16} />
-                  ダッシュボードに戻る
-                </a>
-              </li>
-            )}
-            {navItems.map((item) => {
-              const active =
-                item.href === "/dashboard"
-                  ? pathname === "/dashboard"
-                  : pathname.startsWith(item.href);
-              return (
-                <li key={item.href}>
-                  <a
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                      active
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    )}
-                  >
-                    <item.icon size={16} />
-                    {item.label}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
+            <div className="space-y-3">
+              {groups.map((group) => (
+                <div key={group.title}>
+                  <p className="px-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    {group.title}
+                  </p>
+                  <ul className="space-y-0.5 px-2">
+                    {group.items.map((item) => (
+                      <li key={item.href}>
+                        <a
+                          href={item.href}
+                          onClick={onClose}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                            isActive(item.href)
+                              ? "bg-blue-50 text-blue-700"
+                              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                          )}
+                        >
+                          <item.icon size={15} />
+                          {item.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           )}
         </nav>
 
-        {/* Footer */}
-        <div className="border-t border-slate-200 px-4 py-3">
-          <p className="text-xs text-slate-400">v1.0 | Boost / SALT2</p>
+        {/* Bottom links */}
+        <div className="border-t border-slate-200 px-2 py-2">
+          <ul className="space-y-0.5">
+            {bottomItems.map((item) => (
+              <li key={item.href}>
+                <a
+                  href={item.href}
+                  onClick={onClose}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    isActive(item.href)
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  )}
+                >
+                  <item.icon size={15} />
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 px-3 text-[10px] text-slate-300">v1.0 | Boost / SALT2</p>
         </div>
       </aside>
     </>
