@@ -163,7 +163,11 @@ export default function EvaluationPage() {
         ))}
       </div>
 
-      {loading ? (
+      {rowsError ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          データ取得に失敗しました: {rowsError.message}
+        </div>
+      ) : loading ? (
         <InlineSkeleton />
       ) : rows.length === 0 ? (
         <p className="text-sm text-slate-400">メンバーが見つかりません</p>
