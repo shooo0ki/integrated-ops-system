@@ -17,7 +17,7 @@ import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 const MONTHS = buildMonths(12);
 
 export default function EvaluationPage() {
-  const { role, memberId } = useAuth();
+  const { role, memberId, isLoading: authLoading } = useAuth();
   const [month, setMonth] = useState(MONTHS[0]);
   const [modal, setModal] = useState<ModalState | null>(null);
 
@@ -31,9 +31,9 @@ export default function EvaluationPage() {
   const { data: ownEval = null, isLoading: ownLoading } = useSWR<OwnEval>(
     (!isAdmin && !isManager && memberId) ? `/api/evaluations?month=${month}` : null
   );
-  const loading = rowsLoading || ownLoading;
+  const loading = authLoading || rowsLoading || ownLoading;
 
-  if (role !== "admin" && role !== "manager" && role !== "member") {
+  if (!authLoading && role !== "admin" && role !== "manager" && role !== "member") {
     return notFound();
   }
 

@@ -86,7 +86,8 @@ export default function CorrectionsPage() {
                       </Button>
                       <Button
                         size="sm"
-                        variant="danger"
+                        variant="outline"
+                        className="border-red-300 text-red-600 hover:bg-red-50"
                         onClick={() => handleAction(c.id, "rejected")}
                         disabled={processingId === c.id}
                       >
