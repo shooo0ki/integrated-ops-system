@@ -38,65 +38,79 @@ export async function GET(req: NextRequest) {
   const isAdmin = user.role === "admin";
   const isManager = user.role === "manager";
 
-  const evaluations = await prisma.personnelEvaluation.findMany({
-    where: {
-      targetPeriod: month,
-      ...(isAdmin || isManager ? {} : { memberId: user.memberId }),
-    },
-    include: {
-      member: { select: { id: true, name: true } },
-      evaluator: { select: { id: true } },
-    },
-    orderBy: [{ member: { name: "asc" } }],
-  });
+  try {
+    // 管理者向け：全メンバー一覧に評価を付加（未評価も含む）
+    if (isAdmin || isManager) {
+      const [members, evaluations] = await Promise.all([
+        prisma.member.findMany({
+          where: { deletedAt: null },
+          select: { id: true, name: true },
+          orderBy: [{ name: "asc" }],
+        }),
+        prisma.personnelEvaluation.findMany({
+          where: { targetPeriod: month },
+          select: {
+            id: true, memberId: true, targetPeriod: true,
+            scores: true, comment: true, updatedAt: true,
+          },
+        }),
+      ]);
 
-  // 管理者向け：全メンバー一覧に評価を付加（未評価も含む）
-  if (isAdmin || isManager) {
-    const members = await prisma.member.findMany({
-      where: { deletedAt: null },
-      select: { id: true, name: true },
-      orderBy: [{ name: "asc" }],
+      const evalMap = new Map(evaluations.map((e) => [e.memberId, e]));
+
+      return NextResponse.json(
+        members.map((m) => {
+          const ev = evalMap.get(m.id);
+          if (!ev) {
+            return { memberId: m.id, memberName: m.name, evaluated: false };
+          }
+          const scores = (ev.scores ?? {}) as EvalScores;
+          return {
+            id: ev.id,
+            memberId: m.id,
+            memberName: m.name,
+            targetPeriod: ev.targetPeriod,
+            scores,
+            axisAverages: buildAxisAverages(scores),
+            totalAvg: calcTotalAverage(scores),
+            comment: ev.comment,
+            updatedAt: ev.updatedAt,
+            evaluated: true,
+          };
+        })
+      );
+    }
+
+    // 自分のみ
+    const evaluations = await prisma.personnelEvaluation.findMany({
+      where: { targetPeriod: month, memberId: user.memberId },
+      select: {
+        id: true, memberId: true, targetPeriod: true,
+        scores: true, comment: true, updatedAt: true,
+      },
+      take: 1,
     });
 
-    const evalMap = new Map(evaluations.map((e) => [e.memberId, e]));
-
+    if (evaluations.length === 0) return NextResponse.json(null);
+    const ev = evaluations[0];
+    const scores = (ev.scores ?? {}) as EvalScores;
+    return NextResponse.json({
+      id: ev.id,
+      memberId: ev.memberId,
+      targetPeriod: ev.targetPeriod,
+      scores,
+      axisAverages: buildAxisAverages(scores),
+      totalAvg: calcTotalAverage(scores),
+      comment: ev.comment,
+      updatedAt: ev.updatedAt,
+    });
+  } catch (e) {
+    console.error("[GET /api/evaluations]", e);
     return NextResponse.json(
-      members.map((m) => {
-        const ev = evalMap.get(m.id);
-        if (!ev) {
-          return { memberId: m.id, memberName: m.name, evaluated: false };
-        }
-        const scores = (ev.scores ?? {}) as EvalScores;
-        return {
-          id: ev.id,
-          memberId: m.id,
-          memberName: m.name,
-          targetPeriod: ev.targetPeriod,
-          scores,
-          axisAverages: buildAxisAverages(scores),
-          totalAvg: calcTotalAverage(scores),
-          comment: ev.comment,
-          updatedAt: ev.updatedAt,
-          evaluated: true,
-        };
-      })
+      { error: { code: "INTERNAL_ERROR", message: String(e) } },
+      { status: 500 }
     );
   }
-
-  // 自分のみ
-  if (evaluations.length === 0) return NextResponse.json(null);
-  const ev = evaluations[0];
-  const scores = (ev.scores ?? {}) as EvalScores;
-  return NextResponse.json({
-    id: ev.id,
-    memberId: ev.memberId,
-    targetPeriod: ev.targetPeriod,
-    scores,
-    axisAverages: buildAxisAverages(scores),
-    totalAvg: calcTotalAverage(scores),
-    comment: ev.comment,
-    updatedAt: ev.updatedAt,
-  });
 }
 
 // POST /api/evaluations — upsert (admin のみ)
