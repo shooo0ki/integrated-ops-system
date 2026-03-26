@@ -4,8 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import {
   User, Mail, Phone, Calendar, Bell, Shield,
-  Award, Pencil, ChevronRight, MapPin, CreditCard, Star,
-  ClipboardList,
+  Award, Pencil, MapPin, CreditCard, Star,
 } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
@@ -269,24 +268,6 @@ export default function MyPage() {
           </div>
         )}
       </Card>
-
-      {/* ─── 月次申告リンク ─── */}
-      <a href="/closing" className="block">
-        <Card className="transition-colors hover:bg-slate-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-                <ClipboardList size={18} className="text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-800">月次工数申告</p>
-                <p className="text-xs text-slate-500">請求管理から工数配分を申告</p>
-              </div>
-            </div>
-            <ChevronRight size={16} className="text-slate-400" />
-          </div>
-        </Card>
-      </a>
 
       {/* ─── 通知設定 ─── */}
       <Card>

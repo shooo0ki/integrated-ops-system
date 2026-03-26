@@ -34,6 +34,19 @@ export async function POST(req: NextRequest) {
     return apiError("VALIDATION_ERROR", "items は1件以上必要です", 400);
   }
 
+  // 月次申告チェック: 未申告なら請求書作成不可
+  const selfReports = await prisma.monthlySelfReport.findMany({
+    where: { memberId: user.memberId, targetMonth },
+    select: { id: true, reportedPercent: true },
+  });
+  if (selfReports.length === 0) {
+    return apiError("VALIDATION_ERROR", "月次工数申告が未提出です。先に工数配分を申告してください。", 400);
+  }
+  const totalPercent = selfReports.reduce((s, r) => s + r.reportedPercent, 0);
+  if (totalPercent !== 100) {
+    return apiError("VALIDATION_ERROR", `月次工数申告の合計が${totalPercent}%です。100%にしてから請求書を作成してください。`, 400);
+  }
+
   const { amountExclTax, expenseAmount, amountInclTax } = calcAmounts(items);
 
   const existing = await prisma.invoice.findUnique({
