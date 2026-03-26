@@ -25,13 +25,18 @@ export default function EvaluationPage() {
   const isManager = role === "manager";
   const canEdit = isAdmin;
 
-  const { data: rows = [], isLoading: rowsLoading } = useSWR<EvalRow[]>(
-    (isAdmin || isManager) ? `/api/evaluations?month=${month}` : null
-  );
-  const { data: ownEval = null, isLoading: ownLoading } = useSWR<OwnEval>(
-    (!isAdmin && !isManager && memberId) ? `/api/evaluations?month=${month}` : null
-  );
-  const loading = authLoading || rowsLoading || ownLoading;
+  const adminKey = (isAdmin || isManager) ? `/api/evaluations?month=${month}` : null;
+  const memberKey = (!isAdmin && !isManager && memberId) ? `/api/evaluations?month=${month}` : null;
+
+  const { data: rowsData, isLoading: rowsLoading, error: rowsError } = useSWR<EvalRow[]>(adminKey);
+  const { data: ownEvalData, isLoading: ownLoading, error: ownError } = useSWR<OwnEval>(memberKey);
+  const rows = rowsData ?? [];
+  const ownEval = ownEvalData ?? null;
+
+  // authLoading中はSWRキーがnullなので、auth完了後にSWRが開始するまでの間もloading扱い
+  const loading = authLoading || rowsLoading || ownLoading
+    || (adminKey != null && rowsData === undefined && !rowsError)
+    || (memberKey != null && ownEvalData === undefined && !ownError);
 
   if (!authLoading && role !== "admin" && role !== "manager" && role !== "member") {
     return notFound();
