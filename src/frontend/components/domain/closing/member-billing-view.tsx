@@ -248,10 +248,13 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
                   setHasTransport("none");
                   setTransports([]);
                   if (closing) {
+                    const freshAmount = closing.salaryType === "hourly"
+                      ? Math.round(closing.totalHours * closing.salaryAmount)
+                      : closing.salaryAmount;
                     setItems([{
                       id: "base",
                       name: `稼働（${closing.totalHours}h × ¥${closing.salaryAmount}/h）`,
-                      amount: closing.estimatedAmount,
+                      amount: freshAmount,
                     }]);
                   }
                 }}
