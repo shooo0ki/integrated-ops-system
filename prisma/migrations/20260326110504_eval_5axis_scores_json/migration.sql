@@ -1,14 +1,14 @@
-/*
-  Warnings:
+-- AlterTable: PAS(scoreP/scoreA/scoreS) → 5軸 scores JSON
+-- 既存データは空オブジェクトで移行
+ALTER TABLE "personnel_evaluations"
+ADD COLUMN "scores" JSONB;
 
-  - You are about to drop the column `score_a` on the `personnel_evaluations` table. All the data in the column will be lost.
-  - You are about to drop the column `score_p` on the `personnel_evaluations` table. All the data in the column will be lost.
-  - You are about to drop the column `score_s` on the `personnel_evaluations` table. All the data in the column will be lost.
-  - Added the required column `scores` to the `personnel_evaluations` table without a default value. This is not possible if the table is not empty.
+UPDATE "personnel_evaluations" SET "scores" = '{}' WHERE "scores" IS NULL;
 
-*/
--- AlterTable
-ALTER TABLE "personnel_evaluations" DROP COLUMN "score_a",
+ALTER TABLE "personnel_evaluations"
+ALTER COLUMN "scores" SET NOT NULL;
+
+ALTER TABLE "personnel_evaluations"
+DROP COLUMN "score_a",
 DROP COLUMN "score_p",
-DROP COLUMN "score_s",
-ADD COLUMN     "scores" JSONB NOT NULL;
+DROP COLUMN "score_s";
