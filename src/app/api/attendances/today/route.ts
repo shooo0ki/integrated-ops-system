@@ -16,26 +16,24 @@ export async function GET() {
   const dateStr = `${jstNow.getUTCFullYear()}-${String(jstNow.getUTCMonth() + 1).padStart(2, "0")}-${String(jstNow.getUTCDate()).padStart(2, "0")}`;
   const today = new Date(`${dateStr}T00:00:00Z`); // UTC midnight — clock-in と同じ形式
 
-  // 今日と昨日を並列取得（日またぎ継続勤務のため）
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  const [todayRec, prevRec] = await Promise.all([
+  // 今日のレコード + 未退勤の直近レコードを並列取得
+  const [todayRec, openRec] = await Promise.all([
     prisma.attendance.findUnique({
       where: { memberId_date: { memberId: user.memberId, date: today } },
     }),
-    prisma.attendance.findUnique({
-      where: { memberId_date: { memberId: user.memberId, date: yesterday } },
+    // 日またぎ対応: clockIn済み・clockOut未済の直近レコードを探す
+    prisma.attendance.findFirst({
+      where: {
+        memberId: user.memberId,
+        clockIn: { not: null },
+        clockOut: null,
+        date: { lt: today },
+      },
+      orderBy: { date: "desc" },
     }),
   ]);
-  // 日またぎ対応:
-  //   - prevRec に clockIn があり clockOut がない → 昨日から継続勤務中
-  //   - prevRec の clockOut が JST今日の00:00以降 かつ JST 8:00未満 → 日またぎ退勤済み表示（早朝のみ）
-  //     JST 8:00以降は新しい勤務日として扱い、今日の出勤を可能にする
-  const prevDayCarryOver =
-    prevRec?.clockIn &&
-    !prevRec.clockOut && // 昨日出勤で未退勤（継続勤務中）のみ
-    !todayRec; // 今日のレコードがまだなければ前日を表示
-  const attendance = todayRec ?? (prevDayCarryOver ? prevRec : null);
+  // 今日のレコードがあればそれを優先、なければ未退勤の過去レコードを表示
+  const attendance = todayRec ?? openRec ?? null;
 
   if (!attendance) {
     return NextResponse.json(null);
