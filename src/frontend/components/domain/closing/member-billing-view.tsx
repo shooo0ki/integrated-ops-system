@@ -240,7 +240,21 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
               <span>請求書を生成済みです（{invoice.invoiceNumber}）</span>
               <button
                 className="ml-auto text-xs text-slate-500 underline hover:text-slate-700"
-                onClick={() => setSubmitted(false)}
+                onClick={() => {
+                  setSubmitted(false);
+                  setInvoice(null);
+                  setHasExpense("none");
+                  setExpenses([]);
+                  setHasTransport("none");
+                  setTransports([]);
+                  if (closing) {
+                    setItems([{
+                      id: "base",
+                      name: `稼働（${closing.totalHours}h × ¥${closing.salaryAmount}/h）`,
+                      amount: closing.estimatedAmount,
+                    }]);
+                  }
+                }}
               >
                 再生成する
               </button>
