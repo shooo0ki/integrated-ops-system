@@ -1,18 +1,30 @@
 "use client";
 
 import { useState } from "react";
-
+import {
+  EVALUATION_AXES,
+  GRADES,
+  GRADE_LABELS,
+  calcAxisAverage,
+  calcTotalAverage,
+  type EvalScores,
+  type ScoreGrade,
+} from "@/shared/constants/evaluation-taxonomy";
 import type { EvalRow } from "@/shared/types/evaluation";
-import { SCORE_LABELS } from "@/frontend/constants/evaluation";
 
 export type ModalState = {
   memberId: string;
   memberName: string;
   targetPeriod: string;
-  scoreP: number;
-  scoreA: number;
-  scoreS: number;
+  scores: EvalScores;
   comment: string;
+};
+
+const GRADE_COLORS: Record<ScoreGrade, string> = {
+  A: "bg-green-600 text-white",
+  B: "bg-blue-600 text-white",
+  C: "bg-slate-500 text-white",
+  D: "bg-red-500 text-white",
 };
 
 export function EditModal({
@@ -24,11 +36,17 @@ export function EditModal({
   onClose: () => void;
   onSaved: (row: EvalRow) => void;
 }) {
-  const [form, setForm] = useState(initial);
+  const [scores, setScores] = useState<EvalScores>({ ...initial.scores });
+  const [comment, setComment] = useState(initial.comment);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [expandedAxis, setExpandedAxis] = useState<number | null>(null);
 
-  const totalAvg = Math.round(((form.scoreP + form.scoreA + form.scoreS) / 3) * 100) / 100;
+  const totalAvg = calcTotalAverage(scores);
+
+  function setGrade(itemId: string, grade: ScoreGrade | null) {
+    setScores((prev) => ({ ...prev, [itemId]: grade }));
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -38,12 +56,10 @@ export function EditModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          memberId: form.memberId,
-          targetPeriod: form.targetPeriod,
-          scoreP: form.scoreP,
-          scoreA: form.scoreA,
-          scoreS: form.scoreS,
-          comment: form.comment || null,
+          memberId: initial.memberId,
+          targetPeriod: initial.targetPeriod,
+          scores,
+          comment: comment || null,
         }),
       });
       const data = await res.json();
@@ -52,14 +68,13 @@ export function EditModal({
         return;
       }
       onSaved({
-        memberId: form.memberId,
+        memberId: initial.memberId,
         memberName: initial.memberName,
         evaluated: true,
         id: data.id,
         targetPeriod: data.targetPeriod,
-        scoreP: data.scoreP, labelP: SCORE_LABELS[data.scoreP],
-        scoreA: data.scoreA, labelA: SCORE_LABELS[data.scoreA],
-        scoreS: data.scoreS, labelS: SCORE_LABELS[data.scoreS],
+        scores: data.scores,
+        axisAverages: data.axisAverages,
         totalAvg: data.totalAvg,
         comment: data.comment,
         updatedAt: data.updatedAt,
@@ -72,46 +87,98 @@ export function EditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-lg font-bold text-slate-800">人事評価 — {initial.memberName}</h2>
-        <p className="mb-4 text-sm text-slate-500">対象月: {form.targetPeriod}</p>
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+        <h2 className="mb-1 text-lg font-bold text-slate-800">人事評価 — {initial.memberName}</h2>
+        <p className="mb-4 text-sm text-slate-500">対象月: {initial.targetPeriod}</p>
 
-        {(["P", "A", "S"] as const).map((key) => {
-          const labels = { P: "Professional（仕事の質・責任感）", A: "Appearance（身だしなみ・礼儀）", S: "Skill（技術・専門知識）" };
-          const field = `score${key}` as "scoreP" | "scoreA" | "scoreS";
-          return (
-            <div key={key} className="mb-4">
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">{labels[key]}</label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setForm((f) => ({ ...f, [field]: v }))}
-                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors ${
-                      form[field] === v
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-                <span className="ml-2 self-center text-sm text-slate-500">{SCORE_LABELS[form[field]]}</span>
-              </div>
-            </div>
-          );
-        })}
-
-        <div className="mb-2 rounded-lg bg-slate-50 px-4 py-2 text-sm">
-          <span className="text-slate-500">総合平均:</span>
-          <span className="ml-2 font-bold text-slate-800">{totalAvg.toFixed(2)}</span>
+        {/* 総合スコア */}
+        <div className="mb-4 rounded-lg bg-slate-50 px-4 py-2 flex items-center justify-between">
+          <span className="text-sm text-slate-500">総合平均</span>
+          <span className="font-bold text-slate-800">
+            {totalAvg != null ? totalAvg.toFixed(2) : "—"}
+          </span>
         </div>
 
-        <div className="mb-4">
+        {/* 軸ごとのアコーディオン */}
+        <div className="space-y-2">
+          {EVALUATION_AXES.map((axis) => {
+            const axisAvg = calcAxisAverage(scores, axis);
+            const isOpen = expandedAxis === axis.id;
+            return (
+              <div key={axis.id} className="rounded-lg border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setExpandedAxis(isOpen ? null : axis.id)}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50"
+                >
+                  <span className="text-sm font-semibold text-slate-700">{axis.label}</span>
+                  <span className="text-sm text-slate-500">
+                    {axisAvg != null ? axisAvg.toFixed(2) : "—"}
+                    <span className="ml-2">{isOpen ? "▲" : "▼"}</span>
+                  </span>
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-slate-100 px-4 py-3 space-y-4">
+                    {axis.subCategories.map((sc) => (
+                      <div key={sc.id}>
+                        <p className="mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          {sc.id} {sc.label}
+                        </p>
+                        <div className="space-y-2">
+                          {sc.items.map((item) => {
+                            const current = scores[item.id] ?? null;
+                            return (
+                              <div key={item.id} className="flex items-center gap-2">
+                                <span className="w-48 text-sm text-slate-600 truncate" title={item.label}>
+                                  {item.id} {item.label}
+                                </span>
+                                <div className="flex gap-1">
+                                  {GRADES.map((g) => (
+                                    <button
+                                      key={g}
+                                      type="button"
+                                      onClick={() => setGrade(item.id, g)}
+                                      className={`h-7 w-7 rounded text-xs font-bold transition-colors ${
+                                        current === g
+                                          ? GRADE_COLORS[g]
+                                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                      }`}
+                                    >
+                                      {g}
+                                    </button>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => setGrade(item.id, null)}
+                                    className={`h-7 rounded px-1.5 text-xs font-medium transition-colors ${
+                                      current === null
+                                        ? "bg-slate-400 text-white"
+                                        : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                                    }`}
+                                  >
+                                    N/A
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* コメント */}
+        <div className="mt-4">
           <label className="mb-1 block text-sm font-medium text-slate-700">コメント（任意）</label>
           <textarea
-            value={form.comment}
-            onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
             rows={3}
             maxLength={1000}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
@@ -119,9 +186,9 @@ export function EditModal({
           />
         </div>
 
-        {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-        <div className="flex justify-end gap-2">
+        <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100">
             キャンセル
           </button>

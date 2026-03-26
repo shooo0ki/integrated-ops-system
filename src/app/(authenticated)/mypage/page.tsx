@@ -5,6 +5,7 @@ import useSWR from "swr";
 import {
   User, Mail, Phone, Calendar, Bell, Shield,
   Award, Pencil, ChevronRight, MapPin, CreditCard, Star,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
@@ -17,21 +18,10 @@ import { ProfileEditModal } from "@/frontend/components/domain/mypage/profile-ed
 import { PasswordChangeModal } from "@/frontend/components/domain/mypage/password-change-modal";
 import { TodayAttendanceCard } from "@/frontend/components/domain/mypage/today-attendance-card";
 import { MyPageSkeleton } from "@/frontend/components/common/skeleton";
+import { EVALUATION_AXES } from "@/shared/constants/evaluation-taxonomy";
+import { AvgBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
 
 const levelLabels = ["", "★", "★★", "★★★", "★★★★", "★★★★★"];
-
-function ScoreDot({ score }: { score: number }) {
-  const color =
-    score >= 4 ? "bg-green-500" :
-    score >= 3 ? "bg-blue-500" :
-    "bg-amber-400";
-  return (
-    <span className="inline-flex items-center justify-center gap-1">
-      <span className={`inline-block h-2 w-2 rounded-full ${color}`} />
-      <span className="text-slate-700">{score}</span>
-    </span>
-  );
-}
 
 export default function MyPage() {
   const { memberId, role } = useAuth();
@@ -199,12 +189,12 @@ export default function MyPage() {
         )}
       </Card>
 
-      {/* ─── 人事評価（PAS） ─── */}
+      {/* ─── 人事評価（5軸） ─── */}
       <Card>
         <CardHeader>
           <CardTitle>
             <Award size={15} className="inline mr-1" />
-            人事評価（PAS）
+            人事評価
           </CardTitle>
         </CardHeader>
         {evaluations.length === 0 ? (
@@ -216,10 +206,12 @@ export default function MyPage() {
                 <thead className="border-b border-slate-100">
                   <tr className="text-xs text-slate-500">
                     <th className="py-2 text-left font-medium">対象期間</th>
-                    <th className="py-2 text-center font-medium">P点<br /><span className="font-normal text-slate-400">Professional</span></th>
-                    <th className="py-2 text-center font-medium">A点<br /><span className="font-normal text-slate-400">Appearance</span></th>
-                    <th className="py-2 text-center font-medium">S点<br /><span className="font-normal text-slate-400">Skill</span></th>
-                    <th className="py-2 text-center font-medium">平均</th>
+                    {EVALUATION_AXES.map((axis) => (
+                      <th key={axis.id} className="py-2 text-center font-medium whitespace-nowrap">
+                        {axis.id}. {axis.key.charAt(0).toUpperCase() + axis.key.slice(1, 5)}
+                      </th>
+                    ))}
+                    <th className="py-2 text-center font-medium">総合</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -228,17 +220,13 @@ export default function MyPage() {
                       <td className="py-2 font-medium text-slate-800">
                         {ev.targetPeriod.replace("-", "年")}月
                       </td>
-                      <td className="py-2 text-center">
-                        <ScoreDot score={ev.scoreP} />
-                      </td>
-                      <td className="py-2 text-center">
-                        <ScoreDot score={ev.scoreA} />
-                      </td>
-                      <td className="py-2 text-center">
-                        <ScoreDot score={ev.scoreS} />
-                      </td>
+                      {EVALUATION_AXES.map((axis) => (
+                        <td key={axis.id} className="py-2 text-center">
+                          <AvgBadge avg={ev.axisAverages[axis.key] ?? null} />
+                        </td>
+                      ))}
                       <td className="py-2 text-center font-semibold text-blue-700">
-                        {ev.totalAvg.toFixed(1)}
+                        {ev.totalAvg != null ? ev.totalAvg.toFixed(2) : "—"}
                       </td>
                     </tr>
                   ))}

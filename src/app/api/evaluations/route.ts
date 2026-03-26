@@ -2,10 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
+import {
+  EVALUATION_AXES,
+  ALL_ITEM_IDS,
+  GRADES,
+  calcAxisAverage,
+  calcTotalAverage,
+  type EvalScores,
+  type ScoreGrade,
+} from "@/shared/constants/evaluation-taxonomy";
 
-
-function scoreLabel(n: number) {
-  return ["", "要改善", "普通以下", "標準", "優秀", "卓越"][n] ?? "—";
+function buildAxisAverages(scores: EvalScores) {
+  const result: Record<string, number | null> = {};
+  for (const axis of EVALUATION_AXES) {
+    result[axis.key] = calcAxisAverage(scores, axis);
+  }
+  return result;
 }
 
 // GET /api/evaluations?month=YYYY-MM
@@ -54,16 +66,15 @@ export async function GET(req: NextRequest) {
         if (!ev) {
           return { memberId: m.id, memberName: m.name, evaluated: false };
         }
-        const totalAvg = Math.round(((ev.scoreP + ev.scoreA + ev.scoreS) / 3) * 100) / 100;
+        const scores = (ev.scores ?? {}) as EvalScores;
         return {
           id: ev.id,
           memberId: m.id,
           memberName: m.name,
           targetPeriod: ev.targetPeriod,
-          scoreP: ev.scoreP, labelP: scoreLabel(ev.scoreP),
-          scoreA: ev.scoreA, labelA: scoreLabel(ev.scoreA),
-          scoreS: ev.scoreS, labelS: scoreLabel(ev.scoreS),
-          totalAvg,
+          scores,
+          axisAverages: buildAxisAverages(scores),
+          totalAvg: calcTotalAverage(scores),
           comment: ev.comment,
           updatedAt: ev.updatedAt,
           evaluated: true,
@@ -75,15 +86,14 @@ export async function GET(req: NextRequest) {
   // 自分のみ
   if (evaluations.length === 0) return NextResponse.json(null);
   const ev = evaluations[0];
-  const totalAvg = Math.round(((ev.scoreP + ev.scoreA + ev.scoreS) / 3) * 100) / 100;
+  const scores = (ev.scores ?? {}) as EvalScores;
   return NextResponse.json({
     id: ev.id,
     memberId: ev.memberId,
     targetPeriod: ev.targetPeriod,
-    scoreP: ev.scoreP, labelP: scoreLabel(ev.scoreP),
-    scoreA: ev.scoreA, labelA: scoreLabel(ev.scoreA),
-    scoreS: ev.scoreS, labelS: scoreLabel(ev.scoreS),
-    totalAvg,
+    scores,
+    axisAverages: buildAxisAverages(scores),
+    totalAvg: calcTotalAverage(scores),
     comment: ev.comment,
     updatedAt: ev.updatedAt,
   });
@@ -96,19 +106,27 @@ export async function POST(req: NextRequest) {
   if (user.role !== "admin") return forbidden();
 
   const body = await req.json().catch(() => null);
-  const { memberId, targetPeriod, scoreP, scoreA, scoreS, comment } = body ?? {};
+  const { memberId, targetPeriod, scores, comment } = body ?? {};
 
-  if (!memberId || !targetPeriod || scoreP == null || scoreA == null || scoreS == null) {
+  if (!memberId || !targetPeriod || !scores || typeof scores !== "object") {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "memberId, targetPeriod, scoreP, scoreA, scoreS は必須です" } },
+      { error: { code: "VALIDATION_ERROR", message: "memberId, targetPeriod, scores は必須です" } },
       { status: 400 }
     );
   }
 
-  for (const [key, val] of [["scoreP", scoreP], ["scoreA", scoreA], ["scoreS", scoreS]]) {
-    if (!Number.isInteger(val) || (val as number) < 1 || (val as number) > 5) {
+  // バリデーション: scores の各キーが有効なitemId、値がA/B/C/D/null
+  const validGrades = new Set<string | null>([...GRADES, null]);
+  for (const [key, val] of Object.entries(scores as Record<string, unknown>)) {
+    if (!ALL_ITEM_IDS.includes(key)) {
       return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", message: `${key} は 1〜5 の整数で入力してください` } },
+        { error: { code: "VALIDATION_ERROR", message: `不正な評価項目ID: ${key}` } },
+        { status: 400 }
+      );
+    }
+    if (val !== null && !validGrades.has(val as string)) {
+      return NextResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: `${key} の値は A/B/C/D/null のいずれかです` } },
         { status: 400 }
       );
     }
@@ -137,7 +155,7 @@ export async function POST(req: NextRequest) {
   });
 
   const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "127.0.0.1";
-  const evalData = { scoreP, scoreA, scoreS, comment: comment ?? null };
+  const evalData = { scores: scores as EvalScores, comment: comment ?? null };
 
   const ev = await prisma.$transaction(async (tx) => {
     let record;
@@ -158,8 +176,8 @@ export async function POST(req: NextRequest) {
         targetTable: "personnel_evaluations",
         targetId: record.id,
         action: existing ? "UPDATE" : "CREATE",
-        ...(existing ? { beforeData: { scoreP: existing.scoreP, scoreA: existing.scoreA, scoreS: existing.scoreS } } : {}),
-        afterData: { memberId, targetPeriod, ...evalData },
+        ...(existing ? { beforeData: JSON.parse(JSON.stringify(existing.scores)) } : {}),
+        afterData: JSON.parse(JSON.stringify({ memberId, targetPeriod, ...evalData })),
         ipAddress: ip,
       },
     });
@@ -167,9 +185,18 @@ export async function POST(req: NextRequest) {
     return record;
   });
 
-  const totalAvg = Math.round(((ev.scoreP + ev.scoreA + ev.scoreS) / 3) * 100) / 100;
+  const evScores = (ev.scores ?? {}) as EvalScores;
   return NextResponse.json(
-    { id: ev.id, memberId: ev.memberId, targetPeriod: ev.targetPeriod, scoreP: ev.scoreP, scoreA: ev.scoreA, scoreS: ev.scoreS, totalAvg, comment: ev.comment, updatedAt: ev.updatedAt },
+    {
+      id: ev.id,
+      memberId: ev.memberId,
+      targetPeriod: ev.targetPeriod,
+      scores: evScores,
+      axisAverages: buildAxisAverages(evScores),
+      totalAvg: calcTotalAverage(evScores),
+      comment: ev.comment,
+      updatedAt: ev.updatedAt,
+    },
     { status: existing ? 200 : 201 }
   );
 }

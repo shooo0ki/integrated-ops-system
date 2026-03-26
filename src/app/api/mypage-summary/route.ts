@@ -2,9 +2,19 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/backend/auth";
 import { prisma } from "@/backend/db";
 import { unauthorized, apiError } from "@/backend/api-response";
+import {
+  EVALUATION_AXES,
+  calcAxisAverage,
+  calcTotalAverage,
+  type EvalScores,
+} from "@/shared/constants/evaluation-taxonomy";
 
-function scoreLabel(n: number) {
-  return ["", "要改善", "普通以下", "標準", "優秀", "卓越"][n] ?? "—";
+function buildAxisAverages(scores: EvalScores) {
+  const result: Record<string, number | null> = {};
+  for (const axis of EVALUATION_AXES) {
+    result[axis.key] = calcAxisAverage(scores, axis);
+  }
+  return result;
 }
 
 // GET /api/mypage-summary
@@ -99,18 +109,14 @@ export async function GET() {
       })),
     },
     evaluations: evaluations.map((ev) => {
-      const totalAvg = Math.round(((ev.scoreP + ev.scoreA + ev.scoreS) / 3) * 100) / 100;
+      const scores = (ev.scores ?? {}) as EvalScores;
       return {
         id: ev.id,
         memberId: ev.memberId,
         targetPeriod: ev.targetPeriod,
-        scoreP: ev.scoreP,
-        labelP: scoreLabel(ev.scoreP),
-        scoreA: ev.scoreA,
-        labelA: scoreLabel(ev.scoreA),
-        scoreS: ev.scoreS,
-        labelS: scoreLabel(ev.scoreS),
-        totalAvg,
+        scores,
+        axisAverages: buildAxisAverages(scores),
+        totalAvg: calcTotalAverage(scores),
         comment: ev.comment,
         updatedAt: ev.updatedAt,
       };

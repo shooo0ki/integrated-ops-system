@@ -43,10 +43,9 @@ export interface MyPageProject {
 export interface EvalRecord {
   id: string;
   targetPeriod: string;
-  scoreP: number;
-  scoreA: number;
-  scoreS: number;
-  totalAvg: number;
+  scores: Record<string, string | null>; // { "1-1-a": "A"|"B"|"C"|"D"|null }
+  axisAverages: Record<string, number | null>;
+  totalAvg: number | null;
   comment: string | null;
 }
 

@@ -6,9 +6,10 @@ import useSWR from "swr";
 import { notFound } from "next/navigation";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { buildMonths } from "@/shared/utils";
+import { EVALUATION_AXES, calcAxisAverage, type EvalScores } from "@/shared/constants/evaluation-taxonomy";
 
 import type { EvalRow, OwnEval } from "@/shared/types/evaluation";
-import { StarBar, ScoreBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
+import { GradeBadge, AvgBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
 import { EditModal } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
 import type { ModalState } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
@@ -42,9 +43,7 @@ export default function EvaluationPage() {
       memberId: row.memberId,
       memberName: row.memberName,
       targetPeriod: month,
-      scoreP: row.scoreP ?? 3,
-      scoreA: row.scoreA ?? 3,
-      scoreS: row.scoreS ?? 3,
+      scores: row.scores ?? {},
       comment: row.comment ?? "",
     });
   }
@@ -56,7 +55,7 @@ export default function EvaluationPage() {
   // ---- 一般ユーザー用ビュー ----
   if (!isAdmin && !isManager) {
     return (
-      <div className="mx-auto max-w-xl space-y-6 p-6">
+      <div className="mx-auto max-w-xl space-y-6">
         <h1 className="text-xl font-bold text-slate-800">人事評価</h1>
 
         <div className="flex items-center gap-3">
@@ -79,36 +78,46 @@ export default function EvaluationPage() {
             <p className="text-slate-400">{month} の評価はまだありません</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-800">{ownEval.targetPeriod} の評価</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
+              <span className="text-sm font-medium text-slate-600">{ownEval.targetPeriod} の評価</span>
               <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
-                総合 {ownEval.totalAvg.toFixed(2)}
+                総合 {ownEval.totalAvg != null ? ownEval.totalAvg.toFixed(2) : "—"}
               </span>
             </div>
 
-            <div className="space-y-3">
-              {[
-                { key: "P", label: "Professional", score: ownEval.scoreP, labelTxt: ownEval.labelP },
-                { key: "A", label: "Appearance", score: ownEval.scoreA, labelTxt: ownEval.labelA },
-                { key: "S", label: "Skill", score: ownEval.scoreS, labelTxt: ownEval.labelS },
-              ].map(({ key, label, score, labelTxt }) => (
-                <div key={key} className="flex items-center gap-4">
-                  <span className="w-28 text-sm text-slate-500">{label}</span>
-                  <StarBar score={score} />
-                  <ScoreBadge score={score} label={labelTxt ?? ""} />
+            {EVALUATION_AXES.map((axis) => {
+              const axisAvg = ownEval.axisAverages[axis.key];
+              return (
+                <div key={axis.id} className="rounded-lg border border-slate-200 px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-slate-700">{axis.label}</span>
+                    <AvgBadge avg={axisAvg ?? null} />
+                  </div>
+                  <div className="space-y-1">
+                    {axis.subCategories.map((sc) => (
+                      <div key={sc.id}>
+                        {sc.items.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between py-0.5">
+                            <span className="text-xs text-slate-500">{item.label}</span>
+                            <GradeBadge grade={(ownEval.scores[item.id] as "A"|"B"|"C"|"D") ?? null} />
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
 
             {ownEval.comment && (
-              <div className="mt-4 rounded-lg bg-slate-50 px-4 py-3">
+              <div className="rounded-lg bg-slate-50 px-4 py-3">
                 <p className="text-sm text-slate-400">コメント</p>
                 <p className="mt-1 text-sm text-slate-700 whitespace-pre-wrap">{ownEval.comment}</p>
               </div>
             )}
 
-            <p className="mt-4 text-right text-xs text-slate-400">
+            <p className="text-right text-xs text-slate-400">
               更新: {new Date(ownEval.updatedAt).toLocaleString("ja-JP")}
             </p>
           </div>
@@ -118,76 +127,8 @@ export default function EvaluationPage() {
   }
 
   // ---- 管理者・マネージャー用ビュー ----
-
-  function renderTable(label: string, tableRows: EvalRow[]) {
-    return (
-      <div key={label}>
-        <h2 className="mb-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">{label}</h2>
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">メンバー</th>
-                <th className="px-4 py-3 text-center font-medium">P</th>
-                <th className="px-4 py-3 text-center font-medium">A</th>
-                <th className="px-4 py-3 text-center font-medium">S</th>
-                <th className="px-4 py-3 text-center font-medium">総合</th>
-                <th className="px-4 py-3 text-left font-medium">コメント</th>
-                <th className="px-4 py-3 text-center font-medium">更新日</th>
-                {canEdit && <th className="px-4 py-3" />}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {tableRows.map((row) => (
-                <tr key={row.memberId} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">{row.memberName}</td>
-                  {row.evaluated ? (
-                    <>
-                      <td className="px-4 py-3 text-center">
-                        <ScoreBadge score={row.scoreP!} label={row.labelP!} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <ScoreBadge score={row.scoreA!} label={row.labelA!} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <ScoreBadge score={row.scoreS!} label={row.labelS!} />
-                      </td>
-                      <td className="px-4 py-3 text-center font-semibold text-blue-700">
-                        {row.totalAvg?.toFixed(2)}
-                      </td>
-                      <td className="max-w-xs px-4 py-3 text-slate-500 truncate">
-                        {row.comment ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-center text-xs text-slate-400">
-                        {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString("ja-JP") : "—"}
-                      </td>
-                    </>
-                  ) : (
-                    <td colSpan={6} className="px-4 py-3 text-center text-slate-400">
-                      未評価
-                    </td>
-                  )}
-                  {canEdit && (
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => openModal(row)}
-                        className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                      >
-                        {row.evaluated ? "編集" : "評価する"}
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-800">人事評価</h1>
         <div className="flex items-center gap-3">
@@ -219,11 +160,61 @@ export default function EvaluationPage() {
 
       {loading ? (
         <InlineSkeleton />
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-slate-400">メンバーが見つかりません</p>
       ) : (
-        <div className="space-y-6">
-          {rows.length > 0 ? renderTable("全メンバー", rows) : (
-            <p className="text-sm text-slate-400">メンバーが見つかりません</p>
-          )}
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium">メンバー</th>
+                {EVALUATION_AXES.map((axis) => (
+                  <th key={axis.id} className="px-3 py-3 text-center font-medium whitespace-nowrap">
+                    {axis.id}. {axis.key.charAt(0).toUpperCase() + axis.key.slice(1, 4)}
+                  </th>
+                ))}
+                <th className="px-3 py-3 text-center font-medium">総合</th>
+                <th className="px-4 py-3 text-left font-medium">コメント</th>
+                {canEdit && <th className="px-4 py-3" />}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((row) => (
+                <tr key={row.memberId} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-800">{row.memberName}</td>
+                  {row.evaluated ? (
+                    <>
+                      {EVALUATION_AXES.map((axis) => (
+                        <td key={axis.id} className="px-3 py-3 text-center">
+                          <AvgBadge avg={row.axisAverages?.[axis.key] ?? null} />
+                        </td>
+                      ))}
+                      <td className="px-3 py-3 text-center font-semibold text-blue-700">
+                        {row.totalAvg != null ? row.totalAvg.toFixed(2) : "—"}
+                      </td>
+                      <td className="max-w-xs px-4 py-3 text-slate-500 truncate">
+                        {row.comment ?? "—"}
+                      </td>
+                    </>
+                  ) : (
+                    <td colSpan={EVALUATION_AXES.length + 2} className="px-4 py-3 text-center text-slate-400">
+                      未評価
+                    </td>
+                  )}
+                  {canEdit && (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => openModal(row)}
+                        className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                      >
+                        {row.evaluated ? "編集" : "評価する"}
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

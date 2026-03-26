@@ -602,16 +602,15 @@ model MonthlySelfReport {
 }
 
 // ─────────────────────────────────────────────
-// 19. personnel_evaluations（人事評価 PAS）
+// 19. personnel_evaluations（人事評価 5軸）
+// scores: { "1-1-a": "A"|"B"|"C"|"D"|null, ... }
 // ─────────────────────────────────────────────
 model PersonnelEvaluation {
   id           String   @id @default(uuid())
   memberId     String   @map("member_id")
   evaluatorId  String   @map("evaluator_id") // UserAccount.id（adminのみ）
   targetPeriod String   @map("target_period") @db.Char(7) // 'YYYY-MM'
-  scoreP       Int      @map("score_p") // 1〜5: Professional
-  scoreA       Int      @map("score_a") // 1〜5: Appearance
-  scoreS       Int      @map("score_s") // 1〜5: Skill
+  scores       Json     // { itemId: grade|null } — 5軸評価スコア
   comment      String?  @db.VarChar(1000)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
