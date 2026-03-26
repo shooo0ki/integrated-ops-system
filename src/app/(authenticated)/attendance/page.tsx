@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, CheckCircle, Building2, Monitor, ClipboardEdit, AlertCircle, ArrowRight } from "lucide-react";
+import { Clock, CheckCircle, Building2, Monitor, ClipboardEdit, ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";
@@ -10,15 +10,15 @@ import { useAttendance } from "@/frontend/hooks/attendance/use-attendance";
 
 export default function AttendancePage() {
   const {
-    memberId, isAdmin,
+    memberId,
     todayLabel,
-    myRecord, myStatus, corrections,
+    myRecord, myStatus,
     workLocation, setWorkLocation,
     todayPlan, setTodayPlan, todayDone, setTodayDone,
     tomorrowPlan, setTomorrowPlan, breakMinutes, setBreakMinutes,
     clockInError, clockingIn, clockingOut, actionLog,
-    approvingId, toast,
-    clockIn, clockOut, validateClockOut, handleApprove,
+    toast,
+    clockIn, clockOut, validateClockOut,
   } = useAttendance();
 
   return (
@@ -215,70 +215,6 @@ export default function AttendancePage() {
         <ArrowRight size={14} className="text-slate-400" />
       </a>
 
-      {/* 勤怠修正申請 承認セクション（admin/manager） */}
-      {isAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <ClipboardEdit size={16} className="inline mr-1" />
-              勤怠修正申請の承認
-            </CardTitle>
-          </CardHeader>
-
-          {corrections.length === 0 ? (
-            <p className="text-sm text-slate-400">承認待ちの修正申請はありません。</p>
-          ) : (
-            <>
-              <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                <AlertCircle size={14} className="shrink-0" />
-                {corrections.length}件 の修正申請が承認待ちです
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-slate-100 bg-slate-50">
-                    <tr className="text-xs text-slate-500">
-                      <th className="px-3 py-2 text-left font-medium">メンバー</th>
-                      <th className="px-3 py-2 text-left font-medium">日付</th>
-                      <th className="px-3 py-2 text-center font-medium">出勤</th>
-                      <th className="px-3 py-2 text-center font-medium">退勤</th>
-                      <th className="px-3 py-2 text-center font-medium">休憩</th>
-                      <th className="px-3 py-2 text-right font-medium">実働</th>
-                      <th className="px-3 py-2" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {corrections.map((c) => (
-                      <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50">
-                        <td className="px-3 py-2 font-medium text-slate-800">{c.memberName}</td>
-                        <td className="px-3 py-2 text-slate-600">
-                          {c.date.replace(/-/g, "/")}
-                        </td>
-                        <td className="px-3 py-2 text-center text-slate-600">{c.clockIn ?? "—"}</td>
-                        <td className="px-3 py-2 text-center text-slate-600">{c.clockOut ?? "—"}</td>
-                        <td className="px-3 py-2 text-center text-slate-500 text-xs">{c.breakMinutes}分</td>
-                        <td className="px-3 py-2 text-right text-slate-700">
-                          {c.actualHours != null ? `${c.actualHours.toFixed(1)}h` : "—"}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() => handleApprove(c.id)}
-                            disabled={approvingId === c.id}
-                          >
-                            <CheckCircle size={13} />
-                            承認
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </Card>
-      )}
     </div>
   );
 }

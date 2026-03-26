@@ -20,6 +20,7 @@ import {
   Wallet,
   Award,
   LayoutDashboard,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/shared/utils";
 import { useAuth } from "@/frontend/contexts/auth-context";
@@ -41,6 +42,16 @@ const DAILY: NavGroup = {
     { href: "/attendance", label: "打刻",       icon: Clock },
     { href: "/calendar",   label: "カレンダー", icon: CalendarDays },
     { href: "/schedule",   label: "勤務予定",   icon: CalendarClock },
+  ],
+};
+
+const ADMIN_DAILY: NavGroup = {
+  title: "毎日使うもの",
+  items: [
+    { href: "/attendance",             label: "打刻",         icon: Clock },
+    { href: "/attendance/corrections", label: "勤怠修正確認", icon: ClipboardCheck },
+    { href: "/calendar",               label: "カレンダー",   icon: CalendarDays },
+    { href: "/schedule",               label: "勤務予定",     icon: CalendarClock },
   ],
 };
 
@@ -72,8 +83,8 @@ const MEMBERS_GROUP: NavGroup = {
   ],
 };
 
-// admin/manager: 全グループ表示
-const ADMIN_GROUPS: NavGroup[] = [DAILY, MONTHLY, PROJECTS, MEMBERS_GROUP];
+// admin/manager: 全グループ表示（勤怠修正確認を含む）
+const ADMIN_GROUPS: NavGroup[] = [ADMIN_DAILY, MONTHLY, PROJECTS, MEMBERS_GROUP];
 
 // member: 日常業務のみ（月末確認は請求管理・PLまで）
 const MEMBER_GROUPS: NavGroup[] = [

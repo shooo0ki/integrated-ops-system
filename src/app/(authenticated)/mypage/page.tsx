@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import {
-  User, Mail, Phone, Calendar, Bell, Shield, ClipboardList,
+  User, Mail, Phone, Calendar, Bell, Shield,
   Award, Pencil, ChevronRight, MapPin, CreditCard, Star,
 } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
@@ -281,24 +281,6 @@ export default function MyPage() {
           </div>
         )}
       </Card>
-
-      {/* ─── 勤怠一覧リンク ─── */}
-      <a href="/attendance/list" className="block">
-        <Card className="transition-colors hover:bg-slate-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                <ClipboardList size={18} className="text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-800">勤怠一覧・修正依頼</p>
-                <p className="text-xs text-slate-500">過去の打刻確認や修正申請</p>
-              </div>
-            </div>
-            <ChevronRight size={16} className="text-slate-400" />
-          </div>
-        </Card>
-      </a>
 
       {/* ─── 月次申告リンク ─── */}
       <a href="/closing" className="block">

@@ -5,11 +5,10 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { useToast } from "@/frontend/hooks/use-toast";
-import type { AttendanceStatus, TodayRecord, CorrectionRecord } from "@/shared/types/attendance";
+import type { AttendanceStatus, TodayRecord } from "@/shared/types/attendance";
 
 export function useAttendance() {
-  const { memberId, role } = useAuth();
-  const isAdmin = role === "admin" || role === "manager";
+  const { memberId } = useAuth();
 
   const [todayStr, setTodayStr] = useState("");
   const [todayLabel, setTodayLabel] = useState("");
@@ -21,11 +20,6 @@ export function useAttendance() {
 
   const { data: myRecord = null, mutate: mutateToday } = useSWR<TodayRecord | null>("/api/attendances/today");
   const myStatus: AttendanceStatus = myRecord?.status ?? "not_started";
-  const { data: correctionsData = [], mutate: mutateCorrections } = useSWR<CorrectionRecord[]>(
-    isAdmin ? "/api/attendances/corrections" : null
-  );
-  const corrections = Array.isArray(correctionsData) ? correctionsData : [];
-  const [approvingId, setApprovingId] = useState<string | null>(null);
   const toast = useToast();
 
   const [workLocation, setWorkLocation] = useState<"オフィス" | "オンライン" | "">("");
@@ -108,30 +102,15 @@ export function useAttendance() {
     return true;
   }
 
-  async function handleApprove(id: string) {
-    setApprovingId(id);
-    mutateCorrections(corrections.filter((c) => c.id !== id), { revalidate: false });
-    const res = await fetch(`/api/attendances/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirmStatus: "confirmed" }),
-    });
-    if (res.ok) {
-      toast.show("修正を承認しました");
-    }
-    await mutateCorrections();
-    setApprovingId(null);
-  }
-
   return {
-    memberId, isAdmin,
+    memberId,
     todayStr, todayLabel,
-    myRecord, myStatus, corrections,
+    myRecord, myStatus,
     workLocation, setWorkLocation,
     todayPlan, setTodayPlan, todayDone, setTodayDone,
     tomorrowPlan, setTomorrowPlan, breakMinutes, setBreakMinutes,
     clockInError, clockingIn, clockingOut, actionLog,
-    approvingId, toast,
-    clockIn, clockOut, validateClockOut, handleApprove,
+    toast,
+    clockIn, clockOut, validateClockOut,
   };
 }
