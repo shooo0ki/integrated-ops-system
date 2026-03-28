@@ -1,7 +1,7 @@
 "use client";
 import { Select } from "@/frontend/components/common/input";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { TrendingUp, TrendingDown, ArrowRight, RefreshCw, CheckCircle, AlertCircle, Pencil, Save, X } from "lucide-react";
@@ -63,9 +63,9 @@ export default function PLSummaryPage() {
   const [genMsg, setGenMsg] = useState<string | null>(null);
 
   // PL編集 state
-  const [editingMarkup, setEditingMarkup] = useState<string | null>(null); // projectId
+  const [editingMarkup, setEditingMarkup] = useState<string | null>(null);
   const [markupInputs, setMarkupInputs] = useState<Record<string, string>>({});
-  const [extraInputs,  setExtraInputs]  = useState<Record<string, string>>({}); // 追加売上
+  const [extraInputs,  setExtraInputs]  = useState<Record<string, string>>({});
   const [savingMarkup, setSavingMarkup] = useState<string | null>(null);
 
   // 申告状況
@@ -120,38 +120,50 @@ export default function PLSummaryPage() {
     setTimeout(() => setGenMsg(null), 5000);
   }
 
-  const currentPL = allRecords.filter((p) => p.targetMonth === month);
-  const filteredPL = tab === "合算" ? currentPL : currentPL.filter((p) => p.company === tab);
+  // ─── 集計（useMemo化） ─────────────────────────────────
 
-  const dispatchPL = filteredPL.filter((p) => p.projectType === "boost_dispatch");
-  const ownPL = filteredPL.filter((p) => p.projectType === "salt2_own");
+  const currentPL = useMemo(() => allRecords.filter((p) => p.targetMonth === month), [allRecords, month]);
+  const filteredPL = useMemo(() => tab === "合算" ? currentPL : currentPL.filter((p) => p.company === tab), [currentPL, tab]);
 
-  const totalRevenue = filteredPL.reduce((s, p) => s + p.revenue, 0);
-  const totalLaborCost = filteredPL.reduce((s, p) => s + p.laborCost, 0);
-  const totalToolCost = filteredPL.reduce((s, p) => s + p.toolCost, 0);
-  const totalGrossProfit = filteredPL.reduce((s, p) => s + p.grossProfit, 0);
-  const grossMargin = totalRevenue > 0 ? ((totalGrossProfit / totalRevenue) * 100).toFixed(1) : "0";
+  const { dispatchPL, ownPL } = useMemo(() => ({
+    dispatchPL: filteredPL.filter((p) => p.projectType === "boost_dispatch"),
+    ownPL: filteredPL.filter((p) => p.projectType === "salt2_own"),
+  }), [filteredPL]);
 
-  const dispatchLaborTotal = dispatchPL.reduce((s, p) => s + p.laborCost, 0);
-  const dispatchRevenueTotal = dispatchPL.reduce((s, p) => s + p.revenue, 0);
-  const dispatchToolTotal = dispatchPL.reduce((s, p) => s + p.toolCost, 0);
-  const dispatchOtherTotal = dispatchPL.reduce((s, p) => s + p.otherCost, 0);
-  const dispatchProfitTotal = dispatchPL.reduce((s, p) => s + p.grossProfit, 0);
-  const breakevenMarkup = dispatchLaborTotal > 0
-    ? (dispatchLaborTotal + dispatchOtherTotal) / dispatchLaborTotal
-    : 0;
-  const avgMarkup = dispatchPL.length > 0
-    ? (dispatchPL.reduce((s, p) => s + (p.markupRate ?? 1.2), 0) / dispatchPL.length)
-    : 1.2;
+  const totals = useMemo(() => {
+    const totalRevenue = filteredPL.reduce((s, p) => s + p.revenue, 0);
+    const totalLaborCost = filteredPL.reduce((s, p) => s + p.laborCost, 0);
+    const totalToolCost = filteredPL.reduce((s, p) => s + p.toolCost, 0);
+    const totalGrossProfit = filteredPL.reduce((s, p) => s + p.grossProfit, 0);
+    const grossMargin = totalRevenue > 0 ? ((totalGrossProfit / totalRevenue) * 100).toFixed(1) : "0";
+    return { totalRevenue, totalLaborCost, totalToolCost, totalGrossProfit, grossMargin };
+  }, [filteredPL]);
 
-  const ownRevenueTotal = ownPL.reduce((s, p) => s + p.revenue, 0);
-  const ownLaborTotal = ownPL.reduce((s, p) => s + p.laborCost, 0);
-  const ownProfitTotal = ownPL.reduce((s, p) => s + p.grossProfit, 0);
-  const ownMargin = ownRevenueTotal > 0 ? ((ownProfitTotal / ownRevenueTotal) * 100).toFixed(1) : "0";
+  const dispatchTotals = useMemo(() => {
+    const labor = dispatchPL.reduce((s, p) => s + p.laborCost, 0);
+    const revenue = dispatchPL.reduce((s, p) => s + p.revenue, 0);
+    const tool = dispatchPL.reduce((s, p) => s + p.toolCost, 0);
+    const other = dispatchPL.reduce((s, p) => s + p.otherCost, 0);
+    const profit = dispatchPL.reduce((s, p) => s + p.grossProfit, 0);
+    const breakevenMarkup = labor > 0 ? (labor + other) / labor : 0;
+    const avgMarkup = dispatchPL.length > 0
+      ? (dispatchPL.reduce((s, p) => s + (p.markupRate ?? 1.2), 0) / dispatchPL.length)
+      : 1.2;
+    return { labor, revenue, tool, other, profit, breakevenMarkup, avgMarkup };
+  }, [dispatchPL]);
 
-  // トレンドデータ（6ヶ月）: 古い月→新しい月（左→右）
-  const buildTrendData = (company: "ALL" | "boost" | "salt2") =>
-    [...MONTHS].reverse().map((m) => {
+  const ownTotals = useMemo(() => {
+    const revenue = ownPL.reduce((s, p) => s + p.revenue, 0);
+    const labor = ownPL.reduce((s, p) => s + p.laborCost, 0);
+    const profit = ownPL.reduce((s, p) => s + p.grossProfit, 0);
+    const margin = revenue > 0 ? ((profit / revenue) * 100).toFixed(1) : "0";
+    return { revenue, labor, profit, margin };
+  }, [ownPL]);
+
+  // トレンドデータ（6ヶ月）— useMemo化
+  const chartData = useMemo(() => {
+    const company = tab === "合算" ? "ALL" : tab;
+    return [...MONTHS].reverse().map((m) => {
       const recs = allRecords.filter(
         (r) => r.targetMonth === m && (company === "ALL" || r.company === company)
       );
@@ -162,11 +174,7 @@ export default function PLSummaryPage() {
         laborCost: recs.reduce((s, r) => s + r.laborCost, 0),
       };
     });
-
-  const chartData =
-    tab === "合算" ? buildTrendData("ALL") :
-    tab === "boost" ? buildTrendData("boost") :
-    buildTrendData("salt2");
+  }, [allRecords, tab]);
 
   const TAB_LABELS: Record<TabCompany, string> = { "合算": "合算", "boost": "Boost", "salt2": "SALT2" };
 
@@ -247,26 +255,26 @@ export default function PLSummaryPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-slate-500">Boost請求額合計</p>
-                    <p className="text-lg font-bold text-slate-800">{formatCurrency(dispatchRevenueTotal)}</p>
+                    <p className="text-lg font-bold text-slate-800">{formatCurrency(dispatchTotals.revenue)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">コスト合計</p>
                     <p className="text-lg font-bold text-slate-600">
-                      {formatCurrency(dispatchLaborTotal + dispatchToolTotal + dispatchOtherTotal)}
+                      {formatCurrency(dispatchTotals.labor + dispatchTotals.tool + dispatchTotals.other)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">平均掛け率</p>
-                    <p className="text-lg font-bold text-orange-700">×{avgMarkup.toFixed(2)}</p>
+                    <p className="text-lg font-bold text-orange-700">×{dispatchTotals.avgMarkup.toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">損益分岐掛け率</p>
-                    <p className="text-lg font-bold text-slate-700">×{breakevenMarkup.toFixed(2)}</p>
+                    <p className="text-lg font-bold text-slate-700">×{dispatchTotals.breakevenMarkup.toFixed(2)}</p>
                   </div>
                 </div>
-                <div className={`mt-2 rounded-lg px-3 py-2 text-xs font-medium ${dispatchProfitTotal >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-                  差益: {formatCurrency(dispatchProfitTotal)}
-                  {dispatchProfitTotal >= 0 ? "（掛け率が損益分岐を上回っています）" : "（コスト超過 — 掛け率の引き上げを検討）"}
+                <div className={`mt-2 rounded-lg px-3 py-2 text-xs font-medium ${dispatchTotals.profit >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                  粗利: {formatCurrency(dispatchTotals.profit)}
+                  {dispatchTotals.profit >= 0 ? "（掛け率が損益分岐を上回っています）" : "（コスト超過 — 掛け率の引き上げを検討）"}
                 </div>
               </div>
             )}
@@ -283,21 +291,21 @@ export default function PLSummaryPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-slate-500">売上合計</p>
-                    <p className="text-lg font-bold text-slate-800">{formatCurrency(ownRevenueTotal)}</p>
+                    <p className="text-lg font-bold text-slate-800">{formatCurrency(ownTotals.revenue)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">人件費合計</p>
-                    <p className="text-lg font-bold text-amber-700">{formatCurrency(ownLaborTotal)}</p>
+                    <p className="text-lg font-bold text-amber-700">{formatCurrency(ownTotals.labor)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">粗利</p>
-                    <p className={`text-lg font-bold ${ownProfitTotal >= 0 ? "text-green-700" : "text-red-600"}`}>
-                      {formatCurrency(ownProfitTotal)}
+                    <p className={`text-lg font-bold ${ownTotals.profit >= 0 ? "text-green-700" : "text-red-600"}`}>
+                      {formatCurrency(ownTotals.profit)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">粗利率</p>
-                    <p className="text-lg font-bold text-blue-700">{ownMargin}%</p>
+                    <p className="text-lg font-bold text-blue-700">{ownTotals.margin}%</p>
                   </div>
                 </div>
               </div>
@@ -308,19 +316,19 @@ export default function PLSummaryPage() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Card>
               <p className="text-xs text-slate-500">{tab === "boost" ? "Boost請求額" : "売上 / 請求額"}</p>
-              <p className="mt-1 text-xl font-bold text-slate-800">{formatCurrency(totalRevenue)}</p>
+              <p className="mt-1 text-xl font-bold text-slate-800">{formatCurrency(totals.totalRevenue)}</p>
             </Card>
             <Card>
-              <p className="text-xs text-slate-500">差益 / 粗利</p>
-              <p className="mt-1 text-xl font-bold text-green-700">{formatCurrency(totalGrossProfit)}</p>
+              <p className="text-xs text-slate-500">粗利</p>
+              <p className="mt-1 text-xl font-bold text-green-700">{formatCurrency(totals.totalGrossProfit)}</p>
             </Card>
             <Card>
-              <p className="text-xs text-slate-500">差益 / 粗利率</p>
-              <p className="mt-1 text-xl font-bold text-blue-700">{grossMargin}%</p>
+              <p className="text-xs text-slate-500">粗利率</p>
+              <p className="mt-1 text-xl font-bold text-blue-700">{totals.grossMargin}%</p>
             </Card>
             <Card>
               <p className="text-xs text-slate-500">人件費</p>
-              <p className="mt-1 text-xl font-bold text-amber-700">{formatCurrency(totalLaborCost)}</p>
+              <p className="mt-1 text-xl font-bold text-amber-700">{formatCurrency(totals.totalLaborCost)}</p>
             </Card>
           </div>
 
@@ -334,7 +342,7 @@ export default function PLSummaryPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>売上・差益トレンド</CardTitle>
+                <CardTitle>売上・粗利トレンド</CardTitle>
               </CardHeader>
               <PLTrendLine data={chartData} />
             </Card>
@@ -357,7 +365,7 @@ export default function PLSummaryPage() {
                       <th className="py-2 text-right font-medium">売上 / 請求額</th>
                       <th className="py-2 text-right font-medium">人件費</th>
                       <th className="py-2 text-right font-medium">ツール費</th>
-                      <th className="py-2 text-right font-medium">差益 / 粗利</th>
+                      <th className="py-2 text-right font-medium">粗利</th>
                       <th className="py-2 text-right font-medium min-w-[130px]">掛け率 / 粗利率</th>
                       {canEdit && <th className="py-2 w-8" />}
                     </tr>
@@ -368,7 +376,6 @@ export default function PLSummaryPage() {
                       const markup     = pl.markupRate ?? 1.2;
                       const isEditing  = canEdit && editingMarkup === pl.projectId;
 
-                      // シミュレーション
                       const simRate    = isEditing && isDispatch ? (parseFloat(markupInputs[pl.projectId] ?? "") || markup) : markup;
                       const simExtra   = isEditing ? (parseFloat(extraInputs[pl.projectId] ?? "") || 0) : pl.revenueExtra;
                       const simBase    = isDispatch
@@ -388,7 +395,6 @@ export default function PLSummaryPage() {
                             )}
                           </td>
 
-                          {/* 売上 */}
                           <td className="py-2 text-right text-slate-700">
                             {isEditing ? (
                               <span className={`text-xs ${simRevenue !== pl.revenue ? "font-semibold text-orange-600" : ""}`}>
@@ -410,7 +416,6 @@ export default function PLSummaryPage() {
                           <td className="py-2 text-right text-amber-700">{formatCurrency(pl.laborCost)}</td>
                           <td className="py-2 text-right text-slate-500">{formatCurrency(pl.toolCost)}</td>
 
-                          {/* 差益 / 粗利 */}
                           <td className={`py-2 text-right font-semibold ${simProfit >= 0 ? "text-green-700" : "text-red-600"}`}>
                             {isEditing ? (
                               <span>
@@ -422,11 +427,9 @@ export default function PLSummaryPage() {
                             ) : formatCurrency(pl.grossProfit)}
                           </td>
 
-                          {/* 掛け率 / 粗利率 + 編集UI */}
                           <td className="py-2 text-right">
                             {isEditing ? (
                               <div className="flex flex-col items-end gap-1.5">
-                                {/* 掛け率（dispatch のみ） */}
                                 {isDispatch && (
                                   <div className="flex items-center gap-1">
                                     <span className="text-[10px] text-slate-400">掛け率</span>
@@ -440,7 +443,6 @@ export default function PLSummaryPage() {
                                     />
                                   </div>
                                 )}
-                                {/* 追加売上 */}
                                 <div className="flex items-center gap-1">
                                   <span className="text-[10px] text-slate-400">追加売上</span>
                                   <span className="text-xs text-slate-500">¥</span>
@@ -453,7 +455,6 @@ export default function PLSummaryPage() {
                                     autoFocus={!isDispatch}
                                   />
                                 </div>
-                                {/* 保存・キャンセル */}
                                 <div className="flex gap-1">
                                   <button
                                     onClick={() => handleSavePL(pl)}
@@ -481,7 +482,6 @@ export default function PLSummaryPage() {
                             )}
                           </td>
 
-                          {/* 編集ボタン */}
                           {canEdit && (
                             <td className="py-2 text-right">
                               {!isEditing && (
@@ -506,11 +506,11 @@ export default function PLSummaryPage() {
                   <tfoot className="border-t-2 border-slate-200">
                     <tr>
                       <td className="py-2 font-bold text-slate-800" colSpan={2}>合計</td>
-                      <td className="py-2 text-right font-bold text-slate-800">{formatCurrency(totalRevenue)}</td>
-                      <td className="py-2 text-right font-bold text-amber-700">{formatCurrency(totalLaborCost)}</td>
-                      <td className="py-2 text-right font-bold text-slate-500">{formatCurrency(totalToolCost)}</td>
-                      <td className="py-2 text-right font-bold text-green-700">{formatCurrency(totalGrossProfit)}</td>
-                      <td className="py-2 text-right font-bold text-blue-700">{grossMargin}%</td>
+                      <td className="py-2 text-right font-bold text-slate-800">{formatCurrency(totals.totalRevenue)}</td>
+                      <td className="py-2 text-right font-bold text-amber-700">{formatCurrency(totals.totalLaborCost)}</td>
+                      <td className="py-2 text-right font-bold text-slate-500">{formatCurrency(totals.totalToolCost)}</td>
+                      <td className="py-2 text-right font-bold text-green-700">{formatCurrency(totals.totalGrossProfit)}</td>
+                      <td className="py-2 text-right font-bold text-blue-700">{totals.grossMargin}%</td>
                       {canEdit && <td />}
                     </tr>
                   </tfoot>
@@ -545,7 +545,7 @@ export default function PLSummaryPage() {
                       ) : (
                         <TrendingDown size={14} className="text-amber-500" />
                       )}
-                      {isDispatchCompany ? `差益率 ${margin}%` : `粗利率 ${margin}%`}
+                      粗利率 {margin}%
                     </div>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-3">
@@ -554,14 +554,14 @@ export default function PLSummaryPage() {
                       <p className="text-lg font-bold text-slate-800">{formatCurrency(rev)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-400">{isDispatchCompany ? "差益" : "粗利"}</p>
+                      <p className="text-xs text-slate-400">粗利</p>
                       <p className={`text-lg font-bold ${gp >= 0 ? "text-green-700" : "text-red-600"}`}>{formatCurrency(gp)}</p>
                     </div>
                   </div>
                   {isDispatchCompany && dispatchPL.length > 0 && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-orange-600">
                       <ArrowRight size={12} />
-                      <span>平均掛け率 ×{avgMarkup.toFixed(2)} 適用中</span>
+                      <span>平均掛け率 ×{dispatchTotals.avgMarkup.toFixed(2)} 適用中</span>
                     </div>
                   )}
                 </Card>
