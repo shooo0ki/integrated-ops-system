@@ -172,9 +172,9 @@ export default function EvaluationPage() {
       ) : rows.length === 0 ? (
         <p className="text-sm text-slate-400">メンバーが見つかりません</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
+        <div className="overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm max-h-[calc(100vh-320px)]">
+          <table className="w-full min-w-[800px] text-sm">
+            <thead className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">メンバー</th>
                 {EVALUATION_AXES.map((axis) => (

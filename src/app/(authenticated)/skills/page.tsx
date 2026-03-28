@@ -105,14 +105,14 @@ export default function SkillsPage() {
       ) : rows.length === 0 ? (
         <p className="text-sm text-slate-400">メンバーが見つかりません</p>
       ) : (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-auto">
-          <table className="text-sm border-collapse">
-            <thead>
+        <div className="rounded-xl border border-slate-200 bg-white overflow-auto max-h-[calc(100vh-280px)]">
+          <table className="text-sm border-collapse min-w-max">
+            <thead className="sticky top-0 z-20">
               {/* 軸ヘッダ行 */}
               <tr className="bg-slate-50">
                 <th
                   rowSpan={2}
-                  className="sticky left-0 z-10 bg-slate-50 border border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600 min-w-[140px]"
+                  className="sticky left-0 z-30 bg-slate-50 border border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600 min-w-[140px]"
                 >
                   メンバー
                 </th>
