@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import {
   HOUR_PX, START_HOUR, END_HOUR, GRID_H, TIME_W, DAY_MIN_W, HOURS, COLORS, DEFAULT_SCROLL_HOUR,
 } from "@/frontend/constants/calendar";
@@ -9,6 +9,85 @@ import type { WeekDay } from "./calendar-utils";
 import { timeToY, spanPx, nowTimeStr, nowY } from "./calendar-utils";
 import { LocationBadge } from "./location-badge";
 
+type Block = {
+  memberId: string;
+  memberName: string;
+  startMin: number;
+  endMin: number;
+  top: number;
+  height: number;
+  type: "attendance" | "schedule";
+  clockIn?: string;
+  clockOut?: string | null;
+  startTime?: string;
+  endTime?: string | null;
+  locationType: string;
+  color: typeof COLORS[number];
+};
+
+type Preview = {
+  memberName: string;
+  type: "attendance" | "schedule";
+  clockIn?: string;
+  clockOut?: string | null;
+  startTime?: string;
+  endTime?: string | null;
+  locationType: string;
+  x: number;
+  y: number;
+};
+
+function timeToMin(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** 同じ日のブロック群に対して、時間が重なるブロックのみを列分割する */
+function layoutBlocks(blocks: Block[]): { block: Block; col: number; totalCols: number }[] {
+  if (blocks.length === 0) return [];
+
+  // ブロックを開始時間順にソート
+  const sorted = [...blocks].sort((a, b) => a.startMin - b.startMin);
+
+  // 各ブロックに列番号を割り当て
+  const columns: Block[][] = [];
+  const blockCol = new Map<Block, number>();
+
+  for (const block of sorted) {
+    let placed = false;
+    for (let c = 0; c < columns.length; c++) {
+      const lastInCol = columns[c][columns[c].length - 1];
+      if (lastInCol.endMin <= block.startMin) {
+        columns[c].push(block);
+        blockCol.set(block, c);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      blockCol.set(block, columns.length);
+      columns.push([block]);
+    }
+  }
+
+  // 各ブロックが実際に重なる最大列数を計算
+  const result: { block: Block; col: number; totalCols: number }[] = [];
+  for (const block of sorted) {
+    const col = blockCol.get(block)!;
+    // このブロックと時間が重なるブロックの列数を数える
+    let maxCol = col;
+    for (const other of sorted) {
+      if (other.startMin < block.endMin && other.endMin > block.startMin) {
+        const otherCol = blockCol.get(other)!;
+        if (otherCol > maxCol) maxCol = otherCol;
+      }
+    }
+    result.push({ block, col, totalCols: maxCol + 1 });
+  }
+
+  return result;
+}
+
 export function WeekView({ weekDays, visible, calData }: {
   weekDays: WeekDay[];
   visible: CalMember[];
@@ -16,6 +95,7 @@ export function WeekView({ weekDays, visible, calData }: {
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentY, setCurrentY] = useState(nowY());
+  const [preview, setPreview] = useState<Preview | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -32,7 +112,6 @@ export function WeekView({ weekDays, visible, calData }: {
     () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
     [calData.members]
   );
-  const colPct = visible.length > 0 ? 100 / visible.length : 100;
 
   const attMap = useMemo(() => {
     const map = new Map<string, AttEntry>();
@@ -50,16 +129,83 @@ export function WeekView({ weekDays, visible, calData }: {
     return map;
   }, [calData.schedules]);
 
-  function att(memberId: string, date: string) {
-    return attMap.get(`${memberId}:${date}`) ?? null;
-  }
+  // 日ごとのブロックを事前計算
+  const dayBlocks = useMemo(() => {
+    const result = new Map<string, { block: Block; col: number; totalCols: number }[]>();
 
-  function sched(memberId: string, date: string) {
-    return schedMap.get(`${memberId}:${date}`) ?? null;
-  }
+    for (const day of weekDays) {
+      if (day.isWeekend) continue;
+      const blocks: Block[] = [];
+
+      for (const member of visible) {
+        const color = colorMap.get(member.id) ?? COLORS[0];
+        const a = attMap.get(`${member.id}:${day.date}`) ?? null;
+        const s = schedMap.get(`${member.id}:${day.date}`) ?? null;
+
+        if (a?.clockIn) {
+          const endTime = a.clockOut ?? nowTimeStr();
+          blocks.push({
+            memberId: member.id,
+            memberName: member.name,
+            startMin: timeToMin(a.clockIn),
+            endMin: timeToMin(endTime),
+            top: timeToY(a.clockIn) + 1,
+            height: Math.max(28, spanPx(a.clockIn, endTime) - 2),
+            type: "attendance",
+            clockIn: a.clockIn,
+            clockOut: a.clockOut,
+            locationType: a.locationType,
+            color,
+          });
+        } else if (s && !s.isOff && s.startTime) {
+          const endTime = s.endTime ?? `${END_HOUR}:00`;
+          blocks.push({
+            memberId: member.id,
+            memberName: member.name,
+            startMin: timeToMin(s.startTime),
+            endMin: timeToMin(endTime),
+            top: timeToY(s.startTime) + 1,
+            height: Math.max(20, spanPx(s.startTime, endTime) - 2),
+            type: "schedule",
+            startTime: s.startTime,
+            endTime: s.endTime,
+            locationType: s.locationType,
+            color,
+          });
+        }
+      }
+
+      result.set(day.date, layoutBlocks(blocks));
+    }
+    return result;
+  }, [weekDays, visible, colorMap, attMap, schedMap]);
+
+  const handleBlockClick = useCallback((block: Block, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPreview({
+      memberName: block.memberName,
+      type: block.type,
+      clockIn: block.clockIn,
+      clockOut: block.clockOut,
+      startTime: block.startTime,
+      endTime: block.endTime,
+      locationType: block.locationType,
+      x: rect.left + rect.width / 2,
+      y: rect.top,
+    });
+  }, []);
+
+  // クリックでプレビューを閉じる
+  useEffect(() => {
+    if (!preview) return;
+    const close = () => setPreview(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [preview]);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden relative">
       <div
         ref={scrollRef}
         className="overflow-auto"
@@ -126,49 +272,38 @@ export function WeekView({ weekDays, visible, calData }: {
                     </div>
                   )}
 
-                  {!day.isWeekend && visible.map((member, mi) => {
-                    const color = colorMap.get(member.id) ?? COLORS[0];
-                    const a = att(member.id, day.date);
-                    const s = sched(member.id, day.date);
-                    const left = `${mi * colPct + 0.5}%`;
-                    const width = `${colPct - 1}%`;
+                  {(dayBlocks.get(day.date) ?? []).map(({ block, col, totalCols }) => {
+                    const widthPct = 100 / totalCols;
+                    const leftPct = col * widthPct;
+                    const isSchedule = block.type === "schedule";
 
                     return (
-                      <div key={member.id}>
-                        {/* 予定ブロック（実績がない場合のみ） */}
-                        {s && !s.isOff && s.startTime && !a?.clockIn && (
-                          <div
-                            className={`absolute rounded-md border-l-2 overflow-hidden opacity-60 ${color.bg} ${color.bl}`}
-                            style={{
-                              top: timeToY(s.startTime) + 1,
-                              height: Math.max(20, spanPx(s.startTime, s.endTime ?? `${END_HOUR}:00`) - 2),
-                              left, width, padding: "2px 4px",
-                            }}
-                          >
-                            <p className={`text-xs font-medium truncate leading-tight ${color.text}`}>{member.name}</p>
-                            <p className={`text-xs truncate leading-tight ${color.text} opacity-70`}>
-                              {s.startTime}〜{s.endTime ?? ""}
-                            </p>
-                            <LocationBadge locationType={s.locationType} />
-                          </div>
+                      <div
+                        key={`${block.memberId}-${block.type}`}
+                        className={`absolute rounded-md border-l-2 overflow-hidden cursor-pointer hover:brightness-95 transition-all ${
+                          isSchedule ? "opacity-60" : ""
+                        } ${block.color.bg} ${block.color.bl}`}
+                        style={{
+                          top: block.top,
+                          height: block.height,
+                          left: `${leftPct + 0.5}%`,
+                          width: `${widthPct - 1}%`,
+                          padding: "2px 4px",
+                        }}
+                        onClick={(e) => handleBlockClick(block, e)}
+                      >
+                        <p className={`text-xs font-semibold truncate leading-tight ${block.color.text}`}>
+                          {block.memberName}
+                        </p>
+                        {block.height >= 32 && (
+                          <p className={`text-xs truncate leading-tight ${block.color.text} opacity-80`}>
+                            {block.type === "attendance"
+                              ? `${block.clockIn}〜${block.clockOut ?? "勤務中"}`
+                              : `${block.startTime}〜${block.endTime ?? ""}`}
+                          </p>
                         )}
-
-                        {/* 実績ブロック */}
-                        {a?.clockIn && (
-                          <div
-                            className={`absolute rounded-md border-l-2 overflow-hidden ${color.bg} ${color.bl}`}
-                            style={{
-                              top: timeToY(a.clockIn) + 1,
-                              height: Math.max(28, spanPx(a.clockIn, a.clockOut ?? nowTimeStr()) - 2),
-                              left, width, padding: "2px 4px",
-                            }}
-                          >
-                            <p className={`text-xs font-semibold truncate leading-tight ${color.text}`}>{member.name}</p>
-                            <p className={`text-xs truncate leading-tight ${color.text} opacity-80`}>
-                              {a.clockIn}〜{a.clockOut ?? "勤務中"}
-                            </p>
-                            <LocationBadge locationType={a.locationType} />
-                          </div>
+                        {block.height >= 48 && (
+                          <LocationBadge locationType={block.locationType} />
                         )}
                       </div>
                     );
@@ -180,6 +315,33 @@ export function WeekView({ weekDays, visible, calData }: {
 
         </div>
       </div>
+
+      {/* プレビューポップオーバー */}
+      {preview && (
+        <div
+          className="fixed z-50 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-lg text-sm"
+          style={{
+            left: Math.min(preview.x - 100, window.innerWidth - 240),
+            top: Math.max(preview.y - 110, 8),
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="font-bold text-slate-800 mb-1">{preview.memberName}</p>
+          <div className="space-y-0.5 text-slate-600">
+            {preview.type === "attendance" ? (
+              <>
+                <p>出勤: {preview.clockIn}</p>
+                <p>退勤: {preview.clockOut ?? "勤務中"}</p>
+              </>
+            ) : (
+              <>
+                <p>予定: {preview.startTime}〜{preview.endTime ?? ""}</p>
+              </>
+            )}
+            <p>勤務形態: <LocationBadge locationType={preview.locationType} /></p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
