@@ -84,12 +84,9 @@ export default function MyPage() {
   const filteredEvals = evalMonth ? evaluations.filter((ev) => ev.targetPeriod === evalMonth) : evaluations;
   const skillAssessment = summaryData?.skillAssessment ?? null;
 
-  if (mypageLoading) return <MyPageSkeleton />;
   const memberDetail = summaryData?.member ?? null;
-  if (!memberDetail) return null;
-
-  const myProjects = memberDetail.projects ?? [];
-  const hasBankInfo = memberDetail.bankName || memberDetail.bankAccountNumber;
+  const myProjects = memberDetail?.projects ?? [];
+  const hasBankInfo = memberDetail?.bankName || memberDetail?.bankAccountNumber;
 
   // 勤怠月選択肢（過去6ヶ月）
   const attMonthOptions = Array.from({ length: 6 }, (_, i) => {
@@ -102,7 +99,7 @@ export default function MyPage() {
     <div className="space-y-4 max-w-3xl">
       <div>
         <h1 className="text-xl font-bold text-slate-800">マイページ</h1>
-        <p className="text-sm text-slate-500">{memberDetail.name}</p>
+        <p className="text-sm text-slate-500">{memberDetail?.name ?? ""}</p>
       </div>
 
       {/* タブ */}
@@ -197,7 +194,9 @@ export default function MyPage() {
       )}
 
       {/* ─── プロフィールタブ ─── */}
-      {tab === "profile" && (
+      {tab === "profile" && (mypageLoading || !memberDetail ? (
+        <MyPageSkeleton />
+      ) : (
         <div className="space-y-4">
           <Card>
             <CardHeader>
@@ -274,10 +273,12 @@ export default function MyPage() {
             )}
           </Card>
         </div>
-      )}
+      ))}
 
       {/* ─── 請求書情報タブ ─── */}
-      {tab === "billing" && (
+      {tab === "billing" && (mypageLoading || !memberDetail ? (
+        <MyPageSkeleton />
+      ) : (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -322,10 +323,12 @@ export default function MyPage() {
             </div>
           )}
         </Card>
-      )}
+      ))}
 
       {/* ─── 評価・スキルタブ ─── */}
-      {tab === "evaluation" && (
+      {tab === "evaluation" && (mypageLoading ? (
+        <MyPageSkeleton />
+      ) : (
         <div className="space-y-4">
           {/* スキル */}
           <Card>
@@ -473,7 +476,7 @@ export default function MyPage() {
             )}
           </Card>
         </div>
-      )}
+      ))}
 
       {/* ─── 設定タブ ─── */}
       {tab === "settings" && (
@@ -526,7 +529,7 @@ export default function MyPage() {
       )}
 
       {/* ─── プロフィール編集モーダル ─── */}
-      {editingProfile && (
+      {editingProfile && memberDetail && (
         <ProfileEditModal
           memberId={memberDetail.id}
           current={memberDetail}
@@ -539,7 +542,7 @@ export default function MyPage() {
       )}
 
       {/* ─── 請求書情報編集モーダル ─── */}
-      {editingBilling && (
+      {editingBilling && memberDetail && (
         <ProfileEditModal
           memberId={memberDetail.id}
           current={memberDetail}
@@ -552,7 +555,7 @@ export default function MyPage() {
       )}
 
       {/* ─── パスワード変更モーダル ─── */}
-      {changingPassword && (
+      {changingPassword && memberDetail && (
         <PasswordChangeModal
           memberId={memberDetail.id}
           onClose={() => setChangingPassword(false)}
