@@ -155,10 +155,10 @@ export function EditModal({
                                   <button
                                     type="button"
                                     onClick={() => setGrade(item.id, null)}
-                                    className={`h-12 w-12 rounded-lg text-base font-medium transition-colors ${
+                                    className={`h-12 w-12 rounded-lg text-base font-medium transition-colors border-2 ${
                                       current === null
-                                        ? "bg-slate-600 text-white"
-                                        : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                                        ? "bg-purple-600 text-white border-purple-600"
+                                        : "bg-white text-slate-400 border-slate-200 hover:bg-slate-100"
                                     }`}
                                   >
                                     N/A
