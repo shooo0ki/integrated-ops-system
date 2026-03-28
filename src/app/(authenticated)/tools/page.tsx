@@ -40,9 +40,10 @@ export default function ToolsPage() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ToolEntry | null>(null);
-  const [form, setForm] = useState({ toolName: "", plan: "", monthlyCost: "", memberId: "", note: "" });
+  const [form, setForm] = useState({ toolName: "", plan: "", monthlyCost: "", memberIds: [] as string[], note: "" });
   const [editForm, setEditForm] = useState({ plan: "", monthlyCost: "", note: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
 
   const toolNames = Array.from(new Set(tools.map((t) => t.toolName))).sort();
 
@@ -61,14 +62,23 @@ export default function ToolsPage() {
     return acc;
   }, {});
 
+  function toggleMember(id: string) {
+    setForm((f) => ({
+      ...f,
+      memberIds: f.memberIds.includes(id)
+        ? f.memberIds.filter((mid) => mid !== id)
+        : [...f.memberIds, id],
+    }));
+  }
+
   async function handleAdd() {
-    if (!form.memberId || !form.toolName) return;
+    if (form.memberIds.length === 0 || !form.toolName) return;
     setSubmitting(true);
     const res = await fetch("/api/tools", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        memberId: form.memberId,
+        memberIds: form.memberIds,
         toolName: form.toolName,
         plan: form.plan || undefined,
         monthlyCost: form.monthlyCost ? Number(form.monthlyCost) : 0,
@@ -78,7 +88,8 @@ export default function ToolsPage() {
     if (res.ok) {
       await mutateTools();
       setAddOpen(false);
-      setForm({ toolName: "", plan: "", monthlyCost: "", memberId: "", note: "" });
+      setForm({ toolName: "", plan: "", monthlyCost: "", memberIds: [], note: "" });
+      setMemberSearch("");
     }
     setSubmitting(false);
   }
@@ -248,22 +259,67 @@ export default function ToolsPage() {
       {/* Add modal */}
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="ツール追加">
         <div className="space-y-3">
-          <Select
-            id="memberId" label="メンバー *"
-            value={form.memberId}
-            onChange={(e) => setForm((f) => ({ ...f, memberId: e.target.value }))}
-          >
-            <option value="">選択してください</option>
-            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </Select>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              メンバー *（{form.memberIds.length}名選択中）
+            </label>
+            <div className="flex items-center gap-2 mb-2">
+              <input
+                type="text"
+                placeholder="名前で検索..."
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const filtered = members.filter((m) =>
+                    !memberSearch || m.name.includes(memberSearch)
+                  );
+                  const allSelected = filtered.every((m) => form.memberIds.includes(m.id));
+                  setForm((f) => ({
+                    ...f,
+                    memberIds: allSelected
+                      ? f.memberIds.filter((id) => !filtered.some((m) => m.id === id))
+                      : Array.from(new Set([...f.memberIds, ...filtered.map((m) => m.id)])),
+                  }));
+                }}
+                className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                全選択/解除
+              </button>
+            </div>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white">
+              {members
+                .filter((m) => !memberSearch || m.name.includes(memberSearch))
+                .map((m) => (
+                  <label
+                    key={m.id}
+                    className="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.memberIds.includes(m.id)}
+                      onChange={() => toggleMember(m.id)}
+                      className="rounded border-slate-300"
+                    />
+                    <span className="text-sm text-slate-700">{m.name}</span>
+                  </label>
+                ))}
+              {members.filter((m) => !memberSearch || m.name.includes(memberSearch)).length === 0 && (
+                <p className="px-3 py-2 text-xs text-slate-400">該当なし</p>
+              )}
+            </div>
+          </div>
           <Input id="toolName" label="ツール名 *" value={form.toolName} onChange={(e) => setForm((f) => ({ ...f, toolName: e.target.value }))} placeholder="Claude" />
           <Input id="plan" label="プラン" value={form.plan} onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))} placeholder="Pro" />
           <Input id="monthlyCost" type="number" label="月額（円）" value={form.monthlyCost} onChange={(e) => setForm((f) => ({ ...f, monthlyCost: e.target.value }))} placeholder="3200" />
           <Input id="note" label="備考" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} placeholder="用途など" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setAddOpen(false)}>キャンセル</Button>
-            <Button variant="primary" onClick={handleAdd} disabled={submitting || !form.memberId || !form.toolName}>
-              {submitting ? "追加中..." : "追加"}
+            <Button variant="primary" onClick={handleAdd} disabled={submitting || form.memberIds.length === 0 || !form.toolName}>
+              {submitting ? "追加中..." : `${form.memberIds.length}名に追加`}
             </Button>
           </div>
         </div>

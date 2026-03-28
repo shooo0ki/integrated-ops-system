@@ -44,54 +44,71 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/tools
-// Body: { memberId, toolName, plan?, monthlyCost?, companyLabel, note? }
+// Body: { memberId, toolName, plan?, monthlyCost?, note? }
+//   or: { memberIds: string[], toolName, plan?, monthlyCost?, note? }  (一括追加)
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
   if (!["admin", "manager"].includes(user.role)) return forbidden();
 
   const body = await req.json().catch(() => null);
-  const { memberId, toolName, plan, monthlyCost, note } = body ?? {};
+  const { memberId, memberIds, toolName, plan, monthlyCost, note } = body ?? {};
 
-  if (!memberId || !toolName) {
+  // memberIds (配列) or memberId (単体) を統一
+  const ids: string[] = Array.isArray(memberIds) && memberIds.length > 0
+    ? memberIds
+    : memberId ? [memberId] : [];
+
+  if (ids.length === 0 || !toolName) {
     return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "memberId, toolName は必須です" } },
+      { error: { code: "VALIDATION_ERROR", message: "memberId(s), toolName は必須です" } },
       { status: 400 }
     );
   }
 
-  const member = await prisma.member.findFirst({ where: { id: memberId, deletedAt: null } });
-  if (!member) {
+  // メンバー存在チェック
+  const validMembers = await prisma.member.findMany({
+    where: { id: { in: ids }, deletedAt: null },
+    select: { id: true },
+  });
+  const validIds = new Set(validMembers.map((m) => m.id));
+  const targetIds = ids.filter((id) => validIds.has(id));
+
+  if (targetIds.length === 0) {
     return NextResponse.json(
-      { error: { code: "NOT_FOUND", message: "メンバーが見つかりません" } },
+      { error: { code: "NOT_FOUND", message: "有効なメンバーが見つかりません" } },
       { status: 404 }
     );
   }
 
-  const tool = await prisma.memberTool.create({
-    data: {
-      memberId,
-      toolName,
-      plan: plan || null,
-      monthlyCost: monthlyCost ?? 0,
-      companyLabel: "salt2",
-      note: note || null,
-    },
-    include: { member: { select: { name: true } } },
-  });
-
-  return NextResponse.json(
-    {
-      id: tool.id,
-      memberId: tool.memberId,
-      memberName: tool.member.name,
-      toolName: tool.toolName,
-      plan: tool.plan,
-      monthlyCost: tool.monthlyCost,
-      companyLabel: tool.companyLabel,
-      note: tool.note,
-      updatedAt: tool.updatedAt,
-    },
-    { status: 201 }
+  // 一括作成
+  const created = await prisma.$transaction(
+    targetIds.map((mid) =>
+      prisma.memberTool.create({
+        data: {
+          memberId: mid,
+          toolName,
+          plan: plan || null,
+          monthlyCost: monthlyCost ?? 0,
+          companyLabel: "salt2",
+          note: note || null,
+        },
+        include: { member: { select: { name: true } } },
+      })
+    )
   );
+
+  const result = created.map((tool) => ({
+    id: tool.id,
+    memberId: tool.memberId,
+    memberName: tool.member.name,
+    toolName: tool.toolName,
+    plan: tool.plan,
+    monthlyCost: tool.monthlyCost,
+    companyLabel: tool.companyLabel,
+    note: tool.note,
+    updatedAt: tool.updatedAt,
+  }));
+
+  return NextResponse.json(result.length === 1 ? result[0] : result, { status: 201 });
 }
