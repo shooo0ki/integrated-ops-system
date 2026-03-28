@@ -133,17 +133,15 @@ export default function AttendancePage() {
                 />
               </div>
               {clockInError && <p className="text-xs text-red-600">{clockInError}</p>}
-              <Button
-                variant="danger"
-                size="lg"
-                className="w-full"
+              <button
+                className="w-full inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 text-base font-medium bg-red-600 text-white hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled={clockingOut}
                 onClick={() => {
                   if (validateClockOut()) clockOut();
                 }}
               >
                 {clockingOut ? "送信中..." : "退勤する"}
-              </Button>
+              </button>
             </div>
           )}
 
