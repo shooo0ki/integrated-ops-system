@@ -40,9 +40,10 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // メンバー一覧（重複排除）
+  // メンバー一覧（重複排除）— 未アサイン枠はスキップ
   const memberMap = new Map<string, { id: string; name: string }>();
   for (const a of assignments) {
+    if (!a.memberId || !a.member) continue;
     if (!memberMap.has(a.memberId)) memberMap.set(a.memberId, a.member);
   }
   const members = Array.from(memberMap.values());
@@ -50,6 +51,7 @@ export async function GET(req: NextRequest) {
   // マトリクス: memberId → projectId → { assignId, hours }
   const matrix: Record<string, Record<string, { assignId: string; hours: number }>> = {};
   for (const a of assignments) {
+    if (!a.memberId) continue;
     if (!matrix[a.memberId]) matrix[a.memberId] = {};
     matrix[a.memberId][a.projectId] = { assignId: a.id, hours: a.workloadHours };
   }

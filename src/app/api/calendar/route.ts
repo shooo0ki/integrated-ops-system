@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
   const projectMap = new Map<string, { id: string; name: string }>();
   const memberProjects: Record<string, string[]> = {};
   for (const a of activeAssignments) {
+    if (!a.memberId) continue;
     if (!projectMap.has(a.project.id)) {
       projectMap.set(a.project.id, { id: a.project.id, name: a.project.name });
     }
