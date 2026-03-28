@@ -137,13 +137,13 @@ export function EditModal({
                                 <span className="text-sm text-slate-600 sm:w-52 sm:shrink-0" title={item.label}>
                                   {item.id} {item.label}
                                 </span>
-                                <div className="flex gap-1.5">
+                                <div className="flex gap-2">
                                   {GRADES.map((g) => (
                                     <button
                                       key={g}
                                       type="button"
                                       onClick={() => setGrade(item.id, g)}
-                                      className={`h-10 w-10 rounded-lg text-sm font-bold transition-colors ${
+                                      className={`h-12 w-12 rounded-lg text-base font-bold transition-colors ${
                                         current === g
                                           ? GRADE_COLORS[g]
                                           : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -155,9 +155,9 @@ export function EditModal({
                                   <button
                                     type="button"
                                     onClick={() => setGrade(item.id, null)}
-                                    className={`h-10 rounded-lg px-3 text-sm font-medium transition-colors ${
+                                    className={`h-12 w-12 rounded-lg text-base font-medium transition-colors ${
                                       current === null
-                                        ? "bg-slate-400 text-white"
+                                        ? "bg-slate-600 text-white"
                                         : "bg-slate-100 text-slate-400 hover:bg-slate-200"
                                     }`}
                                   >
