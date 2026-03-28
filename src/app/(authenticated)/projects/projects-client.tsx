@@ -3,6 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { Plus, Trash2 } from "lucide-react";
+import Link from "@/frontend/components/common/prefetch-link";
 import { Select, Input } from "@/frontend/components/common/input";
 import { Button } from "@/frontend/components/common/button";
 import { Modal } from "@/frontend/components/common/modal";
@@ -228,9 +229,9 @@ export default function ProjectsClient({ role }: { role: string }) {
               {projects.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-2.5">
-                    <a href={`/projects/${p.id}`} className="font-medium text-blue-600 hover:text-blue-800 hover:underline">
+                    <Link href={`/projects/${p.id}`} className="font-medium text-blue-600 hover:text-blue-800 hover:underline">
                       {p.name}
-                    </a>
+                    </Link>
                     {p.clientName && <span className="ml-2 text-xs text-slate-400">{p.clientName}</span>}
                   </td>
                   <td className="px-4 py-2.5 text-slate-700">{companyDisplay(p.company)}</td>
