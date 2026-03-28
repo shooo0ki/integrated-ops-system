@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import Link from "@/frontend/components/common/prefetch-link";
-import { ArrowLeft, Users, Calendar, DollarSign, Plus, Trash2, Pencil, Check, X, UserPlus } from "lucide-react";
+import { ArrowLeft, Users, Calendar, DollarSign, Plus, Trash2, Pencil, Check, X, UserPlus, ExternalLink } from "lucide-react";
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
@@ -491,11 +491,20 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       <Card>
         <CardHeader>
           <CardTitle>アサインメンバー</CardTitle>
-          {canManage && (
-            <Button variant="primary" size="sm" onClick={openAddModal}>
-              <Plus size={14} /> 追加
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/skills"
+              target="_blank"
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-500 hover:border-blue-300 hover:text-blue-600 transition-colors"
+            >
+              <ExternalLink size={12} /> スキルマトリクス
+            </Link>
+            {canManage && (
+              <Button variant="primary" size="sm" onClick={openAddModal}>
+                <Plus size={14} /> 追加
+              </Button>
+            )}
+          </div>
         </CardHeader>
 
         {/* ポジション充足状況 */}
@@ -689,15 +698,27 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         <div className="space-y-3">
           {assignError && <p className="text-xs text-red-600">{assignError}</p>}
 
-          <Select id="assignMemberId" label="メンバー（空欄=未アサイン枠）" value={assignForm.memberId}
-            onChange={(e) => setAssignForm(f => ({ ...f, memberId: e.target.value }))}>
-            <option value="">未アサイン（後で割り当て）</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}（{m.company === "boost" ? "Boost" : "SALT2"}）
-              </option>
-            ))}
-          </Select>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium text-slate-700">メンバー（空欄=未アサイン枠）</label>
+              <Link
+                href="/skills"
+                target="_blank"
+                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700"
+              >
+                <ExternalLink size={11} /> スキルを確認
+              </Link>
+            </div>
+            <Select id="assignMemberId" value={assignForm.memberId}
+              onChange={(e) => setAssignForm(f => ({ ...f, memberId: e.target.value }))}>
+              <option value="">未アサイン（後で割り当て）</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}（{m.company === "boost" ? "Boost" : "SALT2"}）
+                </option>
+              ))}
+            </Select>
+          </div>
 
           {/* ポジション */}
           <div>
