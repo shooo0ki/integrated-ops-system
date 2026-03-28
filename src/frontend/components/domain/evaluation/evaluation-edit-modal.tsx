@@ -91,7 +91,7 @@ export function EditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
         <h2 className="mb-1 text-lg font-bold text-slate-800">{title} — {initial.memberName}</h2>
         <p className="mb-4 text-sm text-slate-500">対象月: {initial.targetPeriod}</p>
 
@@ -129,21 +129,21 @@ export function EditModal({
                         <p className="mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                           {sc.id} {sc.label}
                         </p>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {sc.items.map((item) => {
                             const current = scores[item.id] ?? null;
                             return (
-                              <div key={item.id} className="flex items-center gap-2">
-                                <span className="w-48 text-sm text-slate-600 truncate" title={item.label}>
+                              <div key={item.id} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                                <span className="text-sm text-slate-600 sm:w-52 sm:shrink-0" title={item.label}>
                                   {item.id} {item.label}
                                 </span>
-                                <div className="flex gap-1">
+                                <div className="flex gap-1.5">
                                   {GRADES.map((g) => (
                                     <button
                                       key={g}
                                       type="button"
                                       onClick={() => setGrade(item.id, g)}
-                                      className={`h-7 w-7 rounded text-xs font-bold transition-colors ${
+                                      className={`h-10 w-10 rounded-lg text-sm font-bold transition-colors ${
                                         current === g
                                           ? GRADE_COLORS[g]
                                           : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -155,7 +155,7 @@ export function EditModal({
                                   <button
                                     type="button"
                                     onClick={() => setGrade(item.id, null)}
-                                    className={`h-7 rounded px-1.5 text-xs font-medium transition-colors ${
+                                    className={`h-10 rounded-lg px-3 text-sm font-medium transition-colors ${
                                       current === null
                                         ? "bg-slate-400 text-white"
                                         : "bg-slate-100 text-slate-400 hover:bg-slate-200"
