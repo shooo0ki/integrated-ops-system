@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import Link from "@/frontend/components/common/prefetch-link";
-import { ArrowLeft, Users, Calendar, DollarSign, Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import { ArrowLeft, Users, Calendar, DollarSign, Plus, Trash2, Pencil, Check, X, UserPlus } from "lucide-react";
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
@@ -24,15 +24,22 @@ interface Position {
   assignmentCount: number;
 }
 
+interface MonthlyHour {
+  id: string;
+  targetMonth: string;
+  workloadHours: number;
+}
+
 interface Assignment {
   id: string;
-  memberId: string;
-  memberName: string;
+  memberId: string | null;
+  memberName: string | null;
   positionName: string;
   positionId: string;
   workloadHours: number;
   startDate: string;
   endDate: string | null;
+  monthlyHours: MonthlyHour[];
 }
 
 interface ProjectDetail {
@@ -71,6 +78,21 @@ interface MemberOption {
 function toDateInput(d: string | null): string {
   if (!d) return "";
   return toJSTDateString(new Date(d));
+}
+
+/** プロジェクト期間から月リストを生成 */
+function getProjectMonths(startDate: string, endDate: string | null): string[] {
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : new Date();
+  // 最大24ヶ月
+  const months: string[] = [];
+  const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+  const last = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (cur <= last && months.length < 24) {
+    months.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return months;
 }
 
 // ─── ページ ───────────────────────────────────────────────
@@ -112,16 +134,24 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [positionMode, setPositionMode] = useState<"existing" | "new">("existing");
   const [newPositionName, setNewPositionName] = useState("");
 
+  // メンバー差替え
+  const [swapAssignId, setSwapAssignId] = useState<string | null>(null);
+  const [swapMemberId, setSwapMemberId] = useState("");
+  const [swapping, setSwapping] = useState(false);
+
+  // 月別稼働編集
+  const [editingMonthly, setEditingMonthly] = useState<{ assignId: string; month: string } | null>(null);
+  const [monthlyValue, setMonthlyValue] = useState("");
+  const [savingMonthly, setSavingMonthly] = useState(false);
+
   useEffect(() => {
     setAssignForm((prev) => ({ ...prev, startDate: toJSTDateString() }));
   }, []);
 
-  // Redirect on 404
   useEffect(() => {
     if (projectError) { router.push("/projects"); }
   }, [projectError, router]);
 
-  // Initialize form from project data (only when not editing)
   useEffect(() => {
     if (!project || editing) return;
     setForm({
@@ -135,6 +165,11 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       endDate: toDateInput(project.endDate),
     });
   }, [project, editing]);
+
+  const projectMonths = useMemo(() => {
+    if (!project) return [];
+    return getProjectMonths(project.startDate, project.endDate);
+  }, [project]);
 
   // ─── プロジェクト編集 ──────────────────────────────────
 
@@ -198,8 +233,8 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   }
 
   async function handleAddAssignment() {
-    if (!assignForm.memberId || !assignForm.startDate) {
-      setAssignError("メンバーと開始日を入力してください");
+    if (!assignForm.startDate) {
+      setAssignError("開始日を入力してください");
       return;
     }
     if (positionMode === "existing" && !assignForm.positionId) {
@@ -237,7 +272,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         positionId,
-        memberId: assignForm.memberId,
+        memberId: assignForm.memberId || null,
         workloadHours: Number(assignForm.workloadHours),
         startDate: assignForm.startDate,
       }),
@@ -270,6 +305,47 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     const res = await fetch(`/api/projects/${id}/assignments/${assignId}`, { method: "DELETE" });
     setDeleteId(null);
     if (res.ok) await mutateProject();
+  }
+
+  // ─── メンバー差替え ────────────────────────────────────
+
+  async function handleSwapMember() {
+    if (!swapAssignId) return;
+    setSwapping(true);
+    const res = await fetch(`/api/projects/${id}/assignments/${swapAssignId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId: swapMemberId || null }),
+    });
+    setSwapping(false);
+    if (res.ok) {
+      await mutateProject();
+      setSwapAssignId(null);
+      setSwapMemberId("");
+    }
+  }
+
+  // ─── 月別稼働 ──────────────────────────────────────────
+
+  async function handleSaveMonthly() {
+    if (!editingMonthly) return;
+    setSavingMonthly(true);
+    await fetch(`/api/projects/${id}/assignments/${editingMonthly.assignId}/monthly`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetMonth: editingMonthly.month,
+        workloadHours: Number(monthlyValue) || 0,
+      }),
+    });
+    setSavingMonthly(false);
+    setEditingMonthly(null);
+    await mutateProject();
+  }
+
+  function getMonthlyHours(assignment: Assignment, month: string): number {
+    const mh = assignment.monthlyHours.find((m) => m.targetMonth === month);
+    return mh ? mh.workloadHours : assignment.workloadHours;
   }
 
   // ─── レンダー ─────────────────────────────────────────
@@ -311,8 +387,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-600 mb-1">プロジェクト名 *</label>
-                <input type="text" value={form.name} onChange={set("name")}
-                  className="w-full" />
+                <input type="text" value={form.name} onChange={set("name")} className="w-full" />
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-600 mb-1">説明</label>
@@ -321,8 +396,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">ステータス</label>
-                <Select value={form.status} onChange={set("status")}
-                  className="w-full">
+                <Select value={form.status} onChange={set("status")} className="w-full">
                   <option value="planning">計画中</option>
                   <option value="active">進行中</option>
                   <option value="on_hold">一時停止</option>
@@ -331,13 +405,11 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">クライアント名</label>
-                <input type="text" value={form.clientName} onChange={set("clientName")}
-                  className="w-full" />
+                <input type="text" value={form.clientName} onChange={set("clientName")} className="w-full" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">契約種別</label>
-                <Select value={form.contractType} onChange={set("contractType")}
-                  className="w-full">
+                <Select value={form.contractType} onChange={set("contractType")} className="w-full">
                   <option value="">未設定</option>
                   <option value="quasi_mandate">準委任</option>
                   <option value="contract">請負</option>
@@ -347,18 +419,15 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">月額契約金額（円）</label>
-                <input type="number" min={0} value={form.monthlyContractAmount} onChange={set("monthlyContractAmount")}
-                  className="w-full" />
+                <input type="number" min={0} value={form.monthlyContractAmount} onChange={set("monthlyContractAmount")} className="w-full" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">開始日</label>
-                <input type="date" value={form.startDate} onChange={set("startDate")}
-                  className="w-full" />
+                <input type="date" value={form.startDate} onChange={set("startDate")} className="w-full" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">終了日（任意）</label>
-                <input type="date" value={form.endDate} onChange={set("endDate")}
-                  className="w-full" />
+                <input type="date" value={form.endDate} onChange={set("endDate")} className="w-full" />
               </div>
             </div>
           </div>
@@ -395,7 +464,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                 {formatDate(project.startDate)}{project.endDate ? ` 〜 ${formatDate(project.endDate)}` : " 〜"}
               </div>
               <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                <Users size={14} className="text-slate-400" /> {project.assignments.length}名アサイン
+                <Users size={14} className="text-slate-400" /> {project.assignments.filter(a => a.memberId).length}名アサイン
               </div>
               {project.clientName && (
                 <div className="flex items-center gap-1.5 text-sm text-slate-600 col-span-2">
@@ -457,22 +526,46 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                   <th className="py-2 text-left font-medium">ポジション</th>
                   <th className="py-2 text-right font-medium">月間工数</th>
                   <th className="py-2 text-left font-medium">開始日</th>
-                  {canManage && <th className="py-2 w-8" />}
+                  {canManage && <th className="py-2 w-20" />}
                 </tr>
               </thead>
               <tbody>
                 {project.assignments.map((a) => (
                   <tr key={a.id} className="border-b border-slate-50 hover:bg-slate-50">
                     <td className="py-2">
-                      <Link href={`/members/${a.memberId}`} className="font-medium text-slate-700 hover:text-blue-600">
-                        {a.memberName}
-                      </Link>
+                      {a.memberId && a.memberName ? (
+                        <Link href={`/members/${a.memberId}`} className="font-medium text-slate-700 hover:text-blue-600">
+                          {a.memberName}
+                        </Link>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-slate-400 italic">
+                          未アサイン
+                          {canManage && (
+                            <button
+                              onClick={() => { setSwapAssignId(a.id); setSwapMemberId(""); }}
+                              className="text-blue-500 hover:text-blue-700"
+                              title="メンバーをアサイン"
+                            >
+                              <UserPlus size={13} />
+                            </button>
+                          )}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 text-slate-500">{a.positionName}</td>
                     <td className="py-2 text-right font-medium text-slate-700">{a.workloadHours}h/月</td>
                     <td className="py-2 text-xs text-slate-400">{formatDate(a.startDate)}</td>
                     {canManage && (
-                      <td className="py-2 text-right">
+                      <td className="py-2 text-right flex items-center justify-end gap-1">
+                        {a.memberId && (
+                          <button
+                            onClick={() => { setSwapAssignId(a.id); setSwapMemberId(a.memberId ?? ""); }}
+                            className="p-1 text-slate-300 hover:text-blue-500"
+                            title="メンバー変更"
+                          >
+                            <UserPlus size={13} />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteAssignment(a.id)}
                           disabled={deleteId === a.id}
@@ -490,6 +583,83 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
           </div>
         )}
       </Card>
+
+      {/* ─ 月別稼働時間テーブル ─ */}
+      {project.assignments.length > 0 && projectMonths.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>月別稼働時間（h）</CardTitle>
+          </CardHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-100">
+                <tr className="text-xs text-slate-500">
+                  <th className="py-2 text-left font-medium sticky left-0 bg-white z-10 min-w-[120px]">メンバー</th>
+                  {projectMonths.map((m) => (
+                    <th key={m} className="py-2 text-center font-medium min-w-[60px]">
+                      {m.slice(5)}月
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {project.assignments.map((a) => (
+                  <tr key={a.id} className="border-b border-slate-50">
+                    <td className="py-2 sticky left-0 bg-white z-10">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-slate-700">{a.memberName ?? "未アサイン"}</span>
+                        <span className="text-xs text-slate-400">{a.positionName}</span>
+                      </div>
+                    </td>
+                    {projectMonths.map((m) => {
+                      const hours = getMonthlyHours(a, m);
+                      const isEditing = editingMonthly?.assignId === a.id && editingMonthly?.month === m;
+                      const isCustom = a.monthlyHours.some((mh) => mh.targetMonth === m);
+                      return (
+                        <td key={m} className="py-2 text-center">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1 justify-center">
+                              <input
+                                type="number"
+                                value={monthlyValue}
+                                onChange={(e) => setMonthlyValue(e.target.value)}
+                                className="w-14 rounded border border-slate-300 px-1 py-0.5 text-center text-xs"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSaveMonthly();
+                                  if (e.key === "Escape") setEditingMonthly(null);
+                                }}
+                              />
+                              <button onClick={handleSaveMonthly} disabled={savingMonthly}
+                                className="text-green-600 hover:text-green-800"><Check size={12} /></button>
+                              <button onClick={() => setEditingMonthly(null)}
+                                className="text-slate-400 hover:text-slate-600"><X size={12} /></button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (!canManage) return;
+                                setEditingMonthly({ assignId: a.id, month: m });
+                                setMonthlyValue(String(hours));
+                              }}
+                              className={`px-2 py-0.5 rounded text-xs transition-colors ${
+                                canManage ? "hover:bg-blue-50 cursor-pointer" : "cursor-default"
+                              } ${isCustom ? "font-semibold text-blue-700" : "text-slate-600"}`}
+                            >
+                              {hours}
+                            </button>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-slate-400">クリックで月別の稼働時間を変更できます。太字は個別設定値です。</p>
+        </Card>
+      )}
 
       {/* ─ プロジェクト削除確認モーダル ─ */}
       <Modal isOpen={deleteProjectOpen} onClose={() => setDeleteProjectOpen(false)} title="プロジェクトを削除">
@@ -519,9 +689,9 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         <div className="space-y-3">
           {assignError && <p className="text-xs text-red-600">{assignError}</p>}
 
-          <Select id="assignMemberId" label="メンバー *" value={assignForm.memberId}
+          <Select id="assignMemberId" label="メンバー（空欄=未アサイン枠）" value={assignForm.memberId}
             onChange={(e) => setAssignForm(f => ({ ...f, memberId: e.target.value }))}>
-            <option value="">選択してください</option>
+            <option value="">未アサイン（後で割り当て）</option>
             {members.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}（{m.company === "boost" ? "Boost" : "SALT2"}）
@@ -579,6 +749,27 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             <Button variant="outline" onClick={() => { setAddOpen(false); setAssignError(""); }}>キャンセル</Button>
             <Button variant="primary" onClick={handleAddAssignment} disabled={assignSaving}>
               {assignSaving ? "登録中..." : "登録"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ─ メンバー差替えモーダル ─ */}
+      <Modal isOpen={!!swapAssignId} onClose={() => setSwapAssignId(null)} title="メンバー変更">
+        <div className="space-y-3">
+          <Select id="swapMemberId" label="新しいメンバー" value={swapMemberId}
+            onChange={(e) => setSwapMemberId(e.target.value)}>
+            <option value="">未アサインに戻す</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}（{m.company === "boost" ? "Boost" : "SALT2"}）
+              </option>
+            ))}
+          </Select>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setSwapAssignId(null)}>キャンセル</Button>
+            <Button variant="primary" onClick={handleSwapMember} disabled={swapping}>
+              {swapping ? "変更中..." : "変更する"}
             </Button>
           </div>
         </div>

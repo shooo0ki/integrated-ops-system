@@ -314,8 +314,8 @@ model ProjectAssignment {
   id            String    @id @default(uuid())
   projectId     String    @map("project_id")
   positionId    String    @map("position_id")
-  memberId      String    @map("member_id")
-  workloadHours Int       @map("workload_hours")
+  memberId      String?   @map("member_id") // null = 未アサイン枠
+  workloadHours Int       @map("workload_hours") // デフォルト月間稼働時間
   startDate     DateTime  @map("start_date") @db.Date
   endDate       DateTime? @map("end_date") @db.Date
   createdBy     String    @map("created_by")
@@ -323,16 +323,38 @@ model ProjectAssignment {
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  project  Project         @relation(fields: [projectId], references: [id])
-  position ProjectPosition @relation(fields: [positionId], references: [id])
-  member   Member          @relation(fields: [memberId], references: [id])
-  creator  UserAccount     @relation("AssignmentCreatedBy", fields: [createdBy], references: [id])
+  project        Project                      @relation(fields: [projectId], references: [id])
+  position       ProjectPosition              @relation(fields: [positionId], references: [id])
+  member         Member?                      @relation(fields: [memberId], references: [id])
+  creator        UserAccount                  @relation("AssignmentCreatedBy", fields: [createdBy], references: [id])
+  monthlyHours   ProjectAssignmentMonthly[]
 
   @@index([projectId])
   @@index([memberId])
   @@index([memberId, startDate, endDate])
   @@index([projectId, startDate])
   @@map("project_assignments")
+}
+
+// ─────────────────────────────────────────────
+// 9b. project_assignment_monthly（月別稼働時間）
+// デフォルトはProjectAssignment.workloadHoursと同値。月単位で変更可能。
+// ─────────────────────────────────────────────
+model ProjectAssignmentMonthly {
+  id           String @id @default(uuid())
+  assignmentId String @map("assignment_id")
+  targetMonth  String @map("target_month") @db.Char(7) // 'YYYY-MM'
+  workloadHours Int   @map("workload_hours")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  assignment ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, targetMonth])
+  @@index([assignmentId])
+  @@index([targetMonth])
+  @@map("project_assignment_monthly")
 }
 
 // ─────────────────────────────────────────────

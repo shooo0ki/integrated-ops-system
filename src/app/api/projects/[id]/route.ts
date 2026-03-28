@@ -30,6 +30,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
         include: {
           member: { select: { id: true, name: true } },
           position: { select: { positionName: true } },
+          monthlyHours: { orderBy: { targetMonth: "asc" } },
         },
       },
     },
@@ -58,12 +59,17 @@ export async function GET(_req: NextRequest, { params }: Params) {
     assignments: project.assignments.map((a) => ({
       id: a.id,
       memberId: a.memberId,
-      memberName: a.member.name,
+      memberName: a.member?.name ?? null,
       positionName: a.position.positionName,
       positionId: a.positionId,
       workloadHours: a.workloadHours,
       startDate: a.startDate,
       endDate: a.endDate,
+      monthlyHours: a.monthlyHours.map((mh) => ({
+        id: mh.id,
+        targetMonth: mh.targetMonth,
+        workloadHours: mh.workloadHours,
+      })),
     })),
   });
 }

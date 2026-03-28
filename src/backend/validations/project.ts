@@ -35,8 +35,17 @@ export const updateProjectSchema = z.object({
 
 export const createAssignmentSchema = z.object({
   positionId: z.string().uuid(),
-  memberId: z.string().uuid(),
+  memberId: z.string().uuid().optional().nullable(),
   workloadHours: z.number().int().min(0).max(744),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+
+export const updateMonthlyHoursSchema = z.object({
+  targetMonth: z.string().regex(/^\d{4}-\d{2}$/),
+  workloadHours: z.number().int().min(0).max(744),
+});
+
+export const swapMemberSchema = z.object({
+  memberId: z.string().uuid().nullable(),
 });

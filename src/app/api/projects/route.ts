@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       assignments: p.assignments.map((a) => ({
         id: a.id,
         memberId: a.memberId,
-        memberName: a.member.name,
+        memberName: a.member?.name ?? null,
         positionName: a.position.positionName,
         workloadHours: a.workloadHours,
       })),

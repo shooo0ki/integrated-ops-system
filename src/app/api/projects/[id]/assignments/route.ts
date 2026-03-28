@@ -19,6 +19,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     include: {
       member: { select: { id: true, name: true } },
       position: { select: { id: true, positionName: true } },
+      monthlyHours: { orderBy: { targetMonth: "asc" } },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -27,12 +28,17 @@ export async function GET(_req: NextRequest, { params }: Params) {
     assignments.map((a) => ({
       id: a.id,
       memberId: a.memberId,
-      memberName: a.member.name,
+      memberName: a.member?.name ?? null,
       positionId: a.positionId,
       positionName: a.position.positionName,
       workloadHours: a.workloadHours,
       startDate: a.startDate,
       endDate: a.endDate,
+      monthlyHours: a.monthlyHours.map((mh) => ({
+        id: mh.id,
+        targetMonth: mh.targetMonth,
+        workloadHours: mh.workloadHours,
+      })),
     }))
   );
 }
@@ -67,7 +73,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       data: {
         projectId,
         positionId: data.positionId,
-        memberId: data.memberId,
+        memberId: data.memberId ?? null,
         workloadHours: data.workloadHours,
         startDate: new Date(data.startDate),
         endDate: endDate ? new Date(endDate) : null,
@@ -90,7 +96,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     {
       id: assignment.id,
       memberId: assignment.memberId,
-      memberName: assignment.member.name,
+      memberName: assignment.member?.name ?? null,
       positionName: assignment.position.positionName,
       workloadHours: assignment.workloadHours,
       startDate: assignment.startDate,
