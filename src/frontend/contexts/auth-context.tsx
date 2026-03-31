@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 // 401 を null で返すカスタムフェッチャー（SWRのエラーにしない）
 const sessionFetcher = (url: string) =>
-  fetch(url).then((r) => (r.ok ? r.json() : null));
+  fetch(url, { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null));
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { mutate } = useSWRConfig();

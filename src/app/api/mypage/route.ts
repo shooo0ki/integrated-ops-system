@@ -87,5 +87,5 @@ export async function GET() {
       role: a.position.positionName,
       workloadHours: a.workloadHours,
     })),
-  }, { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } });
+  });
 }

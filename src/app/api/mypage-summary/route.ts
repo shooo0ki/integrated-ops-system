@@ -136,7 +136,5 @@ export async function GET() {
         updatedAt: ev.updatedAt,
       };
     }),
-  }, {
-    headers: { "Cache-Control": "private, max-age=0, stale-while-revalidate=30" },
   });
 }

@@ -81,5 +81,5 @@ export async function GET(req: NextRequest) {
       role: m.userAccount?.role ?? "",
     })),
     levelMap,
-  }, { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" } });
+  });
 }

@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       role: m.userAccount?.role ?? "",
       createdAt: m.createdAt,
     })),
-    { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=120" } }
+
   );
 }
 
