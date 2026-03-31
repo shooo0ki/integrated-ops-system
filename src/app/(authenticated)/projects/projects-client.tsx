@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { Plus, Trash2 } from "lucide-react";
 import Link from "@/frontend/components/common/prefetch-link";
@@ -53,7 +52,6 @@ const CONTRACT_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function ProjectsClient({ role }: { role: string }) {
-  const router = useRouter();
   const canCreate = role === "admin" || role === "manager";
 
   const [companyFilter, setCompanyFilter] = useState("");
@@ -115,29 +113,63 @@ export default function ProjectsClient({ role }: { role: string }) {
 
     const validPositions = positions.filter((p) => p.positionName.trim());
 
+    const payload = {
+      name: form.name,
+      description: form.description || undefined,
+      status: form.status,
+      company: form.company,
+      startDate: form.startDate,
+      endDate: noDeadline || !form.endDate ? null : form.endDate,
+      clientName: form.clientName || undefined,
+      contractType: form.contractType || undefined,
+      monthlyContractAmount: form.monthlyContractAmount ? Number(form.monthlyContractAmount) : 0,
+      positions: validPositions.map((p) => ({
+        positionName: p.positionName,
+        requiredCount: Number(p.requiredCount) || 1,
+      })),
+    };
+
+    // 楽観的にリストへ追加
+    const optimistic: Project = {
+      id: `temp-${Date.now()}`,
+      name: form.name,
+      description: form.description || null,
+      status: form.status,
+      company: form.company,
+      startDate: form.startDate,
+      endDate: noDeadline || !form.endDate ? null : form.endDate,
+      clientName: form.clientName || null,
+      contractType: form.contractType || null,
+      monthlyContractAmount: form.monthlyContractAmount ? Number(form.monthlyContractAmount) : 0,
+      assignments: [],
+    };
+
+    setCreateOpen(false);
+    resetForm();
+
+    // 全プロジェクトキーを楽観的に更新
+    globalMutate(
+      (key) => typeof key === "string" && key.startsWith("/api/projects"),
+      (current: Project[] | undefined) => current ? [optimistic, ...current] : [optimistic],
+      { revalidate: false }
+    );
+
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        description: form.description || undefined,
-        status: form.status,
-        company: form.company,
-        startDate: form.startDate,
-        endDate: noDeadline || !form.endDate ? null : form.endDate,
-        clientName: form.clientName || undefined,
-        contractType: form.contractType || undefined,
-        monthlyContractAmount: form.monthlyContractAmount ? Number(form.monthlyContractAmount) : 0,
-        positions: validPositions.map((p) => ({
-          positionName: p.positionName,
-          requiredCount: Number(p.requiredCount) || 1,
-        })),
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       setCreateError(data?.error?.message ?? "登録に失敗しました");
+      setCreateOpen(true);
+      // 楽観的更新をロールバック
+      globalMutate(
+        (key) => typeof key === "string" && key.startsWith("/api/projects"),
+        undefined,
+        { revalidate: true }
+      );
       setSubmitting(false);
       return;
     }
@@ -150,7 +182,6 @@ export default function ProjectsClient({ role }: { role: string }) {
       const posName = positions[Number(posIdx)]?.positionName?.trim();
       if (!posName) continue;
 
-      // プロジェクト詳細からポジションIDを取得
       const detailRes = await fetch(`/api/projects/${project.id}`);
       if (!detailRes.ok) break;
       const detail = await detailRes.json();
@@ -170,10 +201,8 @@ export default function ProjectsClient({ role }: { role: string }) {
     }
 
     setSubmitting(false);
-    setCreateOpen(false);
-    resetForm();
-    router.refresh();
-    await globalMutate(
+    // サーバーの実データで再取得
+    globalMutate(
       (key) => typeof key === "string" && key.startsWith("/api/projects"),
       undefined,
       { revalidate: true }
