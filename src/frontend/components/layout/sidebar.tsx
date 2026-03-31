@@ -58,7 +58,6 @@ const ADMIN_DAILY: NavGroup = {
 const MONTHLY: NavGroup = {
   title: "月末確認",
   items: [
-    { href: "/self-reports", label: "工数申告",       icon: ClipboardCheck },
     { href: "/closing",      label: "請求管理",       icon: FileText },
     { href: "/pl/summary",   label: "PLサマリー",     icon: TrendingUp },
     { href: "/pl/cashflow",  label: "キャッシュフロー", icon: Wallet },

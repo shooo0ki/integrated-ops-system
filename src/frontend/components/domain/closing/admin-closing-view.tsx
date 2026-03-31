@@ -20,6 +20,7 @@ import {
   confirmVariant, confirmLabel, receiptConfig,
   formatCurrency, buildMonthOptions,
 } from "@/frontend/constants/closing";
+import { SelfReportCard } from "./self-report-card";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 export function AdminClosingView() {
@@ -244,6 +245,9 @@ export function AdminClosingView() {
         )}
       </div>
       )}
+
+      {/* 自分の月次申告 */}
+      <SelfReportCard month={targetMonth} />
 
       {/* 請求書受領状況テーブル */}
       {loading ? (
