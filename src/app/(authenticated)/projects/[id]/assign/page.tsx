@@ -2,6 +2,7 @@
 import { toJSTDateString } from "@/shared/utils";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSWRConfig } from "swr";
 import Link from "@/frontend/components/common/prefetch-link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/frontend/components/common/badge";
@@ -53,6 +54,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const { role } = useAuth();
   const canManage = role === "admin" || role === "manager";
+  const { mutate: globalMutate } = useSWRConfig();
 
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [members, setMembers] = useState<MemberOption[]>([]);
@@ -138,6 +140,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
     setSaving(false);
     if (res.ok) {
       await loadProject();
+      globalMutate(`/api/projects/${id}`);
       setAddOpen(false);
       setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: toJSTDateString() });
       setPositionMode("existing");
@@ -154,6 +157,7 @@ export default function AssignPage({ params }: { params: { id: string } }) {
     setDeleteId(null);
     if (res.ok) {
       await loadProject();
+      globalMutate(`/api/projects/${id}`);
     }
   }
 

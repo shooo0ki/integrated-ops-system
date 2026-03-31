@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { useRouter } from "next/navigation";
 import Link from "@/frontend/components/common/prefetch-link";
 import {
@@ -78,6 +78,7 @@ export default function MemberDetailPage({
   const { id } = params;
   const router = useRouter();
   const { role: myRole } = useAuth();
+  const { mutate: globalMutate } = useSWRConfig();
   const canEdit = myRole === "admin" || myRole === "manager";
   const canDelete = myRole === "admin";
 
@@ -138,6 +139,7 @@ export default function MemberDetailPage({
     setSaving(false);
     if (res.ok) {
       await mutateMember();
+      globalMutate((key) => typeof key === "string" && key.startsWith("/api/members") && key !== `/api/members/${id}`);
       setEditMode(false);
     } else {
       const data = await res.json();
@@ -148,7 +150,10 @@ export default function MemberDetailPage({
   async function deleteMember() {
     if (!confirm(`${member?.name} を削除しますか？`)) return;
     const res = await fetch(`/api/members/${id}`, { method: "DELETE" });
-    if (res.ok) router.push("/members");
+    if (res.ok) {
+      await globalMutate((key) => typeof key === "string" && key.startsWith("/api/members"), undefined, { revalidate: true });
+      router.push("/members");
+    }
   }
 
   async function addTool() {
@@ -164,6 +169,7 @@ export default function MemberDetailPage({
     });
     if (res.ok) {
       await mutateMember();
+      globalMutate((key) => typeof key === "string" && key.startsWith("/api/tools"));
       setToolForm({ toolName: "", plan: "", monthlyCost: "0", note: "" });
       setShowToolForm(false);
     }
@@ -184,6 +190,7 @@ export default function MemberDetailPage({
     });
     if (res.ok) {
       await mutateMember();
+      globalMutate((key) => typeof key === "string" && key.startsWith("/api/tools"));
       setEditingTool(null);
     }
   }
@@ -193,6 +200,7 @@ export default function MemberDetailPage({
     const res = await fetch(`/api/members/${id}/tools/${toolId}`, { method: "DELETE" });
     if (res.ok) {
       await mutateMember();
+      globalMutate((key) => typeof key === "string" && key.startsWith("/api/tools"));
     }
   }
 

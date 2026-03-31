@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/shouki/integrated-ops-system -name *s3* -o -name *storage*)",
+      "Bash(git reset:*)",
+      "Bash(git add:*)"
+    ],
+    "additionalDirectories": [
+      "/Users/shouki/integrated-ops-system/src/app/api/projects/[id]/positions/[positionId]"
+    ]
+  }
+}

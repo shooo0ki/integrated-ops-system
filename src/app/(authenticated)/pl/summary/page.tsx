@@ -73,9 +73,9 @@ export default function PLSummaryPage() {
     memberId: string;
     memberName: string;
     submitted: boolean;
-    totalHours: number;
+    totalPercent: number;
     submittedAt: string | null;
-    projects: { projectId: string; projectName: string; reportedHours: number }[];
+    projects: { projectId: string; projectName: string; reportedPercent: number; reportedHours: number | null }[];
   };
   const { data: selfReports = [], isLoading: reportLoading } = useSWR<SelfReportStatus[]>(
     canEdit && month ? `/api/self-reports?month=${month}` : null
@@ -621,11 +621,11 @@ export default function PLSummaryPage() {
                             )}
                           </td>
                           <td className="py-2.5 text-right text-slate-600">
-                            {r.submitted ? `${r.totalHours}h` : "—"}
+                            {r.submitted ? `${r.totalPercent}%` : "—"}
                           </td>
                           <td className="py-2.5 text-slate-500 text-xs">
                             {r.projects.length > 0
-                              ? r.projects.map((p) => `${p.projectName}(${p.reportedHours}h)`).join("、")
+                              ? r.projects.map((p) => `${p.projectName}(${p.reportedPercent}%)`).join("、")
                               : "—"}
                           </td>
                           <td className="py-2.5 text-right text-xs text-slate-400">

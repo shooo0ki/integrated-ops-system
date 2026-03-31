@@ -29,7 +29,7 @@ export async function GET(_req: NextRequest) {
         displayOrder: s.displayOrder,
       })),
     })),
-    { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
+    { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" } }
   );
 }
 

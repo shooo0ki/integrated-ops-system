@@ -489,6 +489,11 @@ model PLRecord {
   cfCashOutOutsourcing Int         @default(0) @map("cf_cash_out_outsourcing")
   cfCashOutFixed       Int         @default(0) @map("cf_cash_out_fixed")
   cfCashOutOther       Int         @default(0) @map("cf_cash_out_other")
+  // 手動上書き（null = 自動計算値を使用）
+  cfCashInClientOverride  Int?    @map("cf_cash_in_client_override")
+  cfCashOutSalaryOverride Int?    @map("cf_cash_out_salary_override")
+  cfCashOutFixedOverride  Int?    @map("cf_cash_out_fixed_override")
+  cfCashOutExpenseOverride Int?   @map("cf_cash_out_expense_override")
   cfBalancePrev        Int?        @map("cf_balance_prev")
   cfBalanceCurrent     Int         @default(0) @map("cf_balance_current")
   memo                 String?     @db.VarChar(200)

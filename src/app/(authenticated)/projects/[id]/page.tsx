@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { useRouter } from "next/navigation";
 import Link from "@/frontend/components/common/prefetch-link";
 import { ArrowLeft, Users, Calendar, DollarSign, Plus, Trash2, Pencil, Check, X, UserPlus, ExternalLink } from "lucide-react";
@@ -110,6 +110,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const { id } = params;
   const router = useRouter();
   const { role } = useAuth();
+  const { mutate: globalMutate } = useSWRConfig();
   const canManage = role === "admin" || role === "manager";
 
   const { data: project, isLoading: loading, error: projectError, mutate: mutateProject } = useSWR<ProjectDetail>(
@@ -330,6 +331,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
     setDeletingProject(false);
     if (res.ok) {
+      await globalMutate((key) => typeof key === "string" && key.startsWith("/api/projects"), undefined, { revalidate: true });
       router.push("/projects");
     } else {
       setDeleteProjectOpen(false);
