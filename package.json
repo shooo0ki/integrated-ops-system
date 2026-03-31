@@ -14,15 +14,18 @@
     "seed": "npx ts-node --project tsconfig.seed.json prisma/seed.ts"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "@prisma/client": "^5.22.0",
     "@vercel/blob": "^2.3.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
+    "fontkit": "^1.5.1",
     "iron-session": "^8.0.4",
     "lucide-react": "^0.395.0",
     "next": "14.2.5",
     "nodemailer": "^8.0.1",
+    "pdf-lib": "^1.17.1",
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^2.12.7",

@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { jsPDF } from "jspdf";
+import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 
 export interface InvoicePdfInput {
   invoiceNumber: string;
@@ -19,29 +20,24 @@ export interface InvoicePdfInput {
 
 const fmt = (n: number) => `¥${n.toLocaleString("ja-JP")}`;
 
-let fontBase64: string | null = null;
+let fontBytes: Uint8Array | null = null;
 
-function ensureFont(doc: jsPDF) {
-  if (!fontBase64) {
-    // Vercel Serverless では __dirname が使えない場合がある
-    const candidates = [
-      join(process.cwd(), "src/backend/fonts/NotoSansJP-Regular.ttf"),
-      join(__dirname, "fonts/NotoSansJP-Regular.ttf"),
-      join(__dirname, "../src/backend/fonts/NotoSansJP-Regular.ttf"),
-    ];
-    for (const p of candidates) {
-      try {
-        fontBase64 = readFileSync(p).toString("base64");
-        break;
-      } catch {
-        continue;
-      }
+function loadFontBytes(): Uint8Array {
+  if (fontBytes) return fontBytes;
+  const candidates = [
+    join(process.cwd(), "src/backend/fonts/NotoSansJP-Regular.ttf"),
+    join(__dirname, "fonts/NotoSansJP-Regular.ttf"),
+    join(__dirname, "../src/backend/fonts/NotoSansJP-Regular.ttf"),
+  ];
+  for (const p of candidates) {
+    try {
+      fontBytes = readFileSync(p);
+      return fontBytes;
+    } catch {
+      continue;
     }
-    if (!fontBase64) throw new Error("Japanese font file not found");
   }
-  doc.addFileToVFS("NotoSansJP-Regular.ttf", fontBase64);
-  doc.addFont("NotoSansJP-Regular.ttf", "NotoSansJP", "normal");
-  doc.setFont("NotoSansJP");
+  throw new Error("Japanese font file not found");
 }
 
 export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Buffer> {
@@ -62,128 +58,133 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Buffer
     day: "2-digit",
   });
 
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  ensureFont(doc);
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
 
-  const pageW = 210;
-  const marginL = 20;
-  const marginR = 20;
+  const jpFontData = loadFontBytes();
+  const jpFont = await pdfDoc.embedFont(jpFontData);
+
+  // A4: 595.28 x 841.89 pt
+  const page = pdfDoc.addPage([595.28, 841.89]);
+  const pageW = 595.28;
+  const marginL = 56; // ~20mm
+  const marginR = 56;
   const contentW = pageW - marginL - marginR;
-  let y = 25;
+  let y = 800;
 
-  // ── タイトル ─────────────────────────────────────
-  doc.setFontSize(18);
-  doc.text("請　求　書", pageW / 2, y, { align: "center" });
-  y += 12;
+  const blue100 = rgb(219 / 255, 234 / 255, 254 / 255);
+  const slate200 = rgb(226 / 255, 232 / 255, 240 / 255);
+  const blue800 = rgb(30 / 255, 64 / 255, 175 / 255);
+  const emerald800 = rgb(6 / 255, 95 / 255, 70 / 255);
+  const slate500 = rgb(100 / 255, 116 / 255, 139 / 255);
+  const black = rgb(0, 0, 0);
+  const gray = rgb(200 / 255, 200 / 255, 200 / 255);
+  const darkGray = rgb(100 / 255, 100 / 255, 100 / 255);
 
-  // ── 請求書番号・発行日 ───────────────────────────
-  doc.setFontSize(9);
-  doc.text(`請求書番号: ${invoiceNumber}`, marginL, y);
-  doc.text(`発行日: ${issuedDate}`, pageW - marginR, y, { align: "right" });
-  y += 7;
+  function drawText(text: string, x: number, yPos: number, size: number, options?: { color?: typeof black; align?: "right" | "center" }) {
+    const color = options?.color ?? black;
+    const width = jpFont.widthOfTextAtSize(text, size);
+    let drawX = x;
+    if (options?.align === "right") drawX = x - width;
+    else if (options?.align === "center") drawX = x - width / 2;
+    page.drawText(text, { x: drawX, y: yPos, size, font: jpFont, color });
+  }
 
-  // ── 宛先・件名 ───────────────────────────────────
-  doc.setFontSize(10);
-  doc.text("請求先: 株式会社SALT2", marginL, y);
-  y += 6;
-  doc.text(`件名: ${monthLabel}分 業務委託費`, marginL, y);
-  y += 10;
+  function drawRect(x: number, yPos: number, w: number, h: number, color: typeof black) {
+    page.drawRectangle({ x, y: yPos, width: w, height: h, color });
+  }
 
-  // ── 合計金額（目立たせる）─────────────────────────
-  doc.setFillColor(219, 234, 254); // blue-100
-  doc.rect(marginL, y - 5, contentW, 10, "F");
-  doc.setFontSize(12);
-  doc.text(
-    `ご請求金額: ${fmt(amountInclTax)}（税込）`,
-    pageW / 2,
-    y + 1,
-    { align: "center" }
-  );
-  y += 12;
+  function drawLine(x1: number, yPos: number, x2: number, color: typeof black) {
+    page.drawLine({ start: { x: x1, y: yPos }, end: { x: x2, y: yPos }, thickness: 0.5, color });
+  }
 
-  // ── テーブルヘッダー ─────────────────────────────
-  const colItem = marginL;
-  const colAmount = pageW - marginR;
+  const colRight = pageW - marginR;
 
-  doc.setFillColor(226, 232, 240); // slate-200
-  doc.rect(marginL, y - 4, contentW, 7, "F");
-  doc.setFontSize(9);
-  doc.text("項目", colItem + 2, y);
-  doc.text("金額", colAmount - 2, y, { align: "right" });
-  y += 6;
+  // ── タイトル
+  drawText("請　求　書", pageW / 2, y, 18, { align: "center" });
+  y -= 30;
 
-  doc.setFontSize(9);
+  // ── 請求書番号・発行日
+  drawText(`請求書番号: ${invoiceNumber}`, marginL, y, 9);
+  drawText(`発行日: ${issuedDate}`, colRight, y, 9, { align: "right" });
+  y -= 18;
 
-  // ── 稼働分（課税対象）────────────────────────────
+  // ── 宛先・件名
+  drawText("請求先: 株式会社SALT2", marginL, y, 10);
+  y -= 16;
+  drawText(`件名: ${monthLabel}分 業務委託費`, marginL, y, 10);
+  y -= 24;
+
+  // ── 合計金額（目立たせる）
+  drawRect(marginL, y - 6, contentW, 24, blue100);
+  drawText(`ご請求金額: ${fmt(amountInclTax)}（税込）`, pageW / 2, y, 12, { align: "center" });
+  y -= 30;
+
+  // ── テーブルヘッダー
+  drawRect(marginL, y - 4, contentW, 18, slate200);
+  drawText("項目", marginL + 6, y, 9);
+  drawText("金額", colRight - 6, y, 9, { align: "right" });
+  y -= 18;
+
+  // ── 稼働分（課税対象）
   if (taxableItems.length > 0) {
-    doc.setTextColor(30, 64, 175); // blue-800
-    doc.text("【稼働分（課税対象）】", colItem + 2, y);
-    doc.setTextColor(0, 0, 0);
-    y += 5;
+    drawText("【稼働分（課税対象）】", marginL + 6, y, 9, { color: blue800 });
+    y -= 14;
 
     for (const item of taxableItems) {
-      doc.text(item.name, colItem + 4, y);
-      doc.text(fmt(item.amount), colAmount - 2, y, { align: "right" });
-      y += 5;
+      drawText(item.name, marginL + 12, y, 9);
+      drawText(fmt(item.amount), colRight - 6, y, 9, { align: "right" });
+      y -= 14;
     }
 
-    // 小計
-    doc.setDrawColor(200, 200, 200);
-    doc.line(marginL, y - 1, pageW - marginR, y - 1);
-    doc.text("稼働小計（税抜）", colItem + 4, y + 3);
-    doc.text(fmt(taxableTotal), colAmount - 2, y + 3, { align: "right" });
-    y += 5;
-    doc.text("消費税（10%）", colItem + 4, y + 3);
-    doc.text(fmt(tax), colAmount - 2, y + 3, { align: "right" });
-    y += 8;
+    drawLine(marginL, y + 4, colRight, gray);
+    drawText("稼働小計（税抜）", marginL + 12, y, 9);
+    drawText(fmt(taxableTotal), colRight - 6, y, 9, { align: "right" });
+    y -= 14;
+    drawText("消費税（10%）", marginL + 12, y, 9);
+    drawText(fmt(tax), colRight - 6, y, 9, { align: "right" });
+    y -= 20;
   }
 
-  // ── 経費・交通費（非課税）────────────────────────
+  // ── 経費・交通費（非課税）
   if (nonTaxableItems.length > 0) {
-    doc.setTextColor(6, 95, 70); // emerald-800
-    doc.text("【経費・交通費（非課税）】", colItem + 2, y);
-    doc.setTextColor(0, 0, 0);
-    y += 5;
+    drawText("【経費・交通費（非課税）】", marginL + 6, y, 9, { color: emerald800 });
+    y -= 14;
 
     for (const item of nonTaxableItems) {
-      doc.text(item.name, colItem + 4, y);
-      doc.text(fmt(item.amount), colAmount - 2, y, { align: "right" });
-      y += 5;
+      drawText(item.name, marginL + 12, y, 9);
+      drawText(fmt(item.amount), colRight - 6, y, 9, { align: "right" });
+      y -= 14;
     }
 
-    doc.line(marginL, y - 1, pageW - marginR, y - 1);
-    doc.text("経費小計", colItem + 4, y + 3);
-    doc.text(fmt(nonTaxableTotal), colAmount - 2, y + 3, { align: "right" });
-    y += 8;
+    drawLine(marginL, y + 4, colRight, gray);
+    drawText("経費小計", marginL + 12, y, 9);
+    drawText(fmt(nonTaxableTotal), colRight - 6, y, 9, { align: "right" });
+    y -= 20;
   }
 
-  // ── 合計行 ───────────────────────────────────────
-  doc.setDrawColor(100, 100, 100);
-  doc.line(marginL, y, pageW - marginR, y);
-  y += 5;
-  doc.setFillColor(219, 234, 254);
-  doc.rect(marginL, y - 4, contentW, 8, "F");
-  doc.setFontSize(11);
+  // ── 合計行
+  drawLine(marginL, y + 4, colRight, darkGray);
+  y -= 4;
+  drawRect(marginL, y - 6, contentW, 22, blue100);
   const totalLabel = nonTaxableItems.length > 0 ? "合計（税込＋経費）" : "合計（税込）";
-  doc.text(totalLabel, colItem + 2, y + 1);
-  doc.text(fmt(amountInclTax), colAmount - 2, y + 1, { align: "right" });
-  y += 14;
+  drawText(totalLabel, marginL + 6, y, 11);
+  drawText(fmt(amountInclTax), colRight - 6, y, 11, { align: "right" });
+  y -= 34;
 
-  // ── 備考 ─────────────────────────────────────────
-  doc.setFontSize(9);
+  // ── 備考
   if (note) {
-    doc.text(`備考: ${note}`, marginL, y);
-    y += 6;
+    drawText(`備考: ${note}`, marginL, y, 9);
+    y -= 16;
   }
 
-  // ── 発行者情報 ───────────────────────────────────
-  doc.text(`発行者: ${issuerName}`, marginL, y);
-  y += 5;
+  // ── 発行者情報
+  drawText(`発行者: ${issuerName}`, marginL, y, 9);
+  y -= 14;
 
-  doc.setTextColor(100, 116, 139); // slate-500
   if (memberInfo?.address) {
-    doc.text(`住所: ${memberInfo.address}`, marginL, y);
-    y += 5;
+    drawText(`住所: ${memberInfo.address}`, marginL, y, 9, { color: slate500 });
+    y -= 14;
   }
   if (memberInfo?.bankName || memberInfo?.bankAccountNumber) {
     const bankLine = [
@@ -194,9 +195,9 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Buffer
     ]
       .filter(Boolean)
       .join(" ");
-    doc.text(`振込先: ${bankLine}`, marginL, y);
+    drawText(`振込先: ${bankLine}`, marginL, y, 9, { color: slate500 });
   }
 
-  const arrayBuffer = doc.output("arraybuffer");
-  return Buffer.from(arrayBuffer);
+  const pdfBytes = await pdfDoc.save();
+  return Buffer.from(pdfBytes);
 }
