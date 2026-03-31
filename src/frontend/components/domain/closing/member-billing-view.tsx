@@ -25,7 +25,8 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   // 交通費入力
   const [hasTransport, setHasTransport] = useState<"none" | "yes">("none");
-  const [transports, setTransports] = useState<ExpenseItem[]>([]);
+  interface TransportItem { id: string; description: string; fare: number; trips: number }
+  const [transports, setTransports] = useState<TransportItem[]>([]);
 
   const [monthOptions, setMonthOptions] = useState<string[]>([]);
   useEffect(() => {
@@ -114,12 +115,12 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
   }
 
   function addTransport() {
-    setTransports((prev) => [...prev, { id: crypto.randomUUID(), projectId: "", description: "", amount: 0 }]);
+    setTransports((prev) => [...prev, { id: crypto.randomUUID(), description: "", fare: 0, trips: 1 }]);
   }
   function removeTransport(id: string) {
     setTransports((prev) => prev.filter((e) => e.id !== id));
   }
-  function updateTransport(id: string, field: keyof ExpenseItem, value: string | number) {
+  function updateTransport(id: string, field: keyof TransportItem, value: string | number) {
     setTransports((prev) => prev.map((e) => e.id === id ? { ...e, [field]: value } : e));
   }
 
@@ -130,8 +131,11 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
     // 稼働明細（課税）+ 交通費・経費（非課税）を統合
     const nonTaxableItems = [
       ...(hasTransport === "yes" ? transports
-        .filter((e) => e.description && e.amount > 0)
-        .map((e) => ({ name: e.description, amount: Number(e.amount) || 0, taxable: false, linkedProjectId: e.projectId || undefined }))
+        .filter((e) => e.description && e.fare > 0 && e.trips > 0)
+        .map((e) => {
+          const amount = e.fare * e.trips * 2;
+          return { name: `${e.description}（${e.fare}円×${e.trips}往復）`, amount, taxable: false };
+        })
         : []),
       ...(hasExpense === "yes" ? expenses
         .filter((e) => e.description && e.amount > 0)
@@ -164,7 +168,7 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
     const subtotalValue = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
     const taxAmountValue = Math.round(subtotalValue * 0.1);
     const transportTotalValue = hasTransport === "yes"
-      ? transports.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+      ? transports.reduce((s, e) => s + (Number(e.fare) || 0) * (Number(e.trips) || 0) * 2, 0)
       : 0;
     const expenseTotalValue = hasExpense === "yes"
       ? expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
@@ -388,24 +392,37 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
                       交通費は非課税です。SALT2の経費として計上されます。
                     </p>
                     {transports.map((tr) => (
-                      <div key={tr.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
+                      <div key={tr.id} className="flex items-center gap-2 flex-wrap">
                         <input
                           type="text"
                           value={tr.description}
                           onChange={(e) => updateTransport(tr.id, "description", e.target.value)}
-                          placeholder="説明（例: 渋谷→新宿 往復）"
-                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                          placeholder="区間（例: 渋谷→新宿）"
+                          className="flex-1 min-w-[140px] rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                         />
-                        <div className="w-28">
+                        <div className="flex items-center gap-1">
                           <input
                             type="number"
-                            value={tr.amount === 0 ? "" : tr.amount}
-                            onChange={(e) => updateTransport(tr.id, "amount", Number(e.target.value) || 0)}
-                            placeholder="金額"
-                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
+                            value={tr.fare === 0 ? "" : tr.fare}
+                            onChange={(e) => updateTransport(tr.id, "fare", Number(e.target.value) || 0)}
+                            placeholder="片道"
+                            className="w-20 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
                           />
+                          <span className="text-xs text-slate-500">円</span>
+                          <span className="text-xs text-slate-400">×</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={tr.trips === 0 ? "" : tr.trips}
+                            onChange={(e) => updateTransport(tr.id, "trips", Number(e.target.value) || 0)}
+                            placeholder="1"
+                            className="w-14 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                          <span className="text-xs text-slate-500">往復</span>
                         </div>
-                        <span className="text-sm text-slate-500">円</span>
+                        <span className="text-sm font-medium text-slate-700 w-20 text-right">
+                          {formatCurrency((Number(tr.fare) || 0) * (Number(tr.trips) || 0) * 2)}
+                        </span>
                         <button
                           onClick={() => removeTransport(tr.id)}
                           className="text-slate-400 hover:text-red-500 transition-colors"
