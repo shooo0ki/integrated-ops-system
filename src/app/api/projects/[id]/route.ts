@@ -156,5 +156,5 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     });
   });
 
-  return new NextResponse(null, { status: 204 });
+  return NextResponse.json({ ok: true });
 }

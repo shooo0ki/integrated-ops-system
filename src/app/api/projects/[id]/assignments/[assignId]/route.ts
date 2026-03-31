@@ -22,7 +22,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   await prisma.projectAssignment.delete({ where: { id: assignId } });
 
-  return new NextResponse(null, { status: 204 });
+  return NextResponse.json({ ok: true });
 }
 
 // ─── PATCH /api/projects/:id/assignments/:assignId ────────
