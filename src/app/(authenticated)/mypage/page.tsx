@@ -550,9 +550,9 @@ interface NotifSettings {
 }
 
 const NOTIF_ITEMS: { key: keyof NotifSettings; label: string; desc: string }[] = [
-  { key: "clockReminder", label: "打刻リマインド", desc: "平日10時に出勤打刻忘れをSlack/メールで通知" },
-  { key: "closingReminder", label: "締めリマインド", desc: "毎月25日に請求書・工数申告の提出リマインド" },
-  { key: "scheduleReminder", label: "勤務予定リマインド", desc: "毎週土曜に翌週の勤務予定登録リマインド" },
+  { key: "clockReminder", label: "打刻リマインド", desc: "勤務開始予定の1時間後に未打刻の場合、勤怠チャンネルでメンション通知" },
+  { key: "closingReminder", label: "締めリマインド", desc: "毎月25日に請求書・工数申告が未提出の場合、Slack DMとメールで通知" },
+  { key: "scheduleReminder", label: "勤務予定リマインド", desc: "毎週土曜18時にチャンネル投稿＋未登録者にSlack DMとメールで通知" },
 ];
 
 function NotificationSettingsCard() {
