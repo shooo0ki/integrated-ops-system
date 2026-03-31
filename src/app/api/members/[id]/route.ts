@@ -62,6 +62,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     salaryType: member.salaryType,
     salaryAmount: member.salaryAmount,
     joinedAt: member.joinedAt,
+    leftAt: member.leftAt,
     deletedAt: member.deletedAt,
     createdAt: member.createdAt,
     email: member.userAccount?.email ?? "",
@@ -119,7 +120,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     );
   }
 
-  const { role, ...memberData } = parsed.data;
+  const { role, leftAt, ...memberData } = parsed.data;
   const ip =
     req.headers.get("x-forwarded-for") ??
     req.headers.get("x-real-ip") ??
@@ -139,6 +140,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         ...(memberData.status !== undefined && { status: memberData.status }),
         ...(memberData.salaryType !== undefined && { salaryType: memberData.salaryType }),
         ...(memberData.salaryAmount !== undefined && { salaryAmount: memberData.salaryAmount }),
+        ...(leftAt !== undefined && { leftAt: leftAt ? new Date(leftAt) : null }),
       },
     });
 

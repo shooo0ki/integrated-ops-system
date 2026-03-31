@@ -34,6 +34,7 @@ export const updateMemberSchema = z.object({
   salaryType: z.enum(["hourly", "monthly"]).optional(),
   salaryAmount: z.number().int().positive().optional(),
   role: z.enum(["admin", "manager", "member"]).optional(),
+  leftAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 形式で入力してください").nullable().optional(),
 });
 
 export const upsertToolSchema = z.object({

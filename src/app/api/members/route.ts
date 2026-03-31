@@ -17,10 +17,12 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const q = searchParams.get("q") ?? "";
   const role = searchParams.get("role") ?? "";
+  const includeLeft = searchParams.get("includeLeft") === "1";
 
   const members = await prisma.member.findMany({
     where: {
       deletedAt: null,
+      ...(!includeLeft ? { leftAt: null } : {}),
       ...(q
         ? {
             OR: [
@@ -45,6 +47,7 @@ export async function GET(req: NextRequest) {
       salaryType: m.salaryType,
       salaryAmount: m.salaryAmount,
       joinedAt: m.joinedAt,
+      leftAt: m.leftAt,
       email: m.userAccount?.email ?? "",
       role: m.userAccount?.role ?? "",
       createdAt: m.createdAt,

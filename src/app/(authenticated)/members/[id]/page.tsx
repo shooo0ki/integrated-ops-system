@@ -58,6 +58,7 @@ interface MemberDetail {
   salaryType: string;
   salaryAmount: number;
   joinedAt: string;
+  leftAt: string | null;
   email: string;
   role: string;
   tools: ToolItem[];
@@ -80,7 +81,6 @@ export default function MemberDetailPage({
   const { role: myRole } = useAuth();
   const { mutate: globalMutate } = useSWRConfig();
   const canEdit = myRole === "admin" || myRole === "manager";
-  const canDelete = myRole === "admin";
 
   const { data: member, isLoading: loading, error: fetchError, mutate: mutateMember } = useSWR<MemberDetail>(
     `/api/members/${id}`
@@ -113,6 +113,7 @@ export default function MemberDetailPage({
       status: member.status,
       salaryType: member.salaryType, salaryAmount: member.salaryAmount,
       role: member.role,
+      leftAt: member.leftAt ? member.leftAt.slice(0, 10) : null,
     });
     setEditMode(true);
   }
@@ -134,6 +135,7 @@ export default function MemberDetailPage({
         salaryType: editForm.salaryType,
         salaryAmount: Number(editForm.salaryAmount),
         role: editForm.status ? roleFromStatus(editForm.status) : editForm.role,
+        leftAt: editForm.leftAt || null,
       }),
     });
     setSaving(false);
@@ -144,15 +146,6 @@ export default function MemberDetailPage({
     } else {
       const data = await res.json();
       setError(data.error?.message ?? "保存に失敗しました");
-    }
-  }
-
-  async function deleteMember() {
-    if (!confirm(`${member?.name} を削除しますか？`)) return;
-    const res = await fetch(`/api/members/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      await globalMutate((key) => typeof key === "string" && key.startsWith("/api/members"), undefined, { revalidate: true });
-      router.push("/members");
     }
   }
 
@@ -273,10 +266,8 @@ export default function MemberDetailPage({
                     <Edit size={14} /> 編集
                   </Button>
                 )}
-                {canDelete && (
-                  <Button variant="outline" size="sm" onClick={deleteMember} className="text-red-600 hover:bg-red-50">
-                    <Trash2 size={14} /> 削除
-                  </Button>
+                {canEdit && member.leftAt && !editMode && (
+                  <Badge variant="default">退社: {new Date(member.leftAt).toLocaleDateString("ja-JP")}</Badge>
                 )}
               </>
             )}
@@ -301,6 +292,14 @@ export default function MemberDetailPage({
               入社: {new Date(member.joinedAt).toLocaleDateString("ja-JP")}
             </span>
           </div>
+          {member.leftAt && (
+            <div className="flex items-center gap-2">
+              <Calendar size={14} className="text-red-400" />
+              <span className="text-sm text-red-600">
+                退社: {new Date(member.leftAt).toLocaleDateString("ja-JP")}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -360,6 +359,11 @@ export default function MemberDetailPage({
             <Input id="edit-bankAccountHolder" label="口座名義（カナ）"
               value={String(editForm.bankAccountHolder ?? "")}
               onChange={(e) => setEditForm((f) => ({ ...f, bankAccountHolder: e.target.value }))} />
+            <div className="sm:col-span-2 border-t border-slate-100 pt-3">
+              <Input id="edit-leftAt" type="date" label="退社日（未設定 = 在籍中）"
+                value={editForm.leftAt ?? ""}
+                onChange={(e) => setEditForm((f) => ({ ...f, leftAt: e.target.value || null }))} />
+            </div>
           </div>
         )}
       </div>

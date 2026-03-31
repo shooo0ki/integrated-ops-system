@@ -17,6 +17,7 @@ interface MemberListItem {
   salaryType: string;
   salaryAmount: number;
   joinedAt: string;
+  leftAt: string | null;
   email: string;
   role: string;
 }
@@ -30,10 +31,12 @@ export default function MembersClient({ role }: MembersClientProps) {
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [includeLeft, setIncludeLeft] = useState(false);
 
   const params = new URLSearchParams();
   if (search) params.set("q", search);
   if (roleFilter) params.set("role", roleFilter);
+  if (includeLeft) params.set("includeLeft", "1");
   const swrKey = `/api/members?${params}`;
 
   const { data: members = [], isLoading: loading } = useSWR<MemberListItem[]>(swrKey);
@@ -76,6 +79,15 @@ export default function MembersClient({ role }: MembersClientProps) {
           <option value="manager">マネージャー</option>
           <option value="member">メンバー</option>
         </Select>
+        <label className="flex items-center gap-1.5 text-sm text-slate-600 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={includeLeft}
+            onChange={(e) => setIncludeLeft(e.target.checked)}
+            className="rounded border-slate-300"
+          />
+          退社メンバーも表示
+        </label>
       </div>
 
       {/* Member table */}
@@ -98,7 +110,7 @@ export default function MembersClient({ role }: MembersClientProps) {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {members.map((m) => (
-                <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={m.id} className={`hover:bg-slate-50 transition-colors ${m.leftAt ? "opacity-50" : ""}`}>
                   <td className="px-4 py-2.5">
                     <Link
                       href={`/members/${m.id}`}
@@ -107,6 +119,11 @@ export default function MembersClient({ role }: MembersClientProps) {
                     >
                       {m.name}
                     </Link>
+                    {m.leftAt && (
+                      <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-500">
+                        退社
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-slate-700">
                     {statusLabel[m.status] ?? m.status}
