@@ -17,8 +17,6 @@ export async function uploadFile(
 
   try {
     // dynamic import で @vercel/blob が未インストールでもビルドを壊さない
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore — @vercel/blob is an optional dependency
     const { put } = await import("@vercel/blob");
     const blob = await put(path, buffer, {
       access: "public",
@@ -36,8 +34,6 @@ export async function uploadFile(
 export async function deleteFile(url: string): Promise<void> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return;
   try {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore — @vercel/blob is an optional dependency
     const { del } = await import("@vercel/blob");
     await del(url);
   } catch {
