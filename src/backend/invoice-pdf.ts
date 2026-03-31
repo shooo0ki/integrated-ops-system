@@ -106,7 +106,7 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Buffer
   }
 
   function border(x: number, yPos: number, w: number, h: number) {
-    page.drawRectangle({ x, y: yPos, width: w, height: h, borderColor: black, borderWidth: 0.5, color: rgb(1, 1, 1) });
+    page.drawRectangle({ x, y: yPos, width: w, height: h, borderColor: black, borderWidth: 0.5 });
   }
 
   const colRight = pageW - marginR;
@@ -124,11 +124,9 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Buffer
   // 左: 株式会社SALT2 御中 / 右: No, 請求日
   // ══════════════════════════════════════════════════
   text("株式会社SALT2 御中", marginL, y, 11);
-  text(`No`, colRight - 80, y, 9);
-  text(invoiceNumber, colRight, y, 9, { align: "right" });
+  text(`No ${invoiceNumber}`, colRight, y, 9, { align: "right" });
   y -= 16;
-  text(`請求日`, colRight - 80, y, 9);
-  text(issuedDateStr, colRight, y, 9, { align: "right" });
+  text(`請求日 ${issuedDateStr}`, colRight, y, 9, { align: "right" });
   y -= 28;
 
   // ══════════════════════════════════════════════════
