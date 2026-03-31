@@ -128,7 +128,7 @@ export default function CashflowPage() {
     const value = raw === "" ? 0 : parseInt(raw.replace(/,/g, ""), 10);
     if (isNaN(value) || value < 0) return;
 
-    const rec = records[month] ?? emptyRecord(month, company);
+    const rec = records[month] ?? emptyRecord(month);
     setLocalRecords((prev) => ({
       ...prev,
       [month]: { ...rec, [field]: value },
@@ -150,7 +150,7 @@ export default function CashflowPage() {
   function resetToAuto(key: AutoKey) {
     const autoVal = getAutoValue(key);
     if (autoVal == null) return;
-    const rec = records[month] ?? emptyRecord(month, company);
+    const rec = records[month] ?? emptyRecord(month);
     setLocalRecords((prev) => ({
       ...prev,
       [month]: { ...rec, [key]: autoVal },
