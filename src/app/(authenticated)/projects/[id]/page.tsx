@@ -330,7 +330,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     setDeletingProject(true);
 
     // キャッシュからプロジェクト一覧キーを見つけて楽観的に削除
-    for (const key of cache.keys()) {
+    for (const key of Array.from(cache.keys())) {
       if (typeof key === "string" && key.startsWith("/api/projects?")) {
         globalMutate(
           key,
@@ -347,7 +347,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     setDeletingProject(false);
     if (!res.ok) {
       // 失敗時はロールバック
-      for (const key of cache.keys()) {
+      for (const key of Array.from(cache.keys())) {
         if (typeof key === "string" && key.startsWith("/api/projects?")) {
           globalMutate(key);
         }
