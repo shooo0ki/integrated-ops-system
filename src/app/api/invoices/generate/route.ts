@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/backend/auth";
 import { prisma } from "@/backend/db";
-import { generateInvoiceExcel } from "@/backend/invoice-excel";
+import { generateInvoicePdf } from "@/backend/invoice-pdf";
 import { uploadFile } from "@/backend/storage";
 import { unauthorized, apiError } from "@/backend/api-response";
 
@@ -114,9 +114,11 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const memberInfo = await prisma.member.findUnique({
+  const member = await prisma.member.findUnique({
     where: { id: user.memberId },
     select: {
+      salaryAmount: true,
+      phone: true,
       address: true,
       bankName: true,
       bankBranch: true,
@@ -125,17 +127,31 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const buffer = await generateInvoiceExcel({
+  const invoice = existing
+    ? await prisma.invoice.findUnique({ where: { id: inv.id }, select: { issuedAt: true, unitPrice: true, workHoursTotal: true } })
+    : { issuedAt: new Date(), unitPrice: member?.salaryAmount ?? 0, workHoursTotal };
+
+  const buffer = await generateInvoicePdf({
     invoiceNumber: inv.invoiceNumber,
     targetMonth,
     issuerName: user.name,
+    issuedAt: (invoice?.issuedAt ?? new Date()).toISOString().slice(0, 10),
+    unitPrice: Number(invoice?.unitPrice ?? member?.salaryAmount ?? 0),
+    workHoursTotal: Number(invoice?.workHoursTotal ?? workHoursTotal),
     items,
     note,
-    memberInfo,
+    memberInfo: {
+      phone: member?.phone,
+      address: member?.address,
+      bankName: member?.bankName,
+      bankBranch: member?.bankBranch,
+      bankAccountNumber: member?.bankAccountNumber,
+      bankAccountHolder: member?.bankAccountHolder,
+    },
   });
 
   // Blob Storage にアップロード（BLOB_READ_WRITE_TOKEN 設定時のみ）
-  const storagePath = `invoices/${targetMonth}/${inv.invoiceNumber}.xlsx`;
+  const storagePath = `invoices/${targetMonth}/${inv.invoiceNumber}.pdf`;
   const uploaded = await uploadFile(storagePath, buffer);
   if (uploaded) {
     await prisma.invoice.update({
@@ -144,12 +160,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const filename = `invoice-${targetMonth}-${inv.invoiceNumber}.xlsx`;
+  const filename = `invoice-${targetMonth}-${inv.invoiceNumber}.pdf`;
 
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
