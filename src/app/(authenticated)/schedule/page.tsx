@@ -46,7 +46,7 @@ function buildNextWeek(): DayEntry[] {
       date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
       dayLabel,
       isHoliday,
-      isOff: isHoliday,
+      isOff: false,
       plannedStart: DEFAULT_START,
       plannedEnd: DEFAULT_END,
       workType: "出社",
