@@ -12,7 +12,7 @@
     },
     {
       "path": "/api/cron/clock-reminder",
-      "schedule": "0 1 * * 1-5"
+      "schedule": "0 1 * * *"
     },
     {
       "path": "/api/cron/closing-reminder",
