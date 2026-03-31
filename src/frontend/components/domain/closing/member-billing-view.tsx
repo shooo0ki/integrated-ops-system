@@ -10,7 +10,6 @@ import { Button } from "@/frontend/components/common/button";
 
 import type { ClosingRecord, Invoice, LineItem, ExpenseItem, MyProject } from "@/shared/types/closing";
 import { formatCurrency, buildMonthOptions } from "@/frontend/constants/closing";
-import { SelfReportCard } from "./self-report-card";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 export function MemberBillingView({ memberId }: { memberId: string }) {
@@ -195,9 +194,6 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
           ))}
         </Select>
       </div>
-
-      {/* 月次工数自己申告 */}
-      <SelfReportCard month={month} />
 
       {loading ? (
         <InlineSkeleton />
