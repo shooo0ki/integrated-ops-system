@@ -110,7 +110,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const { id } = params;
   const router = useRouter();
   const { role } = useAuth();
-  const { mutate: globalMutate, cache } = useSWRConfig();
+  const { mutate: globalMutate } = useSWRConfig();
   const canManage = role === "admin" || role === "manager";
 
   const { data: project, isLoading: loading, error: projectError, mutate: mutateProject } = useSWR<ProjectDetail>(
@@ -328,31 +328,15 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
   async function handleDeleteProject() {
     setDeletingProject(true);
-
-    // キャッシュからプロジェクト一覧キーを見つけて楽観的に削除
-    for (const key of Array.from(cache.keys())) {
-      if (typeof key === "string" && key.startsWith("/api/projects?")) {
-        globalMutate(
-          key,
-          (current: { id: string }[] | undefined) =>
-            Array.isArray(current) ? current.filter((p) => p.id !== id) : current,
-          { revalidate: false }
-        );
-      }
-    }
-
+    // 即遷移 → 一覧ページで再取得される
     router.push("/projects");
-
-    const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
-    setDeletingProject(false);
-    if (!res.ok) {
-      // 失敗時はロールバック
-      for (const key of Array.from(cache.keys())) {
-        if (typeof key === "string" && key.startsWith("/api/projects?")) {
-          globalMutate(key);
-        }
-      }
-    }
+    await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    // 一覧キャッシュを無効化（遷移先で最新データ表示）
+    globalMutate(
+      (key) => typeof key === "string" && key.startsWith("/api/projects"),
+      undefined,
+      { revalidate: true }
+    );
   }
 
   async function handleDeleteAssignment(assignId: string) {

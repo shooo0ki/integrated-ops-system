@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import useSWR, { useSWRConfig } from "swr";
+import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { Plus, Trash2 } from "lucide-react";
 import Link from "@/frontend/components/common/prefetch-link";
 import { Select, Input } from "@/frontend/components/common/input";
@@ -52,6 +53,7 @@ const CONTRACT_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function ProjectsClient({ role }: { role: string }) {
+  const router = useRouter();
   const canCreate = role === "admin" || role === "manager";
 
   const [companyFilter, setCompanyFilter] = useState("");
@@ -62,8 +64,7 @@ export default function ProjectsClient({ role }: { role: string }) {
   if (statusFilter) params.set("status", statusFilter);
   const swrKey = `/api/projects?${params}`;
 
-  const { data: projects = [], isLoading: loading } = useSWR<Project[]>(swrKey);
-  const { mutate: globalMutate } = useSWRConfig();
+  const { data: projects = [], isLoading: loading, mutate } = useSWR<Project[]>(swrKey);
   const { data: membersData } = useSWR<{ members?: MemberOption[] } | MemberOption[]>("/api/members");
   const members: MemberOption[] = membersData
     ? ((membersData as { members?: MemberOption[] }).members ?? (membersData as MemberOption[]))
@@ -113,95 +114,77 @@ export default function ProjectsClient({ role }: { role: string }) {
 
     const validPositions = positions.filter((p) => p.positionName.trim());
 
-    const payload = {
-      name: form.name,
-      description: form.description || undefined,
-      status: form.status,
-      company: form.company,
-      startDate: form.startDate,
-      endDate: noDeadline || !form.endDate ? null : form.endDate,
-      clientName: form.clientName || undefined,
-      contractType: form.contractType || undefined,
-      monthlyContractAmount: form.monthlyContractAmount ? Number(form.monthlyContractAmount) : 0,
-      positions: validPositions.map((p) => ({
-        positionName: p.positionName,
-        requiredCount: Number(p.requiredCount) || 1,
-      })),
-    };
+    const res = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        description: form.description || undefined,
+        status: form.status,
+        company: form.company,
+        startDate: form.startDate,
+        endDate: noDeadline || !form.endDate ? null : form.endDate,
+        clientName: form.clientName || undefined,
+        contractType: form.contractType || undefined,
+        monthlyContractAmount: form.monthlyContractAmount ? Number(form.monthlyContractAmount) : 0,
+        positions: validPositions.map((p) => ({
+          positionName: p.positionName,
+          requiredCount: Number(p.requiredCount) || 1,
+        })),
+      }),
+    });
 
-    // 楽観的にリストへ追加
-    const optimistic: Project = {
-      id: `temp-${Date.now()}`,
-      name: form.name,
-      description: form.description || null,
-      status: form.status,
-      company: form.company,
-      startDate: form.startDate,
-      endDate: noDeadline || !form.endDate ? null : form.endDate,
-      clientName: form.clientName || null,
-      contractType: form.contractType || null,
-      monthlyContractAmount: form.monthlyContractAmount ? Number(form.monthlyContractAmount) : 0,
-      assignments: [],
-    };
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setCreateError(data?.error?.message ?? "登録に失敗しました");
+      setSubmitting(false);
+      return;
+    }
 
-    const savedAssigns = { ...initialAssigns };
-    const savedPositions = [...positions];
-    const savedStartDate = form.startDate;
+    const project = await res.json();
 
-    setCreateOpen(false);
-    resetForm();
-    setSubmitting(false);
+    // 初期アサインがあれば登録
+    for (const [posIdx, memberId] of Object.entries(initialAssigns)) {
+      if (!memberId) continue;
+      const posName = positions[Number(posIdx)]?.positionName?.trim();
+      if (!posName) continue;
 
-    // 即座にリストへ追加
-    globalMutate(
-      swrKey,
-      (current: Project[] | undefined) => current ? [optimistic, ...current] : [optimistic],
-      { revalidate: false }
-    );
+      const detailRes = await fetch(`/api/projects/${project.id}`);
+      if (!detailRes.ok) break;
+      const detail = await detailRes.json();
+      const pos = detail.positions?.find((p: { positionName: string }) => p.positionName === posName);
+      if (!pos) continue;
 
-    // バックグラウンドでAPI実行
-    (async () => {
-      const res = await fetch("/api/projects", {
+      await fetch(`/api/projects/${project.id}/assignments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          positionId: pos.id,
+          memberId,
+          workloadHours: 80,
+          startDate: form.startDate,
+        }),
       });
+    }
 
-      if (!res.ok) {
-        // 失敗時はロールバック
-        globalMutate(swrKey);
-        return;
-      }
+    setSubmitting(false);
+    setCreateOpen(false);
+    resetForm();
+    // 作成したプロジェクトの詳細ページへ遷移
+    router.push(`/projects/${project.id}`);
+  }
 
-      const project = await res.json();
-
-      // 初期アサインがあれば登録
-      for (const [posIdx, memberId] of Object.entries(savedAssigns)) {
-        if (!memberId) continue;
-        const posName = savedPositions[Number(posIdx)]?.positionName?.trim();
-        if (!posName) continue;
-
-        const detailRes = await fetch(`/api/projects/${project.id}`);
-        if (!detailRes.ok) break;
-        const detail = await detailRes.json();
-        const pos = detail.positions?.find((p: { positionName: string }) => p.positionName === posName);
-        if (!pos) continue;
-
-        await fetch(`/api/projects/${project.id}/assignments`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            positionId: pos.id,
-            memberId,
-            workloadHours: 80,
-            startDate: savedStartDate,
-          }),
-        });
-      }
-
-      // 実データで差し替え
-      globalMutate(swrKey);
-    })();
+  async function handleDelete(projectId: string) {
+    // 即座にリストから除外
+    mutate(
+      (current) => current ? current.filter((p) => p.id !== projectId) : [],
+      { revalidate: false }
+    );
+    const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
+    if (!res.ok) {
+      // 失敗時はロールバック
+      mutate();
+    }
   }
 
   return (
@@ -255,6 +238,7 @@ export default function ProjectsClient({ role }: { role: string }) {
                 <th className="px-4 py-2.5 text-right font-medium text-slate-500">月額契約</th>
                 <th className="px-4 py-2.5 text-left font-medium text-slate-500">開始日</th>
                 <th className="px-4 py-2.5 text-right font-medium text-slate-500">メンバー</th>
+                {canCreate && <th className="px-4 py-2.5 w-10"></th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -271,6 +255,17 @@ export default function ProjectsClient({ role }: { role: string }) {
                   <td className="px-4 py-2.5 text-right text-slate-800">{formatCurrency(p.monthlyContractAmount)}</td>
                   <td className="px-4 py-2.5 text-slate-500">{formatDate(p.startDate)}</td>
                   <td className="px-4 py-2.5 text-right text-slate-700">{p.assignments.length}名</td>
+                  {canCreate && (
+                    <td className="px-2 py-2.5 text-right">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                        className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                        title="削除"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
