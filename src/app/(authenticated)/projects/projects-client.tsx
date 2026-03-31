@@ -170,20 +170,25 @@ export default function ProjectsClient({ role }: { role: string }) {
     setSubmitting(false);
     setCreateOpen(false);
     resetForm();
-    // 作成したプロジェクトの詳細ページへ遷移
+    // 一覧キャッシュを更新してから詳細ページへ遷移
+    await mutate();
     router.push(`/projects/${project.id}`);
   }
 
   async function handleDelete(projectId: string) {
     // 即座にリストから除外
+    const prev = projects;
     mutate(
-      (current) => current ? current.filter((p) => p.id !== projectId) : [],
+      current => current ? current.filter(p => p.id !== projectId) : [],
       { revalidate: false }
     );
     const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
-    if (!res.ok) {
-      // 失敗時はロールバック
+    if (res.ok) {
+      // 成功: サーバーの実データで確定
       mutate();
+    } else {
+      // 失敗: 元データに戻す
+      mutate(prev, { revalidate: false });
     }
   }
 

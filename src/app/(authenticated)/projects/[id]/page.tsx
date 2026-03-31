@@ -328,15 +328,20 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
   async function handleDeleteProject() {
     setDeletingProject(true);
-    // 即遷移 → 一覧ページで再取得される
-    router.push("/projects");
-    await fetch(`/api/projects/${id}`, { method: "DELETE" });
-    // 一覧キャッシュを無効化（遷移先で最新データ表示）
-    globalMutate(
-      (key) => typeof key === "string" && key.startsWith("/api/projects"),
-      undefined,
-      { revalidate: true }
-    );
+    // DELETE完了を待ってからキャッシュ無効化→遷移
+    const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      globalMutate(
+        (key) => typeof key === "string" && key.startsWith("/api/projects"),
+        undefined,
+        { revalidate: true }
+      );
+      router.push("/projects");
+    } else {
+      setDeletingProject(false);
+      setDeleteProjectOpen(false);
+      setSaveMsg("削除に失敗しました");
+    }
   }
 
   async function handleDeleteAssignment(assignId: string) {
