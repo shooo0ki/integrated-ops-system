@@ -27,6 +27,7 @@ function ensureFont(doc: jsPDF) {
     const candidates = [
       join(process.cwd(), "src/backend/fonts/NotoSansJP-Regular.ttf"),
       join(__dirname, "fonts/NotoSansJP-Regular.ttf"),
+      join(__dirname, "../src/backend/fonts/NotoSansJP-Regular.ttf"),
     ];
     for (const p of candidates) {
       try {
