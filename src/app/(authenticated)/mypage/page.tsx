@@ -585,18 +585,23 @@ function NotificationSettingsCard() {
               <p className="text-sm font-medium text-slate-800">{item.label}</p>
               <p className="text-xs text-slate-500">{item.desc}</p>
             </div>
-            <button
-              onClick={() => toggle(item.key)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                data?.[item.key] ? "bg-blue-600" : "bg-slate-300"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  data?.[item.key] ? "translate-x-6" : "translate-x-1"
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-medium ${data?.[item.key] ? "text-blue-600" : "text-slate-400"}`}>
+                {data?.[item.key] ? "ON" : "OFF"}
+              </span>
+              <button
+                onClick={() => toggle(item.key)}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shadow-inner ${
+                  data?.[item.key] ? "bg-blue-600" : "bg-slate-300"
                 }`}
-              />
-            </button>
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    data?.[item.key] ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         ))}
       </div>
