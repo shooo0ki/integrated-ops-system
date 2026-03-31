@@ -26,6 +26,7 @@ export async function PATCH(
       member: {
         select: {
           name: true,
+          phone: true,
           address: true,
           bankName: true,
           bankBranch: true,
@@ -48,8 +49,12 @@ export async function PATCH(
       invoiceNumber: invoice.invoiceNumber,
       targetMonth: invoice.targetMonth,
       issuerName: invoice.member.name,
+      issuedAt: invoice.issuedAt.toISOString().slice(0, 10),
+      unitPrice: invoice.unitPrice,
+      workHoursTotal: Number(invoice.workHoursTotal),
       items: invoice.items.map((it) => ({ name: it.name, amount: it.amount, taxable: it.taxable })),
       memberInfo: {
+        phone: invoice.member.phone,
         address: invoice.member.address,
         bankName: invoice.member.bankName,
         bankBranch: invoice.member.bankBranch,
