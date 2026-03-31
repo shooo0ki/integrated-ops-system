@@ -328,34 +328,17 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
 
   async function handleDeleteProject() {
     setDeletingProject(true);
-    // 楽観的に一覧から削除してすぐ遷移
-    globalMutate(
-      (key) => typeof key === "string" && key.startsWith("/api/projects") && !key.includes(id),
-      (current: { id: string }[] | undefined) =>
-        Array.isArray(current)
-          ? current.filter((p) => p.id !== id)
-          : current,
-      { revalidate: false }
-    );
+    // 即座に遷移（体感的に即削除）
     router.push("/projects");
 
     const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
     setDeletingProject(false);
-    if (res.ok) {
-      // サーバーの実データで再取得
-      globalMutate(
-        (key) => typeof key === "string" && key.startsWith("/api/projects"),
-        undefined,
-        { revalidate: true }
-      );
-    } else {
-      // 失敗時はロールバック
-      globalMutate(
-        (key) => typeof key === "string" && key.startsWith("/api/projects"),
-        undefined,
-        { revalidate: true }
-      );
-    }
+    // 成功でも失敗でも一覧を再取得して最新状態にする
+    globalMutate(
+      (key) => typeof key === "string" && key.startsWith("/api/projects"),
+      undefined,
+      { revalidate: true }
+    );
   }
 
   async function handleDeleteAssignment(assignId: string) {

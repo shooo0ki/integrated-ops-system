@@ -147,9 +147,9 @@ export default function ProjectsClient({ role }: { role: string }) {
     setCreateOpen(false);
     resetForm();
 
-    // 全プロジェクトキーを楽観的に更新
+    // 現在のキーを楽観的に更新
     globalMutate(
-      (key) => typeof key === "string" && key.startsWith("/api/projects"),
+      swrKey,
       (current: Project[] | undefined) => current ? [optimistic, ...current] : [optimistic],
       { revalidate: false }
     );
