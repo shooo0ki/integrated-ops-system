@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
+
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { SelfReportCard } from "@/frontend/components/domain/closing/self-report-card";
 import { Select } from "@/frontend/components/common/input";
-import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
+import { Card } from "@/frontend/components/common/card";
 import { Badge } from "@/frontend/components/common/badge";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
-import type { MyProject } from "@/shared/types/closing";
 
 interface SelfReportSummary {
   memberId: string;
@@ -40,22 +40,6 @@ export default function SelfReportsPage() {
   const { data: allReports, isLoading: reportsLoading } = useSWR<SelfReportSummary[]>(
     isAdmin ? `/api/self-reports?month=${month}` : null
   );
-
-  // メンバー用：自分の担当PJ
-  const { data: myProjectsRaw } = useSWR<{ projectId: string; projectName: string }[]>(
-    !isAdmin ? "/api/mypage-summary" : null,
-    {
-      revalidateOnFocus: false,
-    }
-  );
-
-  const myProjects: MyProject[] = useMemo(() => {
-    if (!myProjectsRaw) return [];
-    if (Array.isArray(myProjectsRaw)) return myProjectsRaw;
-    // mypage-summary returns { member: { projects: [...] } }
-    const raw = myProjectsRaw as unknown as { member?: { projects?: MyProject[] } };
-    return raw?.member?.projects ?? [];
-  }, [myProjectsRaw]);
 
   const stats = useMemo(() => {
     if (!allReports) return null;
@@ -155,7 +139,7 @@ export default function SelfReportsPage() {
 
       {/* メンバー: 自分の申告フォーム */}
       {!isAdmin && !authLoading && (
-        <SelfReportCard month={month} myProjects={myProjects} />
+        <SelfReportCard month={month} />
       )}
     </div>
   );

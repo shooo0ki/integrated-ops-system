@@ -197,7 +197,7 @@ export function MemberBillingView({ memberId }: { memberId: string }) {
       </div>
 
       {/* 月次工数自己申告 */}
-      <SelfReportCard month={month} myProjects={myProjects} />
+      <SelfReportCard month={month} />
 
       {loading ? (
         <InlineSkeleton />

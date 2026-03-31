@@ -249,7 +249,7 @@ export function AdminClosingView() {
       )}
 
       {/* 自分の月次申告 */}
-      <SelfReportCard month={targetMonth} myProjects={myProjects} />
+      <SelfReportCard month={targetMonth} />
 
       {/* 請求書受領状況テーブル */}
       {loading ? (

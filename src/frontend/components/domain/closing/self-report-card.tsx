@@ -7,15 +7,13 @@ import { CheckCircle, Plus, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
 
-import type { MyProject, SelfReportRow, SelfReportItem } from "@/shared/types/closing";
+import type { SelfReportRow, SelfReportItem } from "@/shared/types/closing";
 import { NON_PROJECT_OPTIONS } from "@/frontend/constants/closing";
 
 export function SelfReportCard({
   month,
-  myProjects,
 }: {
   month: string;
-  myProjects: MyProject[];
 }) {
   const { data: selfReports, mutate: mutateSR } = useSWR<SelfReportItem[]>(
     month ? `/api/self-reports?month=${month}` : null
@@ -47,18 +45,11 @@ export function SelfReportCard({
         );
       }
     } else {
-      setRows(
-        myProjects.map((p) => ({
-          key: p.projectId,
-          projectId: p.projectId,
-          customLabel: null,
-          displayName: p.projectName,
-          reportedPercent: 0,
-        }))
-      );
+      // 初期状態は空。「行を追加」ボタンで追加する
+      setRows([]);
       setEditing(true);
     }
-  }, [selfReports, myProjects, editing]);
+  }, [selfReports, editing]);
 
   // 月が変わったら編集モードをリセット
   useEffect(() => {
