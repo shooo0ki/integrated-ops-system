@@ -331,9 +331,9 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     // 楽観的に一覧から削除してすぐ遷移
     globalMutate(
       (key) => typeof key === "string" && key.startsWith("/api/projects") && !key.includes(id),
-      (current: unknown[] | undefined) =>
+      (current: { id: string }[] | undefined) =>
         Array.isArray(current)
-          ? current.filter((p: { id?: string }) => p.id !== id)
+          ? current.filter((p) => p.id !== id)
           : current,
       { revalidate: false }
     );
