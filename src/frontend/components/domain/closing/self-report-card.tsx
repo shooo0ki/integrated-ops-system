@@ -16,7 +16,7 @@ export function SelfReportCard({
   month: string;
 }) {
   const { data: selfReports, mutate: mutateSR } = useSWR<SelfReportItem[]>(
-    month ? `/api/self-reports?month=${month}` : null
+    month ? `/api/self-reports?month=${month}&mine=1` : null
   );
   const { data: allProjectsRaw } = useSWR<{ id: string; name: string }[]>(
     "/api/projects"

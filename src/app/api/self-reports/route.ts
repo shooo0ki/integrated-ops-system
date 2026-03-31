@@ -22,9 +22,10 @@ export async function GET(req: NextRequest) {
   }
 
   const isAdminOrManager = user.role === "admin" || user.role === "manager";
+  const mineOnly = url.searchParams.get("mine") === "1";
 
-  // 管理者/マネージャー: 全メンバーの申告状況（未申告含む）
-  if (isAdminOrManager) {
+  // 管理者/マネージャー: mine=1 でなければ全メンバーの申告状況（未申告含む）
+  if (isAdminOrManager && !mineOnly) {
     const [allMembers, reports] = await Promise.all([
       prisma.member.findMany({
         where: { deletedAt: null },
