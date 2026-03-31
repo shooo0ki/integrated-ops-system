@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/backend/auth";
 import { prisma } from "@/backend/db";
 import { generateInvoiceExcel } from "@/backend/invoice-excel";
+import { uploadFile } from "@/backend/storage";
 import { unauthorized, apiError } from "@/backend/api-response";
 
 function calcAmounts(items: { amount: number; taxable?: boolean }[]) {
@@ -131,6 +132,16 @@ export async function POST(req: NextRequest) {
     note,
     memberInfo,
   });
+
+  // Blob Storage にアップロード（BLOB_READ_WRITE_TOKEN 設定時のみ）
+  const storagePath = `invoices/${targetMonth}/${inv.invoiceNumber}.xlsx`;
+  const uploaded = await uploadFile(storagePath, buffer);
+  if (uploaded) {
+    await prisma.invoice.update({
+      where: { id: inv.id },
+      data: { filePath: uploaded.url },
+    });
+  }
 
   const filename = `invoice-${targetMonth}-${inv.invoiceNumber}.xlsx`;
 

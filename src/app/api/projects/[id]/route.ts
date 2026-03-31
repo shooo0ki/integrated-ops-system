@@ -23,6 +23,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
       positions: {
         include: {
           assignments: { select: { id: true } },
+          requiredSkills: {
+            include: { skill: { select: { id: true, name: true, category: { select: { name: true } } } } },
+          },
         },
         orderBy: { createdAt: "asc" },
       },
@@ -55,6 +58,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
       positionName: pos.positionName,
       requiredCount: pos.requiredCount,
       assignmentCount: pos.assignments.length,
+      requiredSkills: pos.requiredSkills.map((rs) => ({
+        id: rs.id,
+        skillId: rs.skillId,
+        skillName: rs.skill.name,
+        categoryName: rs.skill.category.name,
+        minLevel: rs.minLevel,
+      })),
     })),
     assignments: project.assignments.map((a) => ({
       id: a.id,

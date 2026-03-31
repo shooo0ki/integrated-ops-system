@@ -17,11 +17,20 @@ import { PROJECT_STATUS_LABELS as STATUS_LABELS, PROJECT_STATUS_COLORS as STATUS
 
 // ─── 型定義 ──────────────────────────────────────────────
 
+interface RequiredSkill {
+  id: string;
+  skillId: string;
+  skillName: string;
+  categoryName: string;
+  minLevel: number;
+}
+
 interface Position {
   id: string;
   positionName: string;
   requiredCount: number;
   assignmentCount: number;
+  requiredSkills: RequiredSkill[];
 }
 
 interface MonthlyHour {
@@ -144,6 +153,22 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   const [monthlyValue, setMonthlyValue] = useState("");
   const [savingMonthly, setSavingMonthly] = useState(false);
 
+  // 必須スキル編集
+  const [editSkillsPositionId, setEditSkillsPositionId] = useState<string | null>(null);
+  const [skillRows, setSkillRows] = useState<{ skillId: string; minLevel: number }[]>([]);
+  const [savingSkills, setSavingSkills] = useState(false);
+
+  interface SkillOption { id: string; name: string; categoryName: string }
+  const { data: skillCategoriesRaw } = useSWR<{ id: string; name: string; skills: { id: string; name: string }[] }[]>(
+    editSkillsPositionId ? "/api/skill-categories" : null
+  );
+  const allSkillOptions: SkillOption[] = useMemo(() => {
+    if (!skillCategoriesRaw) return [];
+    return skillCategoriesRaw.flatMap((cat) =>
+      cat.skills.map((s) => ({ id: s.id, name: s.name, categoryName: cat.name }))
+    );
+  }, [skillCategoriesRaw]);
+
   useEffect(() => {
     setAssignForm((prev) => ({ ...prev, startDate: toJSTDateString() }));
   }, []);
@@ -151,6 +176,18 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
   useEffect(() => {
     if (projectError) { router.push("/projects"); }
   }, [projectError, router]);
+
+  // 必須スキル編集モーダルが開かれたら既存データをロード
+  useEffect(() => {
+    if (!editSkillsPositionId || !project) {
+      setSkillRows([]);
+      return;
+    }
+    const pos = project.positions.find((p) => p.id === editSkillsPositionId);
+    if (pos) {
+      setSkillRows(pos.requiredSkills.map((rs) => ({ skillId: rs.skillId, minLevel: rs.minLevel })));
+    }
+  }, [editSkillsPositionId, project]);
 
   useEffect(() => {
     if (!project || editing) return;
@@ -507,18 +544,41 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
           </div>
         </CardHeader>
 
-        {/* ポジション充足状況 */}
+        {/* ポジション充足状況 + 必須スキル */}
         {project.positions.length > 0 && (
-          <div className="mb-4 flex gap-2 flex-wrap">
+          <div className="mb-4 space-y-2">
             {project.positions.map((pos) => (
-              <div key={pos.id} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
-                <span className="text-sm text-slate-700">{pos.positionName}</span>
-                {pos.assignmentCount >= pos.requiredCount ? (
-                  <Badge variant="success" className="text-xs">充足</Badge>
-                ) : (
-                  <Badge variant="warning" className="text-xs">空き {pos.requiredCount - pos.assignmentCount}名</Badge>
+              <div key={pos.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-700">{pos.positionName}</span>
+                  {pos.assignmentCount >= pos.requiredCount ? (
+                    <Badge variant="success" className="text-xs">充足</Badge>
+                  ) : (
+                    <Badge variant="warning" className="text-xs">空き {pos.requiredCount - pos.assignmentCount}名</Badge>
+                  )}
+                  <span className="text-xs text-slate-400">{pos.assignmentCount}/{pos.requiredCount}名</span>
+                  {canManage && (
+                    <button
+                      onClick={() => setEditSkillsPositionId(pos.id)}
+                      className="ml-auto text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      必須スキル設定
+                    </button>
+                  )}
+                </div>
+                {pos.requiredSkills.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {pos.requiredSkills.map((rs) => (
+                      <span
+                        key={rs.id}
+                        className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700"
+                      >
+                        {rs.skillName}
+                        <span className="font-semibold">Lv{rs.minLevel}+</span>
+                      </span>
+                    ))}
+                  </div>
                 )}
-                <span className="text-xs text-slate-400">{pos.assignmentCount}/{pos.requiredCount}名</span>
               </div>
             ))}
           </div>
@@ -791,6 +851,77 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
             <Button variant="outline" onClick={() => setSwapAssignId(null)}>キャンセル</Button>
             <Button variant="primary" onClick={handleSwapMember} disabled={swapping}>
               {swapping ? "変更中..." : "変更する"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ─ 必須スキル編集モーダル ─ */}
+      <Modal
+        isOpen={!!editSkillsPositionId}
+        onClose={() => setEditSkillsPositionId(null)}
+        title={`必須スキル設定: ${project.positions.find((p) => p.id === editSkillsPositionId)?.positionName ?? ""}`}
+      >
+        <div className="space-y-3">
+          {skillRows.map((row, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <Select
+                value={row.skillId}
+                onChange={(e) => setSkillRows((prev) => prev.map((r, i) => i === idx ? { ...r, skillId: e.target.value } : r))}
+                className="flex-1"
+              >
+                <option value="">スキルを選択</option>
+                {allSkillOptions.map((s) => (
+                  <option key={s.id} value={s.id} disabled={skillRows.some((r, i) => i !== idx && r.skillId === s.id)}>
+                    {s.categoryName} / {s.name}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                value={String(row.minLevel)}
+                onChange={(e) => setSkillRows((prev) => prev.map((r, i) => i === idx ? { ...r, minLevel: Number(e.target.value) } : r))}
+                className="w-24"
+              >
+                {[1, 2, 3, 4, 5].map((lv) => (
+                  <option key={lv} value={lv}>Lv{lv}+</option>
+                ))}
+              </Select>
+              <button
+                onClick={() => setSkillRows((prev) => prev.filter((_, i) => i !== idx))}
+                className="text-slate-400 hover:text-red-500"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+
+          <button
+            onClick={() => setSkillRows((prev) => [...prev, { skillId: "", minLevel: 1 }])}
+            className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+          >
+            <Plus size={14} /> スキルを追加
+          </button>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setEditSkillsPositionId(null)}>キャンセル</Button>
+            <Button
+              variant="primary"
+              disabled={savingSkills}
+              onClick={async () => {
+                if (!editSkillsPositionId) return;
+                setSavingSkills(true);
+                const validSkills = skillRows.filter((r) => r.skillId);
+                await fetch(`/api/projects/${id}/positions/${editSkillsPositionId}/required-skills`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ skills: validSkills }),
+                });
+                await mutateProject();
+                setEditSkillsPositionId(null);
+                setSavingSkills(false);
+              }}
+            >
+              {savingSkills ? "保存中..." : "保存"}
             </Button>
           </div>
         </div>
