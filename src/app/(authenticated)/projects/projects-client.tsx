@@ -144,69 +144,64 @@ export default function ProjectsClient({ role }: { role: string }) {
       assignments: [],
     };
 
+    const savedAssigns = { ...initialAssigns };
+    const savedPositions = [...positions];
+    const savedStartDate = form.startDate;
+
     setCreateOpen(false);
     resetForm();
+    setSubmitting(false);
 
-    // 現在のキーを楽観的に更新
+    // 即座にリストへ追加
     globalMutate(
       swrKey,
       (current: Project[] | undefined) => current ? [optimistic, ...current] : [optimistic],
       { revalidate: false }
     );
 
-    const res = await fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setCreateError(data?.error?.message ?? "登録に失敗しました");
-      setCreateOpen(true);
-      // 楽観的更新をロールバック
-      globalMutate(
-        (key) => typeof key === "string" && key.startsWith("/api/projects"),
-        undefined,
-        { revalidate: true }
-      );
-      setSubmitting(false);
-      return;
-    }
-
-    const project = await res.json();
-
-    // 初期アサインがあれば登録
-    for (const [posIdx, memberId] of Object.entries(initialAssigns)) {
-      if (!memberId) continue;
-      const posName = positions[Number(posIdx)]?.positionName?.trim();
-      if (!posName) continue;
-
-      const detailRes = await fetch(`/api/projects/${project.id}`);
-      if (!detailRes.ok) break;
-      const detail = await detailRes.json();
-      const pos = detail.positions?.find((p: { positionName: string }) => p.positionName === posName);
-      if (!pos) continue;
-
-      await fetch(`/api/projects/${project.id}/assignments`, {
+    // バックグラウンドでAPI実行
+    (async () => {
+      const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          positionId: pos.id,
-          memberId,
-          workloadHours: 80,
-          startDate: form.startDate,
-        }),
+        body: JSON.stringify(payload),
       });
-    }
 
-    setSubmitting(false);
-    // サーバーの実データで再取得
-    globalMutate(
-      (key) => typeof key === "string" && key.startsWith("/api/projects"),
-      undefined,
-      { revalidate: true }
-    );
+      if (!res.ok) {
+        // 失敗時はロールバック
+        globalMutate(swrKey);
+        return;
+      }
+
+      const project = await res.json();
+
+      // 初期アサインがあれば登録
+      for (const [posIdx, memberId] of Object.entries(savedAssigns)) {
+        if (!memberId) continue;
+        const posName = savedPositions[Number(posIdx)]?.positionName?.trim();
+        if (!posName) continue;
+
+        const detailRes = await fetch(`/api/projects/${project.id}`);
+        if (!detailRes.ok) break;
+        const detail = await detailRes.json();
+        const pos = detail.positions?.find((p: { positionName: string }) => p.positionName === posName);
+        if (!pos) continue;
+
+        await fetch(`/api/projects/${project.id}/assignments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            positionId: pos.id,
+            memberId,
+            workloadHours: 80,
+            startDate: savedStartDate,
+          }),
+        });
+      }
+
+      // 実データで差し替え
+      globalMutate(swrKey);
+    })();
   }
 
   return (
