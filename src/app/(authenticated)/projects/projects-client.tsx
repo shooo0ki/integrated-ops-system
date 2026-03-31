@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { Plus, Trash2 } from "lucide-react";
 import Link from "@/frontend/components/common/prefetch-link";
 import { Select, Input } from "@/frontend/components/common/input";
@@ -62,7 +62,8 @@ export default function ProjectsClient({ role }: { role: string }) {
   if (statusFilter) params.set("status", statusFilter);
   const swrKey = `/api/projects?${params}`;
 
-  const { data: projects = [], isLoading: loading, mutate } = useSWR<Project[]>(swrKey);
+  const { data: projects = [], isLoading: loading } = useSWR<Project[]>(swrKey);
+  const { mutate: globalMutate } = useSWRConfig();
   const { data: membersData } = useSWR<{ members?: MemberOption[] } | MemberOption[]>("/api/members");
   const members: MemberOption[] = membersData
     ? ((membersData as { members?: MemberOption[] }).members ?? (membersData as MemberOption[]))
@@ -169,7 +170,11 @@ export default function ProjectsClient({ role }: { role: string }) {
     setSubmitting(false);
     setCreateOpen(false);
     resetForm();
-    await mutate();
+    await globalMutate(
+      (key) => typeof key === "string" && key.startsWith("/api/projects"),
+      undefined,
+      { revalidate: true }
+    );
   }
 
   return (

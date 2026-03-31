@@ -1,10 +1,8 @@
 "use client";
-import { Select } from "@/frontend/components/common/input";
-
 import { useState } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
-import { ChevronLeft, ChevronRight, Save, CheckCircle, TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, CheckCircle, TrendingDown, TrendingUp, RotateCcw } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
 import { Badge } from "@/frontend/components/common/badge";
@@ -18,19 +16,37 @@ const CashflowChart = dynamic(
   { ssr: false }
 );
 
-type Company = "boost" | "salt2";
-
 interface CfRecord {
   month: string;
   company: string;
   openingBalance: number;
-  cashInClient: number;    // 自動: 請求書から
-  cashInOther: number;     // 手動
-  cashOutSalary: number;   // 自動: 月給制メンバー合計
-  cashOutFixed: number;    // 自動: ツールコスト合計
-  cashOutExpense: number;  // 自動: 経費精算
-  cashOutOther: number;    // 手動
+  cashInClient: number;
+  cashInOther: number;
+  cashOutSalary: number;
+  cashOutFixed: number;
+  cashOutExpense: number;
+  cashOutOther: number;
   cfBalanceCurrent: number;
+  // 自動計算の参考値
+  autoCashInClient?: number;
+  autoCashOutSalary?: number;
+  autoCashOutFixed?: number;
+  autoCashOutExpense?: number;
+  // オーバーライド状態
+  overrides?: {
+    cashInClient: boolean;
+    cashOutSalary: boolean;
+    cashOutFixed: boolean;
+    cashOutExpense: boolean;
+  };
+}
+
+// ローカル編集でのオーバーライド追跡
+interface LocalOverrides {
+  cashInClientOverride?: number | null;
+  cashOutSalaryOverride?: number | null;
+  cashOutFixedOverride?: number | null;
+  cashOutExpenseOverride?: number | null;
 }
 
 const MONTHS = buildMonths(6);
@@ -43,25 +59,36 @@ function calcBalance(r: CfRecord) {
   return { cashIn, cashOut, net, closingBalance };
 }
 
-function emptyRecord(month: string, company: Company): CfRecord {
+function emptyRecord(month: string): CfRecord {
   return {
-    month, company,
+    month, company: "salt2",
     openingBalance: 0, cashInClient: 0, cashInOther: 0,
     cashOutSalary: 0, cashOutFixed: 0, cashOutExpense: 0, cashOutOther: 0,
     cfBalanceCurrent: 0,
   };
 }
 
+type AutoKey = "cashInClient" | "cashOutSalary" | "cashOutFixed" | "cashOutExpense";
+type ManualKey = "cashInOther" | "cashOutOther" | "openingBalance";
+type AllEditableKey = AutoKey | ManualKey;
+
+const AUTO_TO_OVERRIDE: Record<AutoKey, keyof LocalOverrides> = {
+  cashInClient: "cashInClientOverride",
+  cashOutSalary: "cashOutSalaryOverride",
+  cashOutFixed: "cashOutFixedOverride",
+  cashOutExpense: "cashOutExpenseOverride",
+};
+
 export default function CashflowPage() {
   const { role, isLoading: authLoading } = useAuth();
   const [month, setMonth] = useState(MONTHS[0]);
-  const [company, setCompany] = useState<Company>("boost");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [localRecords, setLocalRecords] = useState<Record<string, CfRecord>>({});
+  const [localOverrides, setLocalOverrides] = useState<Record<string, LocalOverrides>>({});
 
-  const { data: rawCfData, isLoading: loading } = useSWR<CfRecord[]>(
-    `/api/cashflow?company=${company}&months=${MONTHS.join(",")}`
+  const { data: rawCfData, isLoading: loading, mutate } = useSWR<CfRecord[]>(
+    `/api/cashflow?months=${MONTHS.join(",")}`
   );
   const fetchedRecords: Record<string, CfRecord> = (() => {
     const map: Record<string, CfRecord> = {};
@@ -76,17 +103,62 @@ export default function CashflowPage() {
   if (role !== "admin") return notFound();
 
   function getRecord(m: string): CfRecord {
-    return records[m] ?? emptyRecord(m, company);
+    return records[m] ?? emptyRecord(m);
   }
 
   const current = getRecord(month);
 
-  function updateManual(field: "cashInOther" | "cashOutOther" | "openingBalance", raw: string) {
+  // フィールドがオーバーライドされているか判定
+  function isOverridden(key: AutoKey): boolean {
+    const lo = localOverrides[month];
+    if (lo) {
+      const overrideKey = AUTO_TO_OVERRIDE[key];
+      if (lo[overrideKey] !== undefined) return lo[overrideKey] !== null;
+    }
+    return current.overrides?.[key] ?? false;
+  }
+
+  // 自動計算の参考値を取得
+  function getAutoValue(key: AutoKey): number | undefined {
+    const autoKey = `auto${key.charAt(0).toUpperCase()}${key.slice(1)}` as keyof CfRecord;
+    return current[autoKey] as number | undefined;
+  }
+
+  function updateField(field: AllEditableKey, raw: string) {
     const value = raw === "" ? 0 : parseInt(raw.replace(/,/g, ""), 10);
     if (isNaN(value) || value < 0) return;
+
+    const rec = records[month] ?? emptyRecord(month, company);
     setLocalRecords((prev) => ({
       ...prev,
-      [month]: { ...(records[month] ?? emptyRecord(month, company)), [field]: value },
+      [month]: { ...rec, [field]: value },
+    }));
+
+    // 自動計算フィールドの場合、オーバーライドとして記録
+    if (field in AUTO_TO_OVERRIDE) {
+      const overrideKey = AUTO_TO_OVERRIDE[field as AutoKey];
+      setLocalOverrides((prev) => ({
+        ...prev,
+        [month]: { ...(prev[month] ?? {}), [overrideKey]: value },
+      }));
+    }
+
+    setSaved(false);
+  }
+
+  // オーバーライドを解除して自動計算に戻す
+  function resetToAuto(key: AutoKey) {
+    const autoVal = getAutoValue(key);
+    if (autoVal == null) return;
+    const rec = records[month] ?? emptyRecord(month, company);
+    setLocalRecords((prev) => ({
+      ...prev,
+      [month]: { ...rec, [key]: autoVal },
+    }));
+    const overrideKey = AUTO_TO_OVERRIDE[key];
+    setLocalOverrides((prev) => ({
+      ...prev,
+      [month]: { ...(prev[month] ?? {}), [overrideKey]: null },
     }));
     setSaved(false);
   }
@@ -94,22 +166,28 @@ export default function CashflowPage() {
   async function handleSave() {
     setSaving(true);
     const r = getRecord(month);
+    const lo = localOverrides[month] ?? {};
     const res = await fetch("/api/cashflow", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         month,
-        company,
         cashInOther: r.cashInOther,
         cashOutOther: r.cashOutOther,
         openingBalance: r.openingBalance,
+        ...(lo.cashInClientOverride !== undefined ? { cashInClientOverride: lo.cashInClientOverride } : {}),
+        ...(lo.cashOutSalaryOverride !== undefined ? { cashOutSalaryOverride: lo.cashOutSalaryOverride } : {}),
+        ...(lo.cashOutFixedOverride !== undefined ? { cashOutFixedOverride: lo.cashOutFixedOverride } : {}),
+        ...(lo.cashOutExpenseOverride !== undefined ? { cashOutExpenseOverride: lo.cashOutExpenseOverride } : {}),
       }),
     });
     if (res.ok) {
       const updated: CfRecord = await res.json();
       setLocalRecords((prev) => ({ ...prev, [month]: updated }));
+      setLocalOverrides((prev) => ({ ...prev, [month]: {} }));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      mutate();
     }
     setSaving(false);
   }
@@ -132,21 +210,22 @@ export default function CashflowPage() {
 
   const { cashIn, cashOut, net, closingBalance } = calcBalance(current);
 
-  // 会社によってラベルを切り替え
-  const clientInLabel = company === "salt2" ? "クライアント入金" : "Boost入金";
-  const companyLabel = company === "boost" ? "Boost" : "SALT2";
+  const clientInLabel = "クライアント入金";
 
-  type RowDef =
-    | { label: string; key: "cashInClient" | "cashOutSalary" | "cashOutFixed" | "cashOutExpense"; type: "in" | "out"; editable: false }
-    | { label: string; key: "cashInOther" | "cashOutOther" | "openingBalance"; type: "in" | "out"; editable: true };
+  type RowDef = {
+    label: string;
+    key: AllEditableKey;
+    type: "in" | "out";
+    autoField?: boolean; // 自動計算フィールド
+  };
 
   const rows: RowDef[] = [
-    { label: clientInLabel,       key: "cashInClient",   type: "in",  editable: false },
-    { label: "その他入金",         key: "cashInOther",    type: "in",  editable: true  },
-    { label: "給与支払い",         key: "cashOutSalary",  type: "out", editable: false },
-    { label: "固定費（ツール等）",  key: "cashOutFixed",   type: "out", editable: false },
-    { label: "経費精算",           key: "cashOutExpense", type: "out", editable: false },
-    { label: "その他支出",         key: "cashOutOther",   type: "out", editable: true  },
+    { label: clientInLabel,       key: "cashInClient",   type: "in",  autoField: true  },
+    { label: "その他入金",         key: "cashInOther",    type: "in"                     },
+    { label: "給与支払い",         key: "cashOutSalary",  type: "out", autoField: true  },
+    { label: "固定費（ツール等）",  key: "cashOutFixed",   type: "out", autoField: true  },
+    { label: "経費精算",           key: "cashOutExpense", type: "out", autoField: true  },
+    { label: "その他支出",         key: "cashOutOther",   type: "out"                    },
   ];
 
   return (
@@ -157,13 +236,6 @@ export default function CashflowPage() {
           <p className="text-sm text-slate-500">月次の入出金と残高推移を管理します</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select
-            value={company}
-            onChange={(e) => setCompany(e.target.value as Company)}
-          >
-            <option value="boost">Boost</option>
-            <option value="salt2">SALT2</option>
-          </Select>
           <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
             {saved ? <CheckCircle size={15} /> : <Save size={15} />}
             {saved ? "保存済み" : saving ? "保存中..." : "保存"}
@@ -190,7 +262,7 @@ export default function CashflowPage() {
         >
           <ChevronRight size={16} />
         </button>
-        <Badge variant={company === "boost" ? "boost" : "salt2"}>{companyLabel}</Badge>
+        <Badge variant="salt2">SALT2</Badge>
       </div>
 
       {loading ? (
@@ -241,7 +313,7 @@ export default function CashflowPage() {
                   min={0}
                   step={10000}
                   value={current.openingBalance}
-                  onChange={(e) => updateManual("openingBalance", e.target.value)}
+                  onChange={(e) => updateField("openingBalance", e.target.value)}
                   className="w-36 rounded-md border border-slate-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:outline-none"
                 />
               </div>
@@ -257,6 +329,8 @@ export default function CashflowPage() {
                 <tbody className="divide-y divide-slate-50">
                   {rows.map((row) => {
                     const val = current[row.key] as number;
+                    const overridden = row.autoField ? isOverridden(row.key as AutoKey) : false;
+                    const autoVal = row.autoField ? getAutoValue(row.key as AutoKey) : undefined;
                     return (
                       <tr key={row.key}>
                         <td className="py-2 pr-2">
@@ -265,24 +339,36 @@ export default function CashflowPage() {
                           </span>
                         </td>
                         <td className="py-2 pr-3 text-slate-700">
-                          {row.label}
-                          {!row.editable && (
-                            <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-400">自動</span>
+                          <div className="flex items-center gap-1.5">
+                            {row.label}
+                            {row.autoField && !overridden && (
+                              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-400">自動</span>
+                            )}
+                            {row.autoField && overridden && (
+                              <button
+                                onClick={() => resetToAuto(row.key as AutoKey)}
+                                className="inline-flex items-center gap-0.5 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-600 hover:bg-amber-100 transition-colors"
+                                title={`自動値に戻す（${formatCurrency(autoVal ?? 0)}）`}
+                              >
+                                手動 <RotateCcw size={10} />
+                              </button>
+                            )}
+                          </div>
+                          {row.autoField && overridden && autoVal != null && (
+                            <p className="text-xs text-slate-400 mt-0.5">自動: {formatCurrency(autoVal)}</p>
                           )}
                         </td>
                         <td className="py-2 text-right">
-                          {row.editable ? (
-                            <input
-                              type="number"
-                              min={0}
-                              step={10000}
-                              value={val}
-                              onChange={(e) => updateManual(row.key as "cashInOther" | "cashOutOther", e.target.value)}
-                              className="w-36 rounded-md border border-slate-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            />
-                          ) : (
-                            <span className="font-medium text-slate-700">{formatCurrency(val)}</span>
-                          )}
+                          <input
+                            type="number"
+                            min={0}
+                            step={10000}
+                            value={val}
+                            onChange={(e) => updateField(row.key, e.target.value)}
+                            className={`w-36 rounded-md border px-2 py-1 text-right text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                              row.autoField && overridden ? "border-amber-300 bg-amber-50/50" : "border-slate-300"
+                            }`}
+                          />
                         </td>
                       </tr>
                     );
@@ -308,7 +394,7 @@ export default function CashflowPage() {
             {/* Balance trend chart */}
             <Card>
               <CardHeader>
-                <CardTitle>残高推移グラフ（{companyLabel}）</CardTitle>
+                <CardTitle>残高推移グラフ</CardTitle>
               </CardHeader>
               <CashflowChart data={chartData} />
             </Card>
@@ -317,7 +403,7 @@ export default function CashflowPage() {
           {/* All months overview */}
           <Card>
             <CardHeader>
-              <CardTitle>月次サマリー（{companyLabel}）</CardTitle>
+              <CardTitle>月次サマリー</CardTitle>
             </CardHeader>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
