@@ -590,6 +590,8 @@ function NotificationSettingsCard() {
                 {data?.[item.key] ? "ON" : "OFF"}
               </span>
               <button
+                type="button"
+                disabled={!data}
                 onClick={() => toggle(item.key)}
                 className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shadow-inner ${
                   data?.[item.key] ? "bg-blue-600" : "bg-slate-300"
