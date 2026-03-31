@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/backend/auth";
 import { prisma } from "@/backend/db";
-import { generateInvoiceExcel } from "@/backend/invoice-excel";
+import { generateInvoicePdf } from "@/backend/invoice-pdf";
 import { sendEmail } from "@/backend/email";
 import { unauthorized, forbidden, apiError } from "@/backend/api-response";
 
@@ -41,12 +41,12 @@ export async function PATCH(
     return apiError("NOT_FOUND", "請求書が見つかりません", 404);
   }
 
-  // ── Excel 再生成 ───────────────────────────────────────
-  const buffer = await generateInvoiceExcel({
+  // ── PDF 生成 ──────────────────────────────────────────
+  const buffer = await generateInvoicePdf({
     invoiceNumber: invoice.invoiceNumber,
     targetMonth: invoice.targetMonth,
     issuerName: invoice.member.name,
-    items: invoice.items.map((it) => ({ name: it.name, amount: it.amount })),
+    items: invoice.items.map((it) => ({ name: it.name, amount: it.amount, taxable: it.taxable })),
     memberInfo: {
       address: invoice.member.address,
       bankName: invoice.member.bankName,
@@ -71,7 +71,7 @@ export async function PATCH(
         `金額（税込）: ¥${invoice.amountInclTax.toLocaleString()}`,
       ].join("\n"),
       attachment: {
-        filename: `invoice-${invoice.targetMonth}-${invoice.invoiceNumber}.xlsx`,
+        filename: `invoice-${invoice.targetMonth}-${invoice.invoiceNumber}.pdf`,
         content: buffer,
       },
     });
