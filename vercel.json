@@ -9,6 +9,14 @@
     {
       "path": "/api/cron/weekly-schedule-reminder",
       "schedule": "0 9 * * 6"
+    },
+    {
+      "path": "/api/cron/clock-reminder",
+      "schedule": "0 1 * * 1-5"
+    },
+    {
+      "path": "/api/cron/closing-reminder",
+      "schedule": "0 1 25 * *"
     }
   ]
 }

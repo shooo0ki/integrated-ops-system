@@ -164,6 +164,7 @@ model Member {
   personnelEvaluations  PersonnelEvaluation[]
   skillAssessments      SkillAssessment[]
   attendanceSummaries   MonthlyAttendanceSummary[]
+  notificationSetting   NotificationSetting?
 
   @@index([deletedAt])
   @@index([leftAt])
@@ -694,4 +695,21 @@ model MonthlyAttendanceSummary {
   @@id([memberId, targetMonth])
   @@index([targetMonth])
   @@map("monthly_attendance_summaries")
+}
+
+// ─────────────────────────────────────────────
+// 22. notification_settings（通知設定）
+// ─────────────────────────────────────────────
+model NotificationSetting {
+  id               String   @id @default(uuid())
+  memberId         String   @unique @map("member_id")
+  clockReminder    Boolean  @default(true) @map("clock_reminder")
+  closingReminder  Boolean  @default(true) @map("closing_reminder")
+  scheduleReminder Boolean  @default(true) @map("schedule_reminder")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@map("notification_settings")
 }

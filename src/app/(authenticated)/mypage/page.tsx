@@ -481,30 +481,7 @@ export default function MyPage() {
       {/* ─── 設定タブ ─── */}
       {tab === "settings" && (
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Bell size={16} className="inline mr-1" />
-                通知設定
-              </CardTitle>
-            </CardHeader>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-800">Slack通知</p>
-                  <p className="text-xs text-slate-500">打刻リマインダーをSlackで受け取る</p>
-                </div>
-                <span className="text-xs text-slate-400">準備中</span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-800">メール通知</p>
-                  <p className="text-xs text-slate-500">月次締めのリマインダーをメールで受け取る</p>
-                </div>
-                <span className="text-xs text-slate-400">準備中</span>
-              </div>
-            </div>
-          </Card>
+          <NotificationSettingsCard />
 
           <Card>
             <CardHeader>
@@ -562,5 +539,67 @@ export default function MyPage() {
         />
       )}
     </div>
+  );
+}
+
+// ─── 通知設定カード ───
+interface NotifSettings {
+  clockReminder: boolean;
+  closingReminder: boolean;
+  scheduleReminder: boolean;
+}
+
+const NOTIF_ITEMS: { key: keyof NotifSettings; label: string; desc: string }[] = [
+  { key: "clockReminder", label: "打刻リマインド", desc: "平日10時に出勤打刻忘れをSlack/メールで通知" },
+  { key: "closingReminder", label: "締めリマインド", desc: "毎月25日に請求書・工数申告の提出リマインド" },
+  { key: "scheduleReminder", label: "勤務予定リマインド", desc: "毎週土曜に翌週の勤務予定登録リマインド" },
+];
+
+function NotificationSettingsCard() {
+  const { data, mutate } = useSWR<NotifSettings>("/api/notification-settings");
+
+  async function toggle(key: keyof NotifSettings) {
+    if (!data) return;
+    const updated = { ...data, [key]: !data[key] };
+    mutate(updated, false);
+    await fetch("/api/notification-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [key]: !data[key] }),
+    });
+    mutate();
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <Bell size={16} className="inline mr-1" />
+          通知設定
+        </CardTitle>
+      </CardHeader>
+      <div className="space-y-3">
+        {NOTIF_ITEMS.map((item) => (
+          <div key={item.key} className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800">{item.label}</p>
+              <p className="text-xs text-slate-500">{item.desc}</p>
+            </div>
+            <button
+              onClick={() => toggle(item.key)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                data?.[item.key] ? "bg-blue-600" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  data?.[item.key] ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
