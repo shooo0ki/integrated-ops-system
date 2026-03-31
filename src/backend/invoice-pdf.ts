@@ -145,8 +145,10 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Buffer
   // 振込先テキスト
   const bankLine = [
     memberInfo?.bankName,
-    memberInfo?.bankBranch ? `　${memberInfo.bankBranch}` : null,
-  ].filter(Boolean).join("");
+    memberInfo?.bankBranch,
+    memberInfo?.bankAccountNumber ? `口座番号: ${memberInfo.bankAccountNumber}` : null,
+    memberInfo?.bankAccountHolder ? `(${memberInfo.bankAccountHolder})` : null,
+  ].filter(Boolean).join(" ");
 
   const leftRows = [
     { label: "件名", value: `開発業務委託${monthLabel}` },
