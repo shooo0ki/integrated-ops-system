@@ -136,7 +136,12 @@ export function AdminClosingView() {
       if (res.ok) {
         showToast(`${memberName} さんの請求書を LayerX へ送付しました`);
         await Promise.all([mutateClosing(), mutateInvoices()]);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data?.error?.message ?? `送付に失敗しました（${res.status}）`);
       }
+    } catch {
+      showToast("ネットワークエラーが発生しました");
     } finally {
       setAccountingId(null);
     }

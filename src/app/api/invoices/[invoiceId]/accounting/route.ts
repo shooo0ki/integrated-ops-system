@@ -42,39 +42,50 @@ export async function PATCH(
   }
 
   // ── PDF 生成 ──────────────────────────────────────────
-  const buffer = await generateInvoicePdf({
-    invoiceNumber: invoice.invoiceNumber,
-    targetMonth: invoice.targetMonth,
-    issuerName: invoice.member.name,
-    items: invoice.items.map((it) => ({ name: it.name, amount: it.amount, taxable: it.taxable })),
-    memberInfo: {
-      address: invoice.member.address,
-      bankName: invoice.member.bankName,
-      bankBranch: invoice.member.bankBranch,
-      bankAccountNumber: invoice.member.bankAccountNumber,
-      bankAccountHolder: invoice.member.bankAccountHolder,
-    },
-  });
+  let buffer: Buffer;
+  try {
+    buffer = await generateInvoicePdf({
+      invoiceNumber: invoice.invoiceNumber,
+      targetMonth: invoice.targetMonth,
+      issuerName: invoice.member.name,
+      items: invoice.items.map((it) => ({ name: it.name, amount: it.amount, taxable: it.taxable })),
+      memberInfo: {
+        address: invoice.member.address,
+        bankName: invoice.member.bankName,
+        bankBranch: invoice.member.bankBranch,
+        bankAccountNumber: invoice.member.bankAccountNumber,
+        bankAccountHolder: invoice.member.bankAccountHolder,
+      },
+    });
+  } catch (e) {
+    console.error("PDF generation failed:", e);
+    return apiError("INTERNAL_ERROR", `PDF生成に失敗しました: ${e instanceof Error ? e.message : String(e)}`, 500);
+  }
 
   // ── LayerX へメール送信 ────────────────────────────────
   const layerxEmail = process.env.LAYERX_EMAIL;
   if (layerxEmail) {
-    const [yr, mo] = invoice.targetMonth.split("-");
-    await sendEmail({
-      to: layerxEmail,
-      subject: `【請求書】${invoice.member.name} ${yr}年${mo}月分 ${invoice.invoiceNumber}`,
-      text: [
-        `${invoice.member.name} さんの ${yr}年${mo}月分 請求書を送付します。`,
-        "",
-        `請求書番号: ${invoice.invoiceNumber}`,
-        `金額（税抜）: ¥${invoice.amountExclTax.toLocaleString()}`,
-        `金額（税込）: ¥${invoice.amountInclTax.toLocaleString()}`,
-      ].join("\n"),
-      attachment: {
-        filename: `invoice-${invoice.targetMonth}-${invoice.invoiceNumber}.pdf`,
-        content: buffer,
-      },
-    });
+    try {
+      const [yr, mo] = invoice.targetMonth.split("-");
+      await sendEmail({
+        to: layerxEmail,
+        subject: `【請求書】${invoice.member.name} ${yr}年${mo}月分 ${invoice.invoiceNumber}`,
+        text: [
+          `${invoice.member.name} さんの ${yr}年${mo}月分 請求書を送付します。`,
+          "",
+          `請求書番号: ${invoice.invoiceNumber}`,
+          `金額（税抜）: ¥${invoice.amountExclTax.toLocaleString()}`,
+          `金額（税込）: ¥${invoice.amountInclTax.toLocaleString()}`,
+        ].join("\n"),
+        attachment: {
+          filename: `invoice-${invoice.targetMonth}-${invoice.invoiceNumber}.pdf`,
+          content: buffer,
+        },
+      });
+    } catch (e) {
+      console.error("Email sending failed:", e);
+      return apiError("INTERNAL_ERROR", `メール送信に失敗しました: ${e instanceof Error ? e.message : String(e)}`, 500);
+    }
   }
 
   // ── ステータス更新 + 監査ログ ────────────────────────────
