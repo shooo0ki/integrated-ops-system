@@ -1,8 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/backend/db";
-import { sendSlackDM, getSlackUserId } from "@/backend/slack";
-import { sendEmail } from "@/backend/email";
+import { sendSlack, getSlackMention } from "@/backend/slack";
 import { unauthorized } from "@/backend/api-response";
 
 // GET /api/cron/clock-reminder
@@ -68,26 +67,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, message: "対象者なし" });
   }
 
-  await Promise.all(
+  // メンション文字列を並列取得
+  const mentions = await Promise.all(
     targets.map(async (m) => {
       const email = m.userAccount?.email;
-      if (!email) return;
+      const mention = email ? await getSlackMention(email, m.name) : `*${m.name}*`;
       const startTime = m.workSchedules[0]?.startTime ?? "";
-
-      const slackUserId = await getSlackUserId(email);
-      if (slackUserId) {
-        await sendSlackDM(
-          slackUserId,
-          `⏰ ${m.name}さん、${startTime}が出勤予定ですが打刻がまだのようです。打刻をお願いします。`
-        );
-      }
-
-      await sendEmail({
-        to: email,
-        subject: "【打刻リマインド】出勤打刻をお願いします",
-        text: `${m.name}さん\n\n本日${startTime}が出勤予定ですが、打刻がまだのようです。\n勤怠ページから打刻してください。`,
-      });
+      return `${mention}（予定${startTime}）`;
     })
+  );
+
+  // 勤怠チャンネルに1投稿でまとめて通知
+  await sendSlack(
+    `⏰ 出勤予定時刻を過ぎていますが打刻がまだのメンバーがいます。打刻をお願いします。\n\n${mentions.join("\n")}`,
+    "attendance"
   );
 
   return NextResponse.json({ ok: true, notified: targets.length });
