@@ -331,7 +331,12 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
     const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
     setDeletingProject(false);
     if (res.ok) {
-      await globalMutate((key) => typeof key === "string" && key.startsWith("/api/projects"), undefined, { revalidate: true });
+      await globalMutate(
+        (key) => typeof key === "string" && key.startsWith("/api/projects"),
+        undefined,
+        { revalidate: true }
+      );
+      router.refresh();
       router.push("/projects");
     } else {
       setDeleteProjectOpen(false);

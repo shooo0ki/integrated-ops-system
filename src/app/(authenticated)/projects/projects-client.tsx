@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { Plus, Trash2 } from "lucide-react";
 import Link from "@/frontend/components/common/prefetch-link";
@@ -52,6 +53,7 @@ const CONTRACT_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function ProjectsClient({ role }: { role: string }) {
+  const router = useRouter();
   const canCreate = role === "admin" || role === "manager";
 
   const [companyFilter, setCompanyFilter] = useState("");
@@ -170,6 +172,7 @@ export default function ProjectsClient({ role }: { role: string }) {
     setSubmitting(false);
     setCreateOpen(false);
     resetForm();
+    router.refresh();
     await globalMutate(
       (key) => typeof key === "string" && key.startsWith("/api/projects"),
       undefined,
