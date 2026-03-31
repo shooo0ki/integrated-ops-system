@@ -1,10 +1,9 @@
-import { getSessionUser } from "@/backend/auth";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useAuth } from "@/frontend/contexts/auth-context";
 import ProjectsClient from "./projects-client";
 
-export default async function ProjectsPage() {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-
-  return <ProjectsClient role={user.role} />;
+export default function ProjectsPage() {
+  const { role } = useAuth();
+  return <ProjectsClient role={role ?? "member"} />;
 }
