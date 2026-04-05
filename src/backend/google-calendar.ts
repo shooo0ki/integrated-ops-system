@@ -1,10 +1,11 @@
-import { google } from "googleapis";
+import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/backend/db";
 
 const SCOPES = ["https://www.googleapis.com/auth/calendar.events"];
+const CAL_BASE = "https://www.googleapis.com/calendar/v3";
 
 function createOAuth2Client() {
-  return new google.auth.OAuth2(
+  return new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     process.env.GOOGLE_REDIRECT_URI,
@@ -43,30 +44,47 @@ export async function handleCallback(code: string, memberId: string): Promise<vo
   });
 }
 
-/** メンバーの認証済み Calendar クライアントを取得 */
-async function getCalendarClient(memberId: string) {
+/** アクセストークンを取得（期限切れなら自動リフレッシュ） */
+async function getAccessToken(memberId: string): Promise<string | null> {
   const token = await prisma.googleToken.findUnique({ where: { memberId } });
   if (!token) return null;
 
+  // まだ有効なら返す
+  if (token.expiresAt.getTime() > Date.now() + 60_000) {
+    return token.accessToken;
+  }
+
+  // リフレッシュ
   const client = createOAuth2Client();
-  client.setCredentials({
-    access_token: token.accessToken,
-    refresh_token: token.refreshToken,
-    expiry_date: token.expiresAt.getTime(),
+  client.setCredentials({ refresh_token: token.refreshToken });
+  const { credentials } = await client.refreshAccessToken();
+
+  await prisma.googleToken.update({
+    where: { memberId },
+    data: {
+      accessToken: credentials.access_token ?? token.accessToken,
+      expiresAt: new Date(credentials.expiry_date ?? Date.now() + 3600_000),
+    },
   });
 
-  // トークン自動更新時に DB へ保存
-  client.on("tokens", async (newTokens) => {
-    await prisma.googleToken.update({
-      where: { memberId },
-      data: {
-        accessToken: newTokens.access_token ?? token.accessToken,
-        expiresAt: new Date(newTokens.expiry_date ?? Date.now() + 3600_000),
-      },
-    });
-  });
+  return credentials.access_token ?? token.accessToken;
+}
 
-  return google.calendar({ version: "v3", auth: client });
+/** Google Calendar REST API を呼ぶヘルパー */
+async function calFetch(accessToken: string, path: string, init?: RequestInit) {
+  const res = await fetch(`${CAL_BASE}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...init?.headers,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Google Calendar API ${res.status}: ${text}`);
+  }
+  return res.json();
 }
 
 const LOCATION_JA: Record<string, string> = {
@@ -87,8 +105,8 @@ export async function syncSchedulesToCalendar(
     locationType: string;
   }>,
 ): Promise<void> {
-  const calendar = await getCalendarClient(memberId);
-  if (!calendar) return;
+  const accessToken = await getAccessToken(memberId);
+  if (!accessToken) return;
 
   for (const s of schedules) {
     if (s.isOff || !s.startTime || !s.endTime) continue;
@@ -100,13 +118,13 @@ export async function syncSchedulesToCalendar(
 
     try {
       // extendedProperties で既存イベントを検索（重複防止）
-      const existing = await calendar.events.list({
-        calendarId: "primary",
-        privateExtendedProperty: [`opsScheduleDate=${s.date}`],
+      const params = new URLSearchParams({
+        privateExtendedProperty: `opsScheduleDate=${s.date}`,
         timeMin: `${s.date}T00:00:00+09:00`,
         timeMax: `${s.date}T23:59:59+09:00`,
-        singleEvents: true,
+        singleEvents: "true",
       });
+      const listRes = await calFetch(accessToken, `/calendars/primary/events?${params}`);
 
       const eventBody = {
         summary,
@@ -117,17 +135,16 @@ export async function syncSchedulesToCalendar(
         },
       };
 
-      const existingEvent = existing?.data?.items?.[0];
+      const existingEvent = listRes.items?.[0];
       if (existingEvent?.id) {
-        await calendar.events.update({
-          calendarId: "primary",
-          eventId: existingEvent.id,
-          requestBody: eventBody,
+        await calFetch(accessToken, `/calendars/primary/events/${existingEvent.id}`, {
+          method: "PUT",
+          body: JSON.stringify(eventBody),
         });
       } else {
-        await calendar.events.insert({
-          calendarId: "primary",
-          requestBody: eventBody,
+        await calFetch(accessToken, `/calendars/primary/events`, {
+          method: "POST",
+          body: JSON.stringify(eventBody),
         });
       }
     } catch (err) {
@@ -142,9 +159,9 @@ export async function disconnect(memberId: string): Promise<void> {
   if (!token) return;
 
   try {
-    const client = createOAuth2Client();
-    client.setCredentials({ refresh_token: token.refreshToken });
-    await client.revokeToken(token.refreshToken);
+    await fetch(`https://oauth2.googleapis.com/revoke?token=${token.refreshToken}`, {
+      method: "POST",
+    });
   } catch {
     // revoke 失敗は無視
   }
