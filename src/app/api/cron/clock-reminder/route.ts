@@ -5,8 +5,8 @@ import { sendSlack, getSlackMention } from "@/backend/slack";
 import { unauthorized } from "@/backend/api-response";
 
 // GET /api/cron/clock-reminder
-// Vercel Cron: 毎時実行（JST 8:00-15:00 = UTC 23:00-6:00）
-// 勤務開始予定を1時間過ぎても未打刻のメンバーに通知
+// Vercel Cron: 毎日 JST 10:00 (UTC 01:00) に1回実行
+// 勤務開始予定を過ぎても未打刻のメンバーをまとめて通知
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
@@ -17,7 +17,6 @@ export async function GET(req: NextRequest) {
   // 現在時刻（JST）
   const now = new Date();
   const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  const currentHour = jst.getHours();
   const todayStr = jst.toISOString().slice(0, 10);
   const todayDate = new Date(`${todayStr}T00:00:00Z`);
   const todayStart = new Date(`${todayStr}T00:00:00+09:00`);
@@ -53,14 +52,14 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // 「開始予定の1時間後 == 現在の時間帯」のメンバーだけ通知
-  // 例: startTime "09:00" → 10時台にリマインド, "13:30" → 14時台にリマインド
+  // 勤務開始予定時刻を過ぎていて未打刻のメンバーを抽出
+  const currentMinutes = jst.getHours() * 60 + jst.getMinutes();
   const targets = members.filter((m) => {
-    if (m.attendances[0]?.clockIn) return false; // 打刻済み
+    if (m.attendances[0]?.clockIn) return false;
     const startTime = m.workSchedules[0]?.startTime;
     if (!startTime) return false;
-    const startHour = parseInt(startTime.split(":")[0], 10);
-    return currentHour === startHour + 1;
+    const [h, min] = startTime.split(":").map(Number);
+    return currentMinutes >= h * 60 + min;
   });
 
   if (targets.length === 0) {
