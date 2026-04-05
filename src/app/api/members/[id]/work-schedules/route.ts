@@ -4,6 +4,7 @@ import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 import { sendSlack, getSlackMention } from "@/backend/slack";
+import { syncSchedulesToCalendar } from "@/backend/google-calendar";
 
 
 type Params = { params: Promise<{ id: string }> };
@@ -121,6 +122,20 @@ export async function POST(req: NextRequest, { params }: Params) {
     ];
     await sendSlack(lines.join("\n"), "schedule");
   }
+
+  // Google Calendar 同期（fire-and-forget）
+  const calItems = (body as ScheduleItem[])
+    .filter((item) => item.date)
+    .map((item) => ({
+      date: item.date,
+      startTime: item.startTime ?? null,
+      endTime: item.endTime ?? null,
+      isOff: item.isOff ?? false,
+      locationType: item.locationType ?? "office",
+    }));
+  syncSchedulesToCalendar(memberId, calItems).catch((err) => {
+    console.error("[WorkSchedule] Google Calendar sync failed:", err);
+  });
 
   return NextResponse.json({ saved: saved.length });
 }

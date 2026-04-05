@@ -165,6 +165,7 @@ model Member {
   skillAssessments      SkillAssessment[]
   attendanceSummaries   MonthlyAttendanceSummary[]
   notificationSetting   NotificationSetting?
+  googleToken           GoogleToken?
 
   @@index([deletedAt])
   @@index([leftAt])
@@ -712,4 +713,21 @@ model NotificationSetting {
   member Member @relation(fields: [memberId], references: [id])
 
   @@map("notification_settings")
+}
+
+// ─────────────────────────────────────────────
+// Google Calendar 連携トークン
+// ─────────────────────────────────────────────
+model GoogleToken {
+  id           String   @id @default(uuid())
+  memberId     String   @unique @map("member_id")
+  accessToken  String   @map("access_token")
+  refreshToken String   @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@map("google_tokens")
 }

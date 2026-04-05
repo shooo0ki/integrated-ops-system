@@ -482,6 +482,7 @@ export default function MyPage() {
       {tab === "settings" && (
         <div className="space-y-4">
           <NotificationSettingsCard />
+          <GoogleCalendarCard />
 
           <Card>
             <CardHeader>
@@ -606,6 +607,52 @@ function NotificationSettingsCard() {
             </div>
           </div>
         ))}
+      </div>
+    </Card>
+  );
+}
+
+function GoogleCalendarCard() {
+  const { data, mutate } = useSWR<{ connected: boolean }>("/api/google/status");
+  const [loading, setLoading] = useState(false);
+
+  const handleConnect = () => {
+    window.location.href = "/api/google/auth";
+  };
+
+  const handleDisconnect = async () => {
+    setLoading(true);
+    await fetch("/api/google/disconnect", { method: "DELETE" });
+    mutate({ connected: false });
+    setLoading(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <Calendar size={16} className="inline mr-1" />
+          Google カレンダー連携
+        </CardTitle>
+      </CardHeader>
+      <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
+        <div>
+          <p className="text-sm font-medium text-slate-800">
+            {data?.connected ? "連携済み" : "未連携"}
+          </p>
+          <p className="text-xs text-slate-500">
+            勤務予定を保存すると自動でGoogleカレンダーにイベントが作成されます
+          </p>
+        </div>
+        {data?.connected ? (
+          <Button variant="outline" size="sm" onClick={handleDisconnect} disabled={loading}>
+            連携解除
+          </Button>
+        ) : (
+          <Button size="sm" onClick={handleConnect}>
+            Googleアカウントを連携
+          </Button>
+        )}
       </div>
     </Card>
   );
