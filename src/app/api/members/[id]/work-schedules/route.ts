@@ -123,7 +123,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     await sendSlack(lines.join("\n"), "schedule");
   }
 
-  // Google Calendar 同期（fire-and-forget）
+  // Google Calendar 同期
   const calItems = (body as ScheduleItem[])
     .filter((item) => item.date)
     .map((item) => ({
@@ -133,9 +133,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       isOff: item.isOff ?? false,
       locationType: item.locationType ?? "office",
     }));
-  syncSchedulesToCalendar(memberId, calItems).catch((err) => {
-    console.error("[WorkSchedule] Google Calendar sync failed:", err);
-  });
 
-  return NextResponse.json({ saved: saved.length });
+  let gcalError: string | null = null;
+  try {
+    await syncSchedulesToCalendar(memberId, calItems);
+  } catch (err) {
+    gcalError = err instanceof Error ? err.message : String(err);
+    console.error("[WorkSchedule] Google Calendar sync failed:", err);
+  }
+
+  return NextResponse.json({ saved: saved.length, gcalError });
 }
