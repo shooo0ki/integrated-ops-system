@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, use } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { useRouter } from "next/navigation";
 import Link from "@/frontend/components/common/prefetch-link";
@@ -106,8 +106,8 @@ function getProjectMonths(startDate: string, endDate: string | null): string[] {
 
 // ─── ページ ───────────────────────────────────────────────
 
-export default function ProjectDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const { role } = useAuth();
   const { mutate: globalMutate } = useSWRConfig();

@@ -1,7 +1,7 @@
 "use client";
 import { toJSTDateString } from "@/shared/utils";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import { useSWRConfig } from "swr";
 import Link from "@/frontend/components/common/prefetch-link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
@@ -50,8 +50,8 @@ interface MemberOption {
 
 // ─── ページ ───────────────────────────────────────────────
 
-export default function AssignPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function AssignPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { role } = useAuth();
   const canManage = role === "admin" || role === "manager";
   const { mutate: globalMutate } = useSWRConfig();

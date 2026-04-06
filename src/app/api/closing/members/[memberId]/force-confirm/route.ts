@@ -6,8 +6,9 @@ import { unauthorized, forbidden, apiError } from "@/backend/api-response";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { memberId: string } }
+  { params }: { params: Promise<{ memberId: string }> }
 ) {
+  const { memberId } = await params;
   const user = await getSessionUser();
   if (!user) return unauthorized();
   if (user.role !== "admin" && user.role !== "manager") {
@@ -25,7 +26,7 @@ export async function PATCH(
 
   await prisma.attendance.updateMany({
     where: {
-      memberId: params.memberId,
+      memberId,
       date: { gte: monthStart, lte: monthEnd },
       confirmStatus: { not: "approved" },
     },

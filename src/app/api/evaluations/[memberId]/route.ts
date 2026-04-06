@@ -22,12 +22,12 @@ function buildAxisAverages(scores: EvalScores) {
 // admin/manager: 誰でも閲覧可。その他: 自分のみ
 export async function GET(
   req: NextRequest,
-  { params }: { params: { memberId: string } }
+  { params }: { params: Promise<{ memberId: string }> }
 ) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
 
-  const { memberId } = params;
+  const { memberId } = await params;
   const isAdmin = user.role === "admin";
   const isManager = user.role === "manager";
 

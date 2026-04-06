@@ -10,12 +10,12 @@ import { getDocumentDownloadUrl } from "@/backend/docusign";
 // admin: 誰でも。その他: 自分の契約のみ
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string; cId: string } }
+  { params }: { params: Promise<{ id: string; cId: string }> }
 ) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
 
-  const { id: memberId, cId } = params;
+  const { id: memberId, cId } = await params;
   const isAdmin = user.role === "admin";
 
   if (!isAdmin && user.memberId !== memberId) return forbidden();
