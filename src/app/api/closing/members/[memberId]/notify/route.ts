@@ -7,8 +7,9 @@ import { unauthorized, forbidden, apiError } from "@/backend/api-response";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { memberId: string } }
+  { params }: { params: Promise<{ memberId: string }> }
 ) {
+  const { memberId } = await params;
   const user = await getSessionUser();
   if (!user) return unauthorized();
   if (user.role !== "admin" && user.role !== "manager") {
@@ -27,16 +28,16 @@ export async function PATCH(
   // サマリーとメンバー情報を並列取得（attendance 全行 scan を排除）
   const [member, summary, scheduledDays] = await Promise.all([
     prisma.member.findUnique({
-      where: { id: params.memberId },
+      where: { id: memberId },
       select: { name: true, userAccount: { select: { email: true } } },
     }),
     prisma.monthlyAttendanceSummary.findUnique({
-      where: { memberId_targetMonth: { memberId: params.memberId, targetMonth: month } },
+      where: { memberId_targetMonth: { memberId: memberId, targetMonth: month } },
       select: { workDays: true, totalMinutes: true },
     }),
     prisma.workSchedule.count({
       where: {
-        memberId: params.memberId,
+        memberId: memberId,
         date: { gte: monthStart, lte: monthEnd },
         isOff: false,
       },
@@ -72,7 +73,7 @@ export async function PATCH(
 
   await prisma.attendance.updateMany({
     where: {
-      memberId: params.memberId,
+      memberId: memberId,
       date: { gte: monthStart, lte: monthEnd },
     },
     data: { slackNotified: true },

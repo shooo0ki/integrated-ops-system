@@ -9,12 +9,12 @@ import { getSessionUser } from "@/backend/auth";
 // admin: 誰でも。その他: 自分のみ
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
 
-  const { id: memberId } = params;
+  const { id: memberId } = await params;
   const isAdmin = user.role === "admin";
 
   if (!isAdmin && user.memberId !== memberId) return forbidden();
@@ -47,13 +47,13 @@ export async function GET(
 // admin のみ: 契約ドラフト作成
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
   if (user.role !== "admin") return forbidden();
 
-  const { id: memberId } = params;
+  const { id: memberId } = await params;
 
   // メンバー存在確認
   const member = await prisma.member.findUnique({ where: { id: memberId } });

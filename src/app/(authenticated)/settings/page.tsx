@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, Slack, Building2, Info, Save, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Settings, MessageSquare, Building2, Info, Save, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
 import { Input } from "@/frontend/components/common/input";
@@ -70,7 +70,7 @@ export default function SettingsPage() {
   }
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "slack", label: "Slack 連携", icon: <Slack size={15} /> },
+    { id: "slack", label: "Slack 連携", icon: <MessageSquare size={15} /> },
     { id: "company", label: "会社情報", icon: <Building2 size={15} /> },
     { id: "system", label: "システム情報", icon: <Info size={15} /> },
   ];
@@ -115,7 +115,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Slack Bot 設定</CardTitle>
-              <Slack size={16} className="text-slate-400" />
+              <MessageSquare size={16} className="text-slate-400" />
             </CardHeader>
             <div className="space-y-4">
               <div>

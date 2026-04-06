@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { useRouter } from "next/navigation";
 import Link from "@/frontend/components/common/prefetch-link";
@@ -74,9 +74,9 @@ const fmt = (n: number) => n.toLocaleString("ja-JP") + "円";
 export default function MemberDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  const { id } = use(params);
   const router = useRouter();
   const { role: myRole } = useAuth();
   const { mutate: globalMutate } = useSWRConfig();
