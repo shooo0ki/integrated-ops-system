@@ -28,20 +28,9 @@ let fontBytes: Uint8Array | null = null;
 
 function loadFontBytes(): Uint8Array {
   if (fontBytes) return fontBytes;
-  const candidates = [
-    join(process.cwd(), "src/backend/fonts/NotoSansJP-Regular.ttf"),
-    join(__dirname, "fonts/NotoSansJP-Regular.ttf"),
-    join(__dirname, "../src/backend/fonts/NotoSansJP-Regular.ttf"),
-  ];
-  for (const p of candidates) {
-    try {
-      fontBytes = readFileSync(p);
-      return fontBytes;
-    } catch {
-      continue;
-    }
-  }
-  throw new Error("Japanese font file not found");
+  const fontPath = join(/*turbopackIgnore: true*/ process.cwd(), "src/backend/fonts/NotoSansJP-Regular.ttf");
+  fontBytes = readFileSync(fontPath);
+  return fontBytes;
 }
 
 export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Buffer> {

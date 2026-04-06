@@ -30,7 +30,7 @@ export const sessionOptions: SessionOptions = {
 };
 
 export async function getSession() {
-  return getIronSession<SessionData>(cookies(), sessionOptions);
+  return getIronSession<SessionData>(await cookies(), sessionOptions);
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {

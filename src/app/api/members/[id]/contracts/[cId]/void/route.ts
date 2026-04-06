@@ -10,13 +10,13 @@ import { voidEnvelope } from "@/backend/docusign";
 // admin のみ: 契約を無効化
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string; cId: string } }
+  { params }: { params: Promise<{ id: string; cId: string }> }
 ) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
   if (user.role !== "admin") return forbidden();
 
-  const { id: memberId, cId } = params;
+  const { id: memberId, cId } = await params;
 
   const contract = await prisma.memberContract.findFirst({
     where: { id: cId, memberId },

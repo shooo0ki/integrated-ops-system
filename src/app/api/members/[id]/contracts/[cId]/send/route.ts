@@ -17,13 +17,13 @@ function formatJpDate(date: Date): string {
 // admin のみ: DocuSign 署名依頼を送付（テンプレート方式）
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { id: string; cId: string } }
+  { params }: { params: Promise<{ id: string; cId: string }> }
 ) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
   if (user.role !== "admin") return forbidden();
 
-  const { id: memberId, cId } = params;
+  const { id: memberId, cId } = await params;
 
   const contract = await prisma.memberContract.findFirst({
     where: { id: cId, memberId },
