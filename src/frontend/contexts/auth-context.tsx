@@ -7,8 +7,9 @@ import {
   useMemo,
   ReactNode,
 } from "react";
+import useSWR, { useSWRConfig } from "swr";
 import { authClient } from "@/frontend/lib/auth-client";
-import type { AppRole } from "@/backend/auth";
+import type { AppRole } from "@/shared/types/auth";
 
 // ─────────────────────────────────────────────
 // 型定義 (既存コードとの互換性を維持)
@@ -16,10 +17,10 @@ import type { AppRole } from "@/backend/auth";
 
 interface AuthState {
   isLoggedIn: boolean;
-  userId: string | null;    // UserAccount.id (UUID)
-  memberId: string | null;  // Member.id (UUID)
+  userId: string | null;
+  memberId: string | null;
   role: string;
-  name: string | null;      // 表示用
+  name: string | null;
 }
 
 interface AuthContextValue extends AuthState {
@@ -34,6 +35,31 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // ─────────────────────────────────────────────
+// プロフィール取得 (role, memberId)
+// ─────────────────────────────────────────────
+
+interface UserProfile {
+  memberId: string;
+  role: AppRole;
+}
+
+const profileFetcher = async (url: string): Promise<UserProfile | null> => {
+  const res = await fetch(url, { credentials: "same-origin", cache: "no-store" });
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`Profile fetch failed: ${res.status}`);
+  return res.json();
+};
+
+function useFetchProfile(userId: string | null) {
+  const { data, isLoading } = useSWR<UserProfile | null>(
+    userId ? "/api/auth/profile" : null,
+    profileFetcher,
+    { dedupingInterval: 60_000, revalidateOnFocus: false }
+  );
+  return { data: data ?? null, isPending: isLoading };
+}
+
+// ─────────────────────────────────────────────
 // Provider
 // ─────────────────────────────────────────────
 
@@ -42,11 +68,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const {
     data: session,
-    isPending: isLoading,
+    isPending: isSessionLoading,
   } = authClient.useSession();
 
-  // Better Auth セッション取得後、業務に必要な追加情報を取得
-  // (role, memberId は user_accounts 経由で取るため別途 fetch)
   const {
     data: profile,
     isPending: isProfileLoading,
@@ -76,17 +100,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: string,
       password: string
     ): Promise<{ success: boolean; error?: string }> => {
-      const result = await authClient.signIn.email({
-        email,
-        password,
-      });
+      const result = await authClient.signIn.email({ email, password });
       if (result.error) {
         return {
           success: false,
           error: "メールアドレスまたはパスワードが正しくありません。",
         };
       }
-      // ログイン成功 → セッション & プロフィールを即時再取得
+      // セッション確立後にプロフィールを即時取得
       await mutate("/api/auth/profile");
       return { success: true };
     },
@@ -95,17 +116,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async (): Promise<void> => {
     await authClient.signOut();
-    await mutate("/api/auth/profile", null, false);
+    await mutate("/api/auth/profile", null, { revalidate: false });
   }, [mutate]);
 
   const value = useMemo(
     () => ({
       ...state,
-      isLoading: isLoading || isProfileLoading,
+      isLoading: isSessionLoading || isProfileLoading,
       login,
       logout,
     }),
-    [state, isLoading, isProfileLoading, login, logout]
+    [state, isSessionLoading, isProfileLoading, login, logout]
   );
 
   return (
@@ -117,29 +138,4 @@ export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
-}
-
-// ─────────────────────────────────────────────
-// 業務プロフィール取得 (role, memberId)
-// ─────────────────────────────────────────────
-
-import useSWR, { useSWRConfig } from "swr";
-
-interface UserProfile {
-  memberId: string;
-  role: AppRole;
-}
-
-const profileFetcher = (url: string) =>
-  fetch(url, { credentials: "same-origin", cache: "no-store" }).then((r) =>
-    r.ok ? r.json() : null
-  );
-
-function useFetchProfile(userId: string | null) {
-  const { data, isLoading: isPending } = useSWR<UserProfile | null>(
-    userId ? "/api/auth/profile" : null,
-    profileFetcher,
-    { dedupingInterval: 60_000, revalidateOnFocus: false }
-  );
-  return { data: data ?? null, isPending };
 }

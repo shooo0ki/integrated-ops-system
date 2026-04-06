@@ -11,7 +11,7 @@ import { Input } from "@/frontend/components/common/input";
 
 export default function LoginPage() {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <LoginForm />
     </Suspense>
   );

@@ -151,7 +151,9 @@ model BaAccount {
 
   user BaUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, providerId])
   @@index([userId])
+  @@index([accountId, providerId])
   @@map("ba_account")
 }
 

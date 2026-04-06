@@ -6,23 +6,30 @@ import { headers } from "next/headers";
 import { hash, compare } from "bcryptjs";
 import { prisma } from "./db";
 
+// 型定義は shared から re-export (クライアントからも安全に参照可能)
+export type { AppRole, SessionUser } from "@/shared/types/auth";
+import type { AppRole, SessionUser } from "@/shared/types/auth";
+
 // ─────────────────────────────────────────────
 // Better Auth 設定
 // ─────────────────────────────────────────────
 
-function getAuthSecret(): string {
+function validateAuthSecret(): string {
   const secret = process.env.BETTER_AUTH_SECRET;
   if (!secret) {
     throw new Error(
       "BETTER_AUTH_SECRET is not set. Generate one with: openssl rand -base64 32"
     );
   }
+  if (secret.length < 32) {
+    throw new Error("BETTER_AUTH_SECRET must be at least 32 characters long.");
+  }
   return secret;
 }
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
-  secret: getAuthSecret(),
+  secret: validateAuthSecret(),
   basePath: "/api/auth",
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
   emailAndPassword: {
@@ -34,22 +41,22 @@ export const auth = betterAuth({
     },
   },
   user: {
-    modelName: "BaUser",       // Prisma モデル名 → DB: ba_user
+    modelName: "BaUser",
   },
   account: {
-    modelName: "BaAccount",    // Prisma モデル名 → DB: ba_account
+    modelName: "BaAccount",
   },
   session: {
-    modelName: "BaSession",    // Prisma モデル名 → DB: ba_session
+    modelName: "BaSession",
     expiresIn: 60 * 60 * 24,  // 24時間 (要件 C-01 v2)
     updateAge: 60 * 60,        // 1時間ごとにセッション更新
     cookieCache: {
       enabled: true,
-      maxAge: 60 * 5,          // Cookie キャッシュ 5分 (DB 問い合わせ軽減)
+      maxAge: 60,              // 1分 (セッション無効化の遅延を最小化)
     },
   },
   verification: {
-    modelName: "BaVerification", // Prisma モデル名 → DB: ba_verification
+    modelName: "BaVerification",
   },
   advanced: {
     cookiePrefix: "salt2",
@@ -60,16 +67,6 @@ export const auth = betterAuth({
 // ─────────────────────────────────────────────
 // 互換レイヤー: 既存 API Route (68本) への影響をゼロにする
 // ─────────────────────────────────────────────
-
-export type AppRole = "admin" | "manager" | "member";
-
-export interface SessionUser {
-  id: string;       // UserAccount.id
-  memberId: string; // Member.id
-  email: string;
-  role: AppRole;
-  name: string;
-}
 
 /**
  * 既存の全 API Route から呼ばれる関数。
@@ -102,6 +99,6 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     memberId: account.memberId,
     email: account.email,
     role: normalizedRole,
-    name: session.user.name,
+    name: session.user.name ?? account.email.split("@")[0],
   };
 }

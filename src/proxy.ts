@@ -7,7 +7,9 @@ const PUBLIC_PREFIXES = [
   "/login",
   "/api/auth/",
   "/_next/",
-  "/favicon",
+  "/favicon.ico",
+  "/api/warmup",
+  "/api/cron/",
 ];
 
 export function proxy(req: NextRequest) {

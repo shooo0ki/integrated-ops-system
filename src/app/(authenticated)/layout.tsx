@@ -19,17 +19,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
-      // セッション切れ時にメッセージ付きでリダイレクト (要件 C-01 v2)
       router.push("/login?reason=expired");
     }
   }, [isLoading, isLoggedIn, router]);
 
-  if (!isLoading && !isLoggedIn) {
+  // ローディング中はスピナー表示
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
       </div>
     );
+  }
+
+  // リダイレクト待ち — 何も描画しない (スピナーフラッシュ防止)
+  if (!isLoggedIn) {
+    return null;
   }
 
   return (
