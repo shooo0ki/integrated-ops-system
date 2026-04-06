@@ -1,9 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    outputFileTracingIncludes: {
-      "/api/invoices/\\[invoiceId\\]/accounting": ["./src/backend/fonts/**/*"],
-    },
+  outputFileTracingIncludes: {
+    "/api/invoices/\\[invoiceId\\]/accounting": ["./src/backend/fonts/**/*"],
   },
 };
 
