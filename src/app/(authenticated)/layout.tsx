@@ -19,12 +19,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
-      router.push("/login");
+      // セッション切れ時にメッセージ付きでリダイレクト (要件 C-01 v2)
+      router.push("/login?reason=expired");
     }
   }, [isLoading, isLoggedIn, router]);
 
-  // middleware がセッションクッキーの存在を保証しているため isLoading 中もレイアウトを描画する
-  // セッション切れ時は useEffect がリダイレクトし、その直前のみスピナーを表示する
   if (!isLoading && !isLoggedIn) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -35,7 +34,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      {/* モバイル backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/40 md:hidden"

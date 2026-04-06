@@ -1,21 +1,37 @@
 "use client";
 
-import { useState, FormEvent, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, FormEvent, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { preload } from "swr";
-import { Building2, Mail, Lock, AlertCircle } from "lucide-react";
+import { Building2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { fetcher } from "@/frontend/contexts/swr-provider";
 import { Button } from "@/frontend/components/common/button";
 import { Input } from "@/frontend/components/common/input";
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const { login, isLoggedIn } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // セッション切れメッセージ
+  const reason = searchParams.get("reason");
+  const expiredMessage =
+    reason === "expired"
+      ? "セッションが切れました。再ログインしてください。"
+      : null;
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -30,7 +46,6 @@ export default function LoginPage() {
     try {
       const result = await login(email, password);
       if (result.success) {
-        // ログイン成功後、遷移前に主要データを先読みしてキャッシュに乗せる
         preload("/api/dashboard", fetcher);
         preload("/api/attendances/today", fetcher);
         router.push("/dashboard");
@@ -61,6 +76,13 @@ export default function LoginPage() {
         {/* Login Card */}
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <h2 className="mb-6 text-lg font-semibold text-slate-800">ログイン</h2>
+
+          {expiredMessage && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">
+              <AlertCircle size={16} className="shrink-0" />
+              {expiredMessage}
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">

@@ -167,6 +167,43 @@ async function main() {
 
   console.log("  ✓ 4 user accounts created (password: Password123)");
 
+  // ─── Better Auth テーブルへのデータ投入 ────────────────────────────────────────
+  console.log("  Creating Better Auth data...");
+
+  const baUsers = [
+    { id: ID.userSato,   email: "sato@example.com",   name: "佐藤 健太" },
+    { id: ID.userTanaka, email: "tanaka@example.com", name: "田中 一郎" },
+    { id: ID.userSuzuki, email: "suzuki@example.com", name: "鈴木 花子" },
+    { id: ID.userYamada, email: "yamada@example.com", name: "山田 さくら" },
+  ];
+
+  for (const u of baUsers) {
+    await prisma.baUser.upsert({
+      where: { id: u.id },
+      update: {},
+      create: {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        emailVerified: true,
+      },
+    });
+
+    await prisma.baAccount.upsert({
+      where: { id: `ba-account-${u.id}` },
+      update: {},
+      create: {
+        id: `ba-account-${u.id}`,
+        userId: u.id,
+        accountId: u.email,
+        providerId: "credential",
+        password: defaultPassword,
+      },
+    });
+  }
+
+  console.log("  ✓ Better Auth users + accounts created");
+
   // ─── スキルカテゴリ & スキル ─────────────────────────────────────────────────
   console.log("  Creating skill categories and skills...");
 
