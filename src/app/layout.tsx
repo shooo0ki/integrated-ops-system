@@ -3,8 +3,10 @@ import "./globals.css";
 import { AuthProvider } from "@/frontend/contexts/auth-context";
 import { SWRProvider } from "@/frontend/contexts/swr-provider";
 
+const isDev = process.env.NODE_ENV === "development";
+
 export const metadata: Metadata = {
-  title: "統合業務管理システム",
+  title: isDev ? "(dev) 統合業務管理システム" : "統合業務管理システム",
   description: "Boost / SALT2 統合業務管理システム",
 };
 
