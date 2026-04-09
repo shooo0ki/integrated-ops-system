@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/backend/db";
+import { encrypt, decrypt } from "@/backend/crypto";
 
 const SCOPES = ["https://www.googleapis.com/auth/calendar.events"];
 const CAL_BASE = "https://www.googleapis.com/calendar/v3";
@@ -35,13 +36,13 @@ export async function handleCallback(code: string, memberId: string): Promise<vo
     where: { memberId },
     create: {
       memberId,
-      accessToken: tokens.access_token!,
-      refreshToken: tokens.refresh_token!,
+      accessToken: encrypt(tokens.access_token!)!,
+      refreshToken: encrypt(tokens.refresh_token!)!,
       expiresAt: new Date(tokens.expiry_date ?? Date.now() + 3600_000),
     },
     update: {
-      accessToken: tokens.access_token!,
-      ...(tokens.refresh_token ? { refreshToken: tokens.refresh_token } : {}),
+      accessToken: encrypt(tokens.access_token!)!,
+      ...(tokens.refresh_token ? { refreshToken: encrypt(tokens.refresh_token)! } : {}),
       expiresAt: new Date(tokens.expiry_date ?? Date.now() + 3600_000),
     },
   });
@@ -52,25 +53,27 @@ async function getAccessToken(memberId: string): Promise<string | null> {
   const token = await prisma.googleToken.findUnique({ where: { memberId } });
   if (!token) return null;
 
-  // まだ有効なら返す
+  // まだ有効なら復号して返す
   if (token.expiresAt.getTime() > Date.now() + 60_000) {
-    return token.accessToken;
+    return decrypt(token.accessToken);
   }
 
-  // リフレッシュ
+  // リフレッシュ（DBから復号した refreshToken を使用）
   const client = createOAuth2Client();
-  client.setCredentials({ refresh_token: token.refreshToken });
+  client.setCredentials({ refresh_token: decrypt(token.refreshToken) });
   const { credentials } = await client.refreshAccessToken();
+
+  const newAccessToken = credentials.access_token ?? decrypt(token.accessToken);
 
   await prisma.googleToken.update({
     where: { memberId },
     data: {
-      accessToken: credentials.access_token ?? token.accessToken,
+      accessToken: encrypt(newAccessToken!)!,
       expiresAt: new Date(credentials.expiry_date ?? Date.now() + 3600_000),
     },
   });
 
-  return credentials.access_token ?? token.accessToken;
+  return newAccessToken;
 }
 
 /** Google Calendar REST API を呼ぶヘルパー */
@@ -162,7 +165,7 @@ export async function disconnect(memberId: string): Promise<void> {
   if (!token) return;
 
   try {
-    await fetch(`https://oauth2.googleapis.com/revoke?token=${token.refreshToken}`, {
+    await fetch(`https://oauth2.googleapis.com/revoke?token=${decrypt(token.refreshToken)}`, {
       method: "POST",
     });
   } catch {

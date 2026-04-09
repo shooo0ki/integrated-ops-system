@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
+import { encryptBankFields, decryptBankFields } from "@/backend/crypto";
 import { updateMemberSchema } from "@/backend/validations/member";
 
 function notFound() {
@@ -54,10 +55,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
     name: member.name,
     phone: member.phone,
     address: (isSelf || isAdmin) ? member.address : undefined,
-    bankName: (isSelf || isAdmin) ? member.bankName : undefined,
-    bankBranch: (isSelf || isAdmin) ? member.bankBranch : undefined,
-    bankAccountNumber: (isSelf || isAdmin) ? member.bankAccountNumber : undefined,
-    bankAccountHolder: (isSelf || isAdmin) ? member.bankAccountHolder : undefined,
+    ...((isSelf || isAdmin) ? decryptBankFields({
+      bankName: member.bankName,
+      bankBranch: member.bankBranch,
+      bankAccountNumber: member.bankAccountNumber,
+      bankAccountHolder: member.bankAccountHolder,
+    }) : {}),
     status: member.status,
     salaryType: member.salaryType,
     salaryAmount: member.salaryAmount,
@@ -133,10 +136,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
         ...(memberData.name !== undefined && { name: memberData.name }),
         ...(memberData.phone !== undefined && { phone: memberData.phone }),
         ...(memberData.address !== undefined && { address: memberData.address }),
-        ...(memberData.bankName !== undefined && { bankName: memberData.bankName }),
-        ...(memberData.bankBranch !== undefined && { bankBranch: memberData.bankBranch }),
-        ...(memberData.bankAccountNumber !== undefined && { bankAccountNumber: memberData.bankAccountNumber }),
-        ...(memberData.bankAccountHolder !== undefined && { bankAccountHolder: memberData.bankAccountHolder }),
+        ...encryptBankFields({
+          ...(memberData.bankName !== undefined && { bankName: memberData.bankName }),
+          ...(memberData.bankBranch !== undefined && { bankBranch: memberData.bankBranch }),
+          ...(memberData.bankAccountNumber !== undefined && { bankAccountNumber: memberData.bankAccountNumber }),
+          ...(memberData.bankAccountHolder !== undefined && { bankAccountHolder: memberData.bankAccountHolder }),
+        }),
         ...(memberData.status !== undefined && { status: memberData.status }),
         ...(memberData.salaryType !== undefined && { salaryType: memberData.salaryType }),
         ...(memberData.salaryAmount !== undefined && { salaryAmount: memberData.salaryAmount }),

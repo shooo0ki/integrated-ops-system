@@ -4,6 +4,7 @@ import { getSessionUser } from "@/backend/auth";
 import { prisma } from "@/backend/db";
 import { generateInvoicePdf } from "@/backend/invoice-pdf";
 import { uploadFile } from "@/backend/storage";
+import { decryptBankFields } from "@/backend/crypto";
 import { unauthorized, apiError } from "@/backend/api-response";
 
 function calcAmounts(items: { amount: number; taxable?: boolean }[]) {
@@ -143,10 +144,12 @@ export async function POST(req: NextRequest) {
     memberInfo: {
       phone: member?.phone,
       address: member?.address,
-      bankName: member?.bankName,
-      bankBranch: member?.bankBranch,
-      bankAccountNumber: member?.bankAccountNumber,
-      bankAccountHolder: member?.bankAccountHolder,
+      ...decryptBankFields({
+        bankName: member?.bankName,
+        bankBranch: member?.bankBranch,
+        bankAccountNumber: member?.bankAccountNumber,
+        bankAccountHolder: member?.bankAccountHolder,
+      }),
     },
   });
 

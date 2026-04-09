@@ -5,6 +5,7 @@ import { prisma } from "@/backend/db";
 import { generateInvoicePdf } from "@/backend/invoice-pdf";
 import { sendEmail } from "@/backend/email";
 import { unauthorized, forbidden, apiError } from "@/backend/api-response";
+import { decryptBankFields } from "@/backend/crypto";
 
 // PATCH /api/invoices/[invoiceId]/accounting
 // admin/manager: LayerX へメール送付 → status を confirmed に更新
@@ -56,10 +57,12 @@ export async function PATCH(
       memberInfo: {
         phone: invoice.member.phone,
         address: invoice.member.address,
-        bankName: invoice.member.bankName,
-        bankBranch: invoice.member.bankBranch,
-        bankAccountNumber: invoice.member.bankAccountNumber,
-        bankAccountHolder: invoice.member.bankAccountHolder,
+        ...decryptBankFields({
+          bankName: invoice.member.bankName,
+          bankBranch: invoice.member.bankBranch,
+          bankAccountNumber: invoice.member.bankAccountNumber,
+          bankAccountHolder: invoice.member.bankAccountHolder,
+        }),
       },
     });
   } catch (e) {

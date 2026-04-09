@@ -220,9 +220,45 @@ productionBrowserSourceMaps: false,
 
 ---
 
-## 5. 入力検証（Input Validation）
+## 5. データ暗号化（Encryption at Rest）
 
-### 5-1. サーバーサイドバリデーション
+### 5-1. 暗号化アルゴリズム
+
+AES-256-GCM による認証付き暗号化を採用。
+
+| 項目 | 仕様 |
+|------|------|
+| アルゴリズム | AES-256-GCM |
+| 鍵長 | 256 bit（環境変数 `ENCRYPTION_KEY` = 64文字 hex） |
+| IV（初期化ベクトル） | 12バイト、毎回 `crypto.randomBytes()` で生成 |
+| 認証タグ | 16バイト（GCM が自動生成、改竄検知に使用） |
+| 保存形式 | `enc:<base64(iv + authTag + ciphertext)>` |
+| デュアルリード | `enc:` プレフィックスがなければ平文として読み取り（移行期間対応） |
+
+### 5-2. 暗号化対象
+
+| データ | カラム | 対象テーブル |
+|-------|--------|------------|
+| 銀行口座情報 | `bankName`, `bankBranch`, `bankAccountNumber`, `bankAccountHolder` | `members` |
+| OAuth トークン | `accessToken`, `refreshToken` | `google_tokens` |
+
+### 5-3. 鍵管理
+
+| 項目 | 仕様 |
+|------|------|
+| 鍵の保管 | Vercel 環境変数 + パスワードマネージャー等で安全にバックアップ |
+| 鍵のローテーション | 現時点では未対応（将来的に再暗号化スクリプトで対応可能） |
+| 鍵紛失時 | 暗号化データは復元不能。バックアップ必須 |
+
+**関連ファイル:**
+- `src/backend/crypto.ts` — 暗号化/復号ユーティリティ
+- `scripts/encrypt-existing-data.ts` — 既存データ移行スクリプト
+
+---
+
+## 6. 入力検証（Input Validation）
+
+### 6-1. サーバーサイドバリデーション
 
 主要エンドポイントで Zod スキーマによるバリデーションを実施。
 
@@ -238,14 +274,14 @@ productionBrowserSourceMaps: false,
 - `src/backend/validations/project.ts`
 - `src/backend/validations/skill.ts`
 
-### 5-2. SQL インジェクション対策
+### 6-2. SQL インジェクション対策
 
 Prisma ORM によるパラメタライズドクエリを全面採用。
 生 SQL は `src/app/api/warmup/route.ts` の `SELECT 1` のみ（ユーザー入力を含まない）。
 
 ---
 
-## 6. フロントエンドセキュリティ
+## 7. フロントエンドセキュリティ
 
 | 項目 | 仕様 |
 |------|------|
@@ -263,7 +299,7 @@ Prisma ORM によるパラメタライズドクエリを全面採用。
 
 ---
 
-## 7. 監査ログ
+## 8. 監査ログ
 
 機密操作は `auditLog` テーブルに記録。
 
@@ -281,11 +317,12 @@ Prisma ORM によるパラメタライズドクエリを全面採用。
 
 ---
 
-## 8. 環境変数一覧（セキュリティ関連）
+## 9. 環境変数一覧（セキュリティ関連）
 
 | 変数名 | 必須 | 用途 |
 |--------|------|------|
 | `BETTER_AUTH_SECRET` | 必須 | セッション暗号化キー（32 文字以上） |
+| `ENCRYPTION_KEY` | 必須 | データ暗号化キー（64文字 hex = 32バイト）。変更不可 |
 | `CRON_SECRET` | 必須 | Cron エンドポイント認証トークン |
 | `DATABASE_URL` | 必須 | DB 接続文字列 |
 | `DOCUSIGN_WEBHOOK_SECRET` | 任意 | Webhook 署名検証キー |
@@ -301,8 +338,6 @@ Prisma ORM によるパラメタライズドクエリを全面採用。
 
 | 項目 | 深刻度 | 対応予定 | 参照 |
 |------|--------|---------|------|
-| 銀行口座情報の暗号化（AES-256） | HIGH | Phase 3 | security-audit.md H-3 |
-| OAuth トークンの暗号化保存 | HIGH | Phase 3 | security-audit.md H-4 |
 | GET エンドポイントの認可強化 | MEDIUM | 次スプリント | security-audit.md M-2 |
 | 一部エンドポイントの Zod バリデーション追加 | MEDIUM | 次スプリント | security-audit.md M-3 |
 | リスト系 API のページネーション | MEDIUM | 次スプリント | security-audit.md M-5 |

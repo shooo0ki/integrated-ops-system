@@ -4,6 +4,7 @@ import { prisma } from "@/backend/db";
 import { getSessionUser } from "@/backend/auth";
 import { updateProfileSchema } from "@/backend/validations/member";
 import { sendEmail } from "@/backend/email";
+import { encryptBankFields, decryptBankFields } from "@/backend/crypto";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -66,10 +67,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       data: {
         ...(phone !== undefined && { phone }),
         ...(address !== undefined && { address }),
-        ...(bankName !== undefined && { bankName }),
-        ...(bankBranch !== undefined && { bankBranch }),
-        ...(bankAccountNumber !== undefined && { bankAccountNumber }),
-        ...(bankAccountHolder !== undefined && { bankAccountHolder }),
+        ...encryptBankFields({
+          ...(bankName !== undefined && { bankName }),
+          ...(bankBranch !== undefined && { bankBranch }),
+          ...(bankAccountNumber !== undefined && { bankAccountNumber }),
+          ...(bankAccountHolder !== undefined && { bankAccountHolder }),
+        }),
       },
       select: {
         id: true,
@@ -111,7 +114,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({
-    ...updatedMember,
+    ...decryptBankFields(updatedMember),
     email: updatedUser?.email ?? member.userAccount?.email ?? null,
   });
 }
