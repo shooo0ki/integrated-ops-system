@@ -139,12 +139,16 @@ export default function CalendarPage() {
       {/* 凡例 */}
       <div className="flex items-center gap-5 text-xs text-slate-500 px-1 flex-wrap">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3.5 rounded-sm border-l-2 border-l-blue-400 bg-blue-100 opacity-60" />
+          <span className="h-3 w-3.5 rounded-sm border-l-2 border-dashed border-l-blue-400 bg-blue-100 opacity-30" />
           勤務予定
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3.5 rounded-sm border-l-2 border-l-blue-400 bg-blue-100" />
           勤怠実績
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+          勤務中
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500 shrink-0" />

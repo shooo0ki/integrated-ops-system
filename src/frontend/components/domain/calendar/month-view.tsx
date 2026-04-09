@@ -33,8 +33,9 @@ export function MonthView({ grid, visible, calData }: {
   const getEvent = useCallback((memberId: string, date: string) => {
     const a = attMap.get(`${memberId}:${date}`);
     const s = schedMap.get(`${memberId}:${date}`);
-    if (a?.clockIn) return { type: "actual" as const, clockIn: a.clockIn, clockOut: a.clockOut, locationType: a.locationType };
-    if (s && !s.isOff && s.startTime) return { type: "schedule" as const, startTime: s.startTime, endTime: s.endTime, locationType: s.locationType };
+    const hasSchedule = !!(s && !s.isOff && s.startTime);
+    if (a?.clockIn) return { type: "actual" as const, clockIn: a.clockIn, clockOut: a.clockOut, locationType: a.locationType, hasSchedule };
+    if (hasSchedule) return { type: "schedule" as const, startTime: s!.startTime, endTime: s!.endTime, locationType: s!.locationType, hasSchedule: true };
     return null;
   }, [attMap, schedMap]);
 
@@ -73,12 +74,12 @@ export function MonthView({ grid, visible, calData }: {
                     !day.isCurrentMonth ? "bg-slate-50/60" : day.isWeekend ? "bg-slate-50/30" : ""
                   }`}
                 >
-                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium mb-1 ${
+                  <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full text-xs font-medium mb-1 px-1 ${
                     day.isToday ? "bg-blue-600 text-white" :
                     !day.isCurrentMonth ? "text-slate-300" :
                     day.isWeekend ? "text-slate-400" : "text-slate-700"
                   }`}>
-                    {day.dayNum}
+                    {day.dayNum}<span className="text-[9px] font-normal ml-px">({day.dayLabel})</span>
                   </span>
                   <div className="space-y-0.5">
                     {(() => {
@@ -88,14 +89,19 @@ export function MonthView({ grid, visible, calData }: {
                         <>
                           {items.slice(0, MAX_PER_CELL).map(({ member, ev }) => {
                             const color = colorMap.get(member.id) ?? COLORS[0];
+                            const isScheduleOnly = ev.type === "schedule";
+                            const isWorking = ev.type === "actual" && ev.clockOut === null;
                             return (
                               <div key={member.id}
                                 className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 ${color.bg} ${color.text} ${color.bl} ${
-                                  ev.type === "schedule" ? "opacity-60" : ""
+                                  isScheduleOnly ? "opacity-40 border-dashed" : ""
                                 }`}
                               >
                                 <div className="flex items-center gap-1">
                                   <span className="font-medium truncate">{member.name}</span>
+                                  {isWorking && (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                                  )}
                                 </div>
                                 <LocationBadge locationType={ev.locationType} />
                               </div>

@@ -6,6 +6,7 @@ export const TIME_W     = 52;
 export const DAY_MIN_W  = 120;
 export const HOURS      = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i); // 0..24
 export const DEFAULT_SCROLL_HOUR = 8; // デフォルトスクロール位置
+export const MIN_BLOCK_PX = 24; // ブロックの最小高さ（1-2-7対応）
 
 export const DOW_JP = ["日", "月", "火", "水", "木", "金", "土"];
 
