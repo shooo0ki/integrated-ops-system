@@ -11,6 +11,7 @@ const PUBLIC_PREFIXES = [
   "/favicon.ico",
   "/api/warmup",
   "/api/cron/",
+  "/api/admin/",
 ];
 
 // レート制限対象のルート定義
