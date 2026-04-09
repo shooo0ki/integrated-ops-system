@@ -3,7 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
+import { z } from "zod";
 
+const createContractSchema = z.object({
+  templateName: z.string().min(1).max(200),
+  docusignTemplateId: z.string().max(200).optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  signerEmail: z.string().email().max(255),
+});
 
 // GET /api/members/[id]/contracts
 // admin: 誰でも。その他: 自分のみ
@@ -61,20 +69,16 @@ export async function POST(
     return NextResponse.json({ error: { code: "NOT_FOUND", message: "メンバーが見つかりません" } }, { status: 404 });
   }
 
-  const body = await req.json() as {
-    templateName: string;
-    docusignTemplateId?: string;
-    startDate?: string;
-    endDate?: string;
-    signerEmail: string;
-  };
-
-  if (!body.templateName || !body.signerEmail) {
+  const raw = await req.json().catch(() => null);
+  const parsed = createContractSchema.safeParse(raw);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: { code: "BAD_REQUEST", message: "templateName と signerEmail は必須です" } },
+      { error: { code: "BAD_REQUEST", message: parsed.error.issues.map((i) => i.message).join(", ") } },
       { status: 400 }
     );
   }
+
+  const body = parsed.data;
 
   const contract = await prisma.memberContract.create({
     data: {

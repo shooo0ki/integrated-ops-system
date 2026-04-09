@@ -300,7 +300,32 @@ Prisma ORM によるパラメタライズドクエリを全面採用。
 
 ---
 
-## 8. 監査ログ
+## 8. アプリケーションログ
+
+### 8-1. 構造化ログ
+
+`src/backend/logger.ts` により、全サーバーサイドログを JSON 形式で出力。
+
+```json
+{"level":"error","tag":"invoices/accounting","message":"PDF generation failed","detail":{"name":"Error","message":"..."},"timestamp":"2026-04-09T..."}
+```
+
+| フィールド | 内容 |
+|-----------|------|
+| `level` | `info` / `warn` / `error` |
+| `tag` | 発生元の機能名 |
+| `message` | 人間が読めるメッセージ |
+| `detail` | エラーオブジェクト等の補足情報（任意） |
+| `timestamp` | ISO 8601 形式のタイムスタンプ |
+
+Vercel Log でフィルタリング・検索が可能。将来的に Datadog / Sentry 等に差し替える場合は `logger.ts` のみ変更。
+
+**関連ファイル:**
+- `src/backend/logger.ts`
+
+---
+
+## 9. 監査ログ
 
 機密操作は `auditLog` テーブルに記録。
 
@@ -318,7 +343,7 @@ Prisma ORM によるパラメタライズドクエリを全面採用。
 
 ---
 
-## 9. 環境変数一覧（セキュリティ関連）
+## 10. 環境変数一覧（セキュリティ関連）
 
 | 変数名 | 必須 | 用途 |
 |--------|------|------|
@@ -336,11 +361,14 @@ Prisma ORM によるパラメタライズドクエリを全面採用。
 
 ---
 
-## 10. 未対応事項（今後の対応予定）
+## 11. 監査項目の対応状況
 
-| 項目 | 深刻度 | 対応予定 | 参照 |
-|------|--------|---------|------|
-| GET エンドポイントの認可強化 | MEDIUM | 次スプリント | security-audit.md M-2 |
-| 一部エンドポイントの Zod バリデーション追加 | MEDIUM | 次スプリント | security-audit.md M-3 |
-| リスト系 API のページネーション | MEDIUM | 次スプリント | security-audit.md M-5 |
-| 構造化ロギングの導入 | MEDIUM | 次スプリント | security-audit.md M-6 |
+全項目対応済み（2026-04-09）。
+
+| 深刻度 | 件数 | ステータス |
+|--------|------|-----------|
+| CRITICAL | 4 | 全件対応済み |
+| HIGH | 6 | 全件対応済み |
+| MEDIUM | 6 | 全件対応済み |
+
+詳細は `security-audit.md` を参照。

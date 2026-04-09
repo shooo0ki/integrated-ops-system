@@ -5,6 +5,7 @@ import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 import { sendSlack, getSlackMention } from "@/backend/slack";
 import { syncSchedulesToCalendar } from "@/backend/google-calendar";
+import { logger } from "@/backend/logger";
 
 
 type Params = { params: Promise<{ id: string }> };
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     await syncSchedulesToCalendar(memberId, calItems);
   } catch (err) {
     gcalError = err instanceof Error ? err.message : String(err);
-    console.error("[WorkSchedule] Google Calendar sync failed:", err);
+    logger.error("work-schedules", "Google Calendar sync failed", err);
   }
 
   return NextResponse.json({ saved: saved.length, gcalError });

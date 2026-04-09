@@ -12,7 +12,7 @@
 |--------|------|-----------|
 | CRITICAL | 4 | **全件対応済み (2026-04-09)** |
 | HIGH | 6 | **全件対応済み (2026-04-09)** |
-| MEDIUM | 6 | **2件対応済み** / 残4件（M-2, M-3, M-5, M-6） |
+| MEDIUM | 6 | **全件対応済み (2026-04-09)** |
 
 **総合判定: CRITICAL 全件 + HIGH 全件 + MEDIUM 2件を解消済み。残課題はバリデーション強化等（M-2, M-3, M-5, M-6）**
 
@@ -160,22 +160,30 @@ if (!secret || authHeader !== `Bearer ${secret}`) {
 > **修正日:** 2026-04-09
 > **修正内容:** `next.config.js` に `productionBrowserSourceMaps: false` を追加。
 
-### M-2: GETエンドポイントの認可不足
-- `/api/members`, `/api/members/[id]/tools` 等 — 認証済みなら誰でも全データ閲覧可能
+### M-2: GETエンドポイントの認可不足 — **対応済み**
 
-### M-3: 一部エンドポイントでZodバリデーション未使用
-- contracts, invoices/generate 等で型アサーション(`as`)のみ
+> **修正日:** 2026-04-09
+> **修正内容:** `/api/members/[id]/tools` と `/api/members/[id]/skills` の GET に「本人または admin/manager」のロールチェックを追加。メンバー一覧・プロジェクト一覧は業務上全ユーザーが閲覧するため制限不要と判断。
+
+### M-3: 一部エンドポイントでZodバリデーション未使用 — **対応済み**
+
+> **修正日:** 2026-04-09
+> **修正内容:** `contracts/route.ts` と `invoices/generate/route.ts` の POST ハンドラで `as` 型アサーションを Zod スキーマに置き換え。金額上限（99,999,999）も追加。
 
 ### M-4: デバッグエンドポイントが残存 — **対応済み**
 
 > **修正日:** 2026-04-09
 > **修正内容:** `src/app/api/google/test/` ディレクトリごと削除。他からの参照なしを確認済み。
 
-### M-5: ページネーション未実装のリスト系API
-- `/api/members`, `/api/members/[id]/skills` 等で件数無制限
+### M-5: ページネーション未実装のリスト系API — **対応済み**
 
-### M-6: console.error でのログ出力
-- 構造化ロギング未導入。本番では適切なログ基盤が必要
+> **修正日:** 2026-04-09
+> **修正内容:** `/api/members` に `limit`/`offset` パラメータ（最大200件）を追加。`/api/members/[id]/skills` に `take: 500` を追加。
+
+### M-6: console.error でのログ出力 — **対応済み**
+
+> **修正日:** 2026-04-09
+> **修正内容:** `src/backend/logger.ts` を新規作成（JSON 構造化ログ）。API ルート・バックエンドの全 `console.error`（10箇所）を `logger.error` / `logger.warn` に置換。
 
 ---
 

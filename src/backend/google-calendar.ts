@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/backend/db";
 import { encrypt, decrypt } from "@/backend/crypto";
+import { logger } from "@/backend/logger";
 
 const SCOPES = ["https://www.googleapis.com/auth/calendar.events"];
 const CAL_BASE = "https://www.googleapis.com/calendar/v3";
@@ -154,7 +155,7 @@ export async function syncSchedulesToCalendar(
         });
       }
     } catch (err) {
-      console.error(`[GoogleCalendar] Failed to sync ${s.date}:`, err);
+      logger.error("GoogleCalendar", `Failed to sync ${s.date}`, err);
     }
   }
 }

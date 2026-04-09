@@ -4,6 +4,7 @@ import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 import { createAssignmentSchema } from "@/backend/validations/project";
+import { logger } from "@/backend/logger";
 
 
 type Params = { params: Promise<{ id: string }> };
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       },
     });
   } catch (e) {
-    console.error("Assignment create error:", e);
+    logger.error("assignments", "POST failed", e);
     return NextResponse.json(
       { error: { code: "DB_ERROR", message: "登録に失敗しました。再ログイン後に再試行してください。" } },
       { status: 500 }

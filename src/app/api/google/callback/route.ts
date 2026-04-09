@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/backend/auth";
 import { unauthorized } from "@/backend/api-response";
 import { handleCallback } from "@/backend/google-calendar";
+import { logger } from "@/backend/logger";
 
 const STATE_COOKIE = "gcal_oauth_state";
 
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
     res.cookies.delete(STATE_COOKIE);
     return res;
   } catch (err) {
-    console.error("[GoogleCallback]", err);
+    logger.error("GoogleCallback", "OAuth callback failed", err);
     const res = NextResponse.redirect(new URL("/mypage?gcal=error", req.url));
     res.cookies.delete(STATE_COOKIE);
     return res;

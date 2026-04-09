@@ -6,6 +6,7 @@ import { generateInvoicePdf } from "@/backend/invoice-pdf";
 import { sendEmail } from "@/backend/email";
 import { unauthorized, forbidden, apiError } from "@/backend/api-response";
 import { decryptBankFields } from "@/backend/crypto";
+import { logger } from "@/backend/logger";
 
 // PATCH /api/invoices/[invoiceId]/accounting
 // admin/manager: LayerX へメール送付 → status を confirmed に更新
@@ -66,7 +67,7 @@ export async function PATCH(
       },
     });
   } catch (e) {
-    console.error("PDF generation failed:", e);
+    logger.error("invoices/accounting", "PDF generation failed", e);
     return apiError("INTERNAL_ERROR", "PDF生成に失敗しました", 500);
   }
 
@@ -91,7 +92,7 @@ export async function PATCH(
         },
       });
     } catch (e) {
-      console.error("Email sending failed:", e);
+      logger.error("invoices/accounting", "Email sending failed", e);
       return apiError("INTERNAL_ERROR", "メール送信に失敗しました", 500);
     }
   }

@@ -19,6 +19,9 @@ export async function GET(req: NextRequest) {
   const role = searchParams.get("role") ?? "";
   const includeLeft = searchParams.get("includeLeft") === "1";
 
+  const limit = Math.min(Number(searchParams.get("limit") ?? "200"), 200);
+  const offset = Math.max(Number(searchParams.get("offset") ?? "0"), 0);
+
   const members = await prisma.member.findMany({
     where: {
       deletedAt: null,
@@ -37,6 +40,8 @@ export async function GET(req: NextRequest) {
       userAccount: { select: { email: true, role: true } },
     },
     orderBy: { createdAt: "asc" },
+    take: limit,
+    skip: offset,
   });
 
   return NextResponse.json(

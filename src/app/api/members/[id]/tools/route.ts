@@ -15,6 +15,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
 
+  // 本人または admin/manager のみ閲覧可
+  if (user.memberId !== id && !["admin", "manager"].includes(user.role)) {
+    return forbidden();
+  }
+
   const tools = await prisma.memberTool.findMany({
     where: { memberId: id },
     orderBy: { createdAt: "asc" },
