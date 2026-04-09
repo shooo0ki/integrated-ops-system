@@ -4,22 +4,7 @@ import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 import { recalcAttendanceSummary } from "@/backend/attendance-summary";
-
-
-function toTimeStr(dt: Date | null): string | null {
-  if (!dt) return null;
-  const jst = new Date(dt.getTime() + 9 * 60 * 60 * 1000);
-  return `${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
-}
-
-function parseTimeOnDate(baseDate: Date, timeStr: string | null): Date | null {
-  if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) return null;
-  const [h, m] = timeStr.split(":").map(Number);
-  // baseDate は UTC midnight。JST midnight = baseDate - 9h
-  // ユーザー入力 h:m は JST なので UTC に変換: jstMidnight + h:m
-  const jstMidnightMs = baseDate.getTime() - 9 * 60 * 60 * 1000;
-  return new Date(jstMidnightMs + h * 60 * 60 * 1000 + m * 60 * 1000);
-}
+import { toTimeStr, parseTimeOnDate, jstNow, parseDate } from "@/backend/jst";
 
 // ─── GET /api/attendances?memberId=&month=YYYY-MM ─────────
 export async function GET(req: NextRequest) {
@@ -29,8 +14,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const memberId = searchParams.get("memberId") ?? user.memberId;
   const month = searchParams.get("month") ?? (() => {
-    const jstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
-    return `${jstNow.getUTCFullYear()}-${String(jstNow.getUTCMonth() + 1).padStart(2, "0")}`;
+    const now = jstNow();
+    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
   })();
 
   // 他人のデータは admin/manager のみ
@@ -122,7 +107,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const dateObj = new Date(`${date}T00:00:00`);
+  const dateObj = parseDate(date);
 
   // 同日のレコードが既にある場合は拒否
   const existing = await prisma.attendance.findFirst({

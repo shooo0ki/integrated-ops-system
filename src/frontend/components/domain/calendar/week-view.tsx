@@ -127,8 +127,9 @@ export function WeekView({ weekDays, visible, calData }: {
   // 日ごとのブロックを事前計算（予定と実績を分離して2層描画）
   const dayBlocks = useMemo(() => {
     const result = new Map<string, {
-      scheduleBlocks: { block: Block; col: number; totalCols: number }[];
-      attendanceBlocks: { block: Block; col: number; totalCols: number }[];
+      scheduleBlocks: Block[];
+      attendanceBlocks: Block[];
+      memberColumns: Map<string, { col: number; totalCols: number }>;
     }>();
 
     for (const day of weekDays) {
@@ -178,10 +179,29 @@ export function WeekView({ weekDays, visible, calData }: {
         }
       }
 
-      result.set(day.date, {
-        scheduleBlocks: layoutBlocks(schedBlocks),
-        attendanceBlocks: layoutBlocks(attBlocks),
-      });
+      // メンバーごとの時間範囲を統合して列を割り当て（予定と実績が同じ列に来る）
+      const memberSpanMap = new Map<string, { minStart: number; maxEnd: number }>();
+      for (const b of [...schedBlocks, ...attBlocks]) {
+        const existing = memberSpanMap.get(b.memberId);
+        if (existing) {
+          existing.minStart = Math.min(existing.minStart, b.startMin);
+          existing.maxEnd = Math.max(existing.maxEnd, b.endMin);
+        } else {
+          memberSpanMap.set(b.memberId, { minStart: b.startMin, maxEnd: b.endMin });
+        }
+      }
+      const mergedSpans: Block[] = [];
+      for (const [memberId, span] of memberSpanMap) {
+        const src = attBlocks.find(b => b.memberId === memberId) ?? schedBlocks.find(b => b.memberId === memberId)!;
+        mergedSpans.push({ ...src, startMin: span.minStart, endMin: span.maxEnd });
+      }
+      const mergedLayout = layoutBlocks(mergedSpans);
+      const memberColumns = new Map<string, { col: number; totalCols: number }>();
+      for (const { block, col, totalCols } of mergedLayout) {
+        memberColumns.set(block.memberId, { col, totalCols });
+      }
+
+      result.set(day.date, { scheduleBlocks: schedBlocks, attendanceBlocks: attBlocks, memberColumns });
     }
     return result;
     // currentY を依存に含めて出勤中ブロックを60秒ごとに再計算（1-2-6）
@@ -279,7 +299,8 @@ export function WeekView({ weekDays, visible, calData }: {
                   )}
 
                   {/* 勤務予定（背景レイヤー: 薄色＋破線）(1-2-1 + 1-2-2) */}
-                  {(dayBlocks.get(day.date)?.scheduleBlocks ?? []).map(({ block, col, totalCols }) => {
+                  {(dayBlocks.get(day.date)?.scheduleBlocks ?? []).map((block) => {
+                    const { col, totalCols } = dayBlocks.get(day.date)?.memberColumns.get(block.memberId) ?? { col: 0, totalCols: 1 };
                     const widthPct = 100 / totalCols;
                     const leftPct = col * widthPct;
                     return (
@@ -309,7 +330,8 @@ export function WeekView({ weekDays, visible, calData }: {
                   })}
 
                   {/* 勤怠実績（前面レイヤー: 濃色＋実線）(1-2-1 + 1-2-2 + 1-2-6 + 1-2-7) */}
-                  {(dayBlocks.get(day.date)?.attendanceBlocks ?? []).map(({ block, col, totalCols }) => {
+                  {(dayBlocks.get(day.date)?.attendanceBlocks ?? []).map((block) => {
+                    const { col, totalCols } = dayBlocks.get(day.date)?.memberColumns.get(block.memberId) ?? { col: 0, totalCols: 1 };
                     const widthPct = 100 / totalCols;
                     const leftPct = col * widthPct;
                     const isWorking = block.clockOut === null;

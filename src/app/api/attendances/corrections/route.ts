@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
-
+import { toTimeStr } from "@/backend/jst";
 
 // GET /api/attendances/corrections
 // admin/manager: 修正申請中（status='modified' かつ confirmStatus='unconfirmed'）の勤怠一覧
@@ -22,12 +22,6 @@ export async function GET() {
     },
     orderBy: { date: "desc" },
   });
-
-  function toTimeStr(dt: Date | null): string | null {
-    if (!dt) return null;
-    const jst = new Date(dt.getTime() + 9 * 60 * 60 * 1000);
-    return `${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
-  }
 
   return NextResponse.json(
     records.map((r) => {
