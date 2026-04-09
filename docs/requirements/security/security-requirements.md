@@ -27,9 +27,14 @@
 | セッション保存先 | PostgreSQL `ba_sessions` テーブル |
 | 記録情報 | IP アドレス、User-Agent、作成日時、更新日時 |
 
+**セッション切れ時の挙動:**
+- `/login?reason=expired` にリダイレクトし、「セッションが切れました。再ログインしてください。」を表示
+- `reason=expired` の場合、既存セッションによる自動リダイレクトを抑制し、再ログインを促す
+
 **関連ファイル:**
 - `src/backend/auth.ts` — Better Auth 設定
 - `prisma/schema.prisma` — `BaSession` テーブル定義
+- `src/app/(unauthenticated)/login/page.tsx` — session-expired ハンドリング
 
 ### 1-2. パスワードポリシー
 
@@ -103,11 +108,16 @@ if (!["admin", "manager"].includes(user.role)) return forbidden(); // 認可
 | `POST /api/auth/sign-up/*` | IP あたり 3 回 | 15 分 |
 | `PUT /api/members/*/profile/password` | IP あたり 3 回 | 60 分 |
 
+**フロントエンド対応:**
+- ログイン画面は 429 レスポンスを検知し、「リクエスト回数の上限に達しました。しばらく時間をおいてお試しください。」を表示
+- 通常の認証エラー（401）とはメッセージを区別
+
 **制限事項:** インメモリ実装のため Vercel Serverless のインスタンス間では共有されない。
 
 **関連ファイル:**
 - `src/backend/rate-limit.ts` — レート制限ロジック
 - `src/proxy.ts` — 適用箇所
+- `src/frontend/contexts/auth-context.tsx` — 429 ステータス判定
 
 ### 3-2. Cron / Warmup エンドポイント認証
 
