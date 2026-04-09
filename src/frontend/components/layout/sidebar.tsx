@@ -50,9 +50,10 @@ const ADMIN_DAILY: NavGroup = {
   title: "勤怠管理",
   items: [
     { href: "/attendance",             label: "打刻",         icon: Clock },
-    { href: "/attendance/corrections", label: "勤怠修正確認", icon: ClipboardCheck },
+    { href: "/attendance/list",        label: "勤怠修正申請", icon: ClipboardCheck },
     { href: "/calendar",               label: "カレンダー",   icon: CalendarDays },
     { href: "/schedule",               label: "勤務予定",     icon: CalendarClock },
+    { href: "/attendance/corrections", label: "勤怠修正確認", icon: ClipboardCheck },
   ],
 };
 

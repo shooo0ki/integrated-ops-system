@@ -310,7 +310,7 @@ export function WeekView({ weekDays, visible, calData, onDateClick }: {
                     return (
                       <div
                         key={`${block.memberId}-sched`}
-                        className={`absolute rounded-md border-l-2 border-dashed overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none opacity-30 ${block.color.bg} ${block.color.bl}`}
+                        className="absolute rounded-md border-l-2 border-dashed overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none opacity-30"
                         style={{
                           top: block.top,
                           height: block.height,
@@ -318,14 +318,16 @@ export function WeekView({ weekDays, visible, calData, onDateClick }: {
                           width: `${widthPct - 1}%`,
                           padding: "2px 4px",
                           zIndex: 1,
+                          backgroundColor: `${block.color.hex}80`,
+                          borderLeftColor: block.color.hex,
                         }}
                         onClick={(e) => handleBlockClick(block, e)}
                       >
-                        <p className={`text-xs font-semibold truncate leading-tight ${block.color.text}`}>
+                        <p className="text-xs font-semibold truncate leading-tight" style={{ color: block.color.darkHex }}>
                           {block.memberName}
                         </p>
                         {block.height >= 32 && (
-                          <p className={`text-xs truncate leading-tight ${block.color.text} opacity-80`}>
+                          <p className="text-xs truncate leading-tight opacity-80" style={{ color: block.color.darkHex }}>
                             {block.startTime}〜{block.endTime ?? ""}
                           </p>
                         )}
@@ -343,7 +345,7 @@ export function WeekView({ weekDays, visible, calData, onDateClick }: {
                     return (
                       <div
                         key={`${block.memberId}-att`}
-                        className={`absolute rounded-md border-l-2 overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none ${block.color.bg} ${block.color.bl}`}
+                        className="absolute rounded-md border-l-2 overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none"
                         style={{
                           top: block.top,
                           height: block.height,
@@ -351,11 +353,13 @@ export function WeekView({ weekDays, visible, calData, onDateClick }: {
                           width: `${widthPct - 1}%`,
                           padding: "2px 4px",
                           zIndex: 2,
+                          backgroundColor: `${block.color.hex}99`,
+                          borderLeftColor: block.color.hex,
                         }}
                         onClick={(e) => handleBlockClick(block, e)}
                       >
                         <div className="flex items-center gap-1">
-                          <p className={`text-xs font-semibold truncate leading-tight ${block.color.text}`}>
+                          <p className="text-xs font-semibold truncate leading-tight" style={{ color: block.color.darkHex }}>
                             {block.memberName}
                           </p>
                           {isWorking && (
@@ -363,7 +367,7 @@ export function WeekView({ weekDays, visible, calData, onDateClick }: {
                           )}
                         </div>
                         {block.height >= 32 && (
-                          <p className={`text-xs truncate leading-tight ${block.color.text} opacity-80`}>
+                          <p className="text-xs truncate leading-tight opacity-80" style={{ color: block.color.darkHex }}>
                             {block.clockIn}〜{block.clockOut ?? "勤務中"}
                           </p>
                         )}

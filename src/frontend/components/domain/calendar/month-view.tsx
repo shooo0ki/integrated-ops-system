@@ -4,7 +4,7 @@ import { useMemo, useCallback } from "react";
 import { COLORS } from "@/frontend/constants/calendar";
 import type { CalMember, CalData, AttEntry, SchedEntry } from "@/shared/types/calendar";
 import type { MonthDay } from "./calendar-utils";
-import { LocationBadge } from "./location-badge";
+
 
 const MAX_PER_CELL = 3;
 
@@ -60,7 +60,7 @@ export function MonthView({ grid, visible, calData, onDateClick }: {
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div className="overflow-x-auto">
         <div style={{ minWidth: 560 }}>
-          <div className="grid grid-cols-7 border-b border-slate-200">
+          <div className="grid border-b border-slate-200" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
             {["月", "火", "水", "木", "金", "土", "日"].map(d => (
               <div key={d} className={`py-2.5 text-center text-xs font-semibold ${d === "土" || d === "日" ? "text-slate-400" : "text-slate-500"}`}>
                 {d}
@@ -68,7 +68,7 @@ export function MonthView({ grid, visible, calData, onDateClick }: {
             ))}
           </div>
           {grid.map((week, wi) => (
-            <div key={wi} className="grid grid-cols-7 border-b border-slate-100 last:border-b-0">
+            <div key={wi} className="grid border-b border-slate-100 last:border-b-0" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
               {week.map(day => (
                 <div key={day.date}
                   className={`min-h-[80px] p-1.5 border-r border-slate-100 last:border-r-0 ${
@@ -97,9 +97,15 @@ export function MonthView({ grid, visible, calData, onDateClick }: {
                             const isWorking = ev.type === "actual" && ev.clockOut === null;
                             return (
                               <div key={member.id}
-                                className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 outline-none ${color.bg} ${color.text} ${color.bl} ${
-                                  isScheduleOnly ? "opacity-40 border-dashed" : ""
+                                className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 outline-none ${
+                                  isScheduleOnly ? "border-dashed" : ""
                                 }`}
+                                style={{
+                                  backgroundColor: `${color.hex}25`,
+                                  color: "#334155",
+                                  borderLeftColor: color.hex,
+                                  borderLeftWidth: "3px",
+                                }}
                               >
                                 <div className="flex items-center gap-1">
                                   <span className="font-medium truncate">{member.name}</span>
@@ -107,7 +113,14 @@ export function MonthView({ grid, visible, calData, onDateClick }: {
                                     <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
                                   )}
                                 </div>
-                                <LocationBadge locationType={ev.locationType} />
+                                {ev.type === "actual"
+                                  ? <span className="text-[10px] opacity-70">
+                                      {ev.clockIn}〜{ev.clockOut ?? "勤務中"}
+                                    </span>
+                                  : <span className="text-[10px] opacity-70">
+                                      予定 {ev.startTime}〜{ev.endTime ?? ""}
+                                    </span>
+                                }
                               </div>
                             );
                           })}

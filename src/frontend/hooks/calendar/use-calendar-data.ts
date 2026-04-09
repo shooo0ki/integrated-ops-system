@@ -53,10 +53,18 @@ export function useCalendarData() {
     { keepPreviousData: true },
   );
 
-  const memberColorMap = useMemo(
-    () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
-    [calData.members]
-  );
+  // 自分は常に COLORS[0]（青）、他メンバーは残りの色を順番に割り当て
+  const memberColorMap = useMemo(() => {
+    const map = new Map<string, typeof COLORS[number]>();
+    if (myMemberId) map.set(myMemberId, COLORS[0]);
+    let ci = 1;
+    for (const m of calData.members) {
+      if (m.id === myMemberId) continue;
+      map.set(m.id, COLORS[ci % COLORS.length]);
+      ci++;
+    }
+    return map;
+  }, [calData.members, myMemberId]);
 
   const projectFilteredMembers = useMemo(
     () => (selectedProjId

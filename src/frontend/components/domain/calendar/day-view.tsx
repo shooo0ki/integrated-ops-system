@@ -5,7 +5,7 @@ import {
   HOUR_PX, START_HOUR, END_HOUR, GRID_H, TIME_W, DAY_MIN_W, HOURS, COLORS, DEFAULT_SCROLL_HOUR, MIN_BLOCK_PX,
 } from "@/frontend/constants/calendar";
 import type { CalMember, CalData } from "@/shared/types/calendar";
-import { timeToMin, timeToY, spanPx, nowTimeStr, nowY } from "./calendar-utils";
+import { timeToY, spanPx, nowTimeStr, nowY } from "./calendar-utils";
 import { LocationBadge } from "./location-badge";
 
 type Block = {
@@ -191,20 +191,22 @@ export function DayView({ date, visible, calData }: {
                     {/* 勤務予定（背景） */}
                     {blocks?.scheduleBlock && (
                       <div
-                        className={`absolute rounded-md border-l-2 border-dashed overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none opacity-30 ${blocks.scheduleBlock.color.bg} ${blocks.scheduleBlock.color.bl}`}
+                        className="absolute rounded-md border-l-2 border-dashed overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none opacity-30"
                         style={{
                           top: blocks.scheduleBlock.top,
                           height: blocks.scheduleBlock.height,
                           left: "2%", width: "96%",
                           padding: "2px 4px", zIndex: 1,
+                          backgroundColor: `${blocks.scheduleBlock.color.hex}30`,
+                          borderLeftColor: blocks.scheduleBlock.color.hex,
                         }}
                         onClick={(e) => handleBlockClick(blocks.scheduleBlock!, e)}
                       >
-                        <p className={`text-xs font-semibold truncate leading-tight ${blocks.scheduleBlock.color.text}`}>
+                        <p className="text-xs font-semibold truncate leading-tight" style={{ color: blocks.scheduleBlock.color.darkHex }}>
                           予定
                         </p>
                         {blocks.scheduleBlock.height >= 32 && (
-                          <p className={`text-xs truncate leading-tight ${blocks.scheduleBlock.color.text} opacity-80`}>
+                          <p className="text-xs truncate leading-tight opacity-80" style={{ color: blocks.scheduleBlock.color.darkHex }}>
                             {blocks.scheduleBlock.startTime}〜{blocks.scheduleBlock.endTime ?? ""}
                           </p>
                         )}
@@ -217,17 +219,19 @@ export function DayView({ date, visible, calData }: {
                       const isWorking = block.clockOut === null;
                       return (
                         <div
-                          className={`absolute rounded-md border-l-2 overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none ${block.color.bg} ${block.color.bl}`}
+                          className="absolute rounded-md border-l-2 overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none"
                           style={{
                             top: block.top,
                             height: block.height,
                             left: "2%", width: "96%",
                             padding: "2px 4px", zIndex: 2,
+                            backgroundColor: `${block.color.hex}99`,
+                            borderLeftColor: block.color.hex,
                           }}
                           onClick={(e) => handleBlockClick(block, e)}
                         >
                           <div className="flex items-center gap-1">
-                            <p className={`text-xs font-semibold truncate leading-tight ${block.color.text}`}>
+                            <p className="text-xs font-semibold truncate leading-tight" style={{ color: block.color.darkHex }}>
                               実績
                             </p>
                             {isWorking && (
@@ -235,7 +239,7 @@ export function DayView({ date, visible, calData }: {
                             )}
                           </div>
                           {block.height >= 32 && (
-                            <p className={`text-xs truncate leading-tight ${block.color.text} opacity-80`}>
+                            <p className="text-xs truncate leading-tight opacity-80" style={{ color: block.color.darkHex }}>
                               {block.clockIn}〜{block.clockOut ?? "勤務中"}
                             </p>
                           )}
