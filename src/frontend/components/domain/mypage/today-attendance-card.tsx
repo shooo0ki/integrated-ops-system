@@ -7,7 +7,8 @@ import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import type { TodayAttendance } from "@/shared/types/mypage";
 
 export const TodayAttendanceCard = memo(function TodayAttendanceCard() {
-  const { data: todayAtt } = useSWR<TodayAttendance | null>("/api/attendances/today");
+  const { data: rawTodayAtt } = useSWR<TodayAttendance | { prevTodoTomorrow: string | null } | null>("/api/attendances/today");
+  const todayAtt: TodayAttendance | null = rawTodayAtt && "breakMinutes" in rawTodayAtt ? rawTodayAtt : null;
   return (
     <Card>
       <CardHeader>

@@ -168,5 +168,20 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     where: { memberId, date: new Date(date) },
   });
 
-  return NextResponse.json({ ok: true });
+  // 削除時もGoogle Calendarを同期し、外部イベントを残さない
+  let gcalError: string | null = null;
+  try {
+    await syncSchedulesToCalendar(memberId, [{
+      date,
+      startTime: null,
+      endTime: null,
+      isOff: true,
+      locationType: "office",
+    }]);
+  } catch (err) {
+    gcalError = err instanceof Error ? err.message : String(err);
+    console.error("[WorkSchedule] Google Calendar sync failed on delete:", err);
+  }
+
+  return NextResponse.json({ ok: true, gcalError });
 }
