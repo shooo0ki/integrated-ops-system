@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  productionBrowserSourceMaps: false,
   outputFileTracingIncludes: {
     "/api/invoices/\\[invoiceId\\]/accounting": ["./src/backend/fonts/**/*"],
   },

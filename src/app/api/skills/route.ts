@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error("[GET /api/skills]", e);
     return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: String(e) } },
+      { error: { code: "INTERNAL_ERROR", message: "サーバーエラーが発生しました" } },
       { status: 500 }
     );
   }

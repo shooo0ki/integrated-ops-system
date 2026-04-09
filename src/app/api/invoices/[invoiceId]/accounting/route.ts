@@ -64,7 +64,7 @@ export async function PATCH(
     });
   } catch (e) {
     console.error("PDF generation failed:", e);
-    return apiError("INTERNAL_ERROR", `PDF生成に失敗しました: ${e instanceof Error ? e.message : String(e)}`, 500);
+    return apiError("INTERNAL_ERROR", "PDF生成に失敗しました", 500);
   }
 
   // ── LayerX へメール送信 ────────────────────────────────
@@ -89,7 +89,7 @@ export async function PATCH(
       });
     } catch (e) {
       console.error("Email sending failed:", e);
-      return apiError("INTERNAL_ERROR", `メール送信に失敗しました: ${e instanceof Error ? e.message : String(e)}`, 500);
+      return apiError("INTERNAL_ERROR", "メール送信に失敗しました", 500);
     }
   }
 
