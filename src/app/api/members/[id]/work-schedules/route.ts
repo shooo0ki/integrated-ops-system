@@ -139,7 +139,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   try {
     await syncSchedulesToCalendar(memberId, calItems);
   } catch (err) {
-    gcalError = err instanceof Error ? err.message : String(err);
+    gcalError = "Google Calendar の同期に失敗しました";
     logger.error("work-schedules", "Google Calendar sync failed", err);
   }
 

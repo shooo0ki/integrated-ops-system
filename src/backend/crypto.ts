@@ -6,12 +6,21 @@ const AUTH_TAG_LENGTH = 16;
 // 暗号化済みデータのプレフィックス（平文との判別用）
 const ENCRYPTED_PREFIX = "enc:";
 
-function getKey(): Buffer {
+function validateEncryptionKey(): Buffer {
   const hex = process.env.ENCRYPTION_KEY;
   if (!hex || hex.length !== 64) {
-    throw new Error("ENCRYPTION_KEY must be a 64-character hex string (32 bytes)");
+    throw new Error(
+      "ENCRYPTION_KEY must be a 64-character hex string (32 bytes). Generate one with: openssl rand -hex 32"
+    );
   }
   return Buffer.from(hex, "hex");
+}
+
+// モジュール読み込み時に検証（BETTER_AUTH_SECRET と同じパターン）
+const encryptionKey = validateEncryptionKey();
+
+function getKey(): Buffer {
+  return encryptionKey;
 }
 
 /**
