@@ -83,10 +83,11 @@ function layoutBlocks(blocks: Block[]): { block: Block; col: number; totalCols: 
   return result;
 }
 
-export function WeekView({ weekDays, visible, calData }: {
+export function WeekView({ weekDays, visible, calData, onDateClick }: {
   weekDays: WeekDay[];
   visible: CalMember[];
   calData: CalData;
+  onDateClick?: (dateStr: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentY, setCurrentY] = useState(nowY());
@@ -250,9 +251,12 @@ export function WeekView({ weekDays, visible, calData }: {
                 }`}
                 style={{ minWidth: DAY_MIN_W }}
               >
-                <span className={`inline-flex h-8 min-w-8 items-center justify-center rounded-full text-sm font-bold mx-auto px-2 ${
-                  day.isToday ? "bg-blue-600 text-white" : day.isWeekend ? "text-slate-400" : "text-slate-700"
-                }`}>
+                <span
+                  className={`inline-flex h-8 min-w-8 items-center justify-center rounded-full text-sm font-bold mx-auto px-2 ${
+                    day.isToday ? "bg-blue-600 text-white" : day.isWeekend ? "text-slate-400" : "text-slate-700"
+                  } ${onDateClick ? "cursor-pointer hover:ring-2 hover:ring-blue-300" : ""}`}
+                  onClick={() => onDateClick?.(day.date)}
+                >
                   {day.dayNum}<span className="text-[10px] font-normal ml-0.5">({day.dayLabel})</span>
                 </span>
               </div>
@@ -306,7 +310,7 @@ export function WeekView({ weekDays, visible, calData }: {
                     return (
                       <div
                         key={`${block.memberId}-sched`}
-                        className={`absolute rounded-md border-l-2 border-dashed overflow-hidden cursor-pointer hover:brightness-95 transition-all opacity-30 ${block.color.bg} ${block.color.bl}`}
+                        className={`absolute rounded-md border-l-2 border-dashed overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none opacity-30 ${block.color.bg} ${block.color.bl}`}
                         style={{
                           top: block.top,
                           height: block.height,
@@ -339,7 +343,7 @@ export function WeekView({ weekDays, visible, calData }: {
                     return (
                       <div
                         key={`${block.memberId}-att`}
-                        className={`absolute rounded-md border-l-2 overflow-hidden cursor-pointer hover:brightness-95 transition-all ${block.color.bg} ${block.color.bl}`}
+                        className={`absolute rounded-md border-l-2 overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none ${block.color.bg} ${block.color.bl}`}
                         style={{
                           top: block.top,
                           height: block.height,

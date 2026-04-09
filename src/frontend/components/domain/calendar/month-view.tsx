@@ -8,10 +8,11 @@ import { LocationBadge } from "./location-badge";
 
 const MAX_PER_CELL = 3;
 
-export function MonthView({ grid, visible, calData }: {
+export function MonthView({ grid, visible, calData, onDateClick }: {
   grid: MonthDay[][];
   visible: CalMember[];
   calData: CalData;
+  onDateClick?: (dateStr: string) => void;
 }) {
   const colorMap = useMemo(
     () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
@@ -74,11 +75,14 @@ export function MonthView({ grid, visible, calData }: {
                     !day.isCurrentMonth ? "bg-slate-50/60" : day.isWeekend ? "bg-slate-50/30" : ""
                   }`}
                 >
-                  <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full text-xs font-medium mb-1 px-1 ${
-                    day.isToday ? "bg-blue-600 text-white" :
-                    !day.isCurrentMonth ? "text-slate-300" :
-                    day.isWeekend ? "text-slate-400" : "text-slate-700"
-                  }`}>
+                  <span
+                    className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full text-xs font-medium mb-1 px-1 ${
+                      day.isToday ? "bg-blue-600 text-white" :
+                      !day.isCurrentMonth ? "text-slate-300" :
+                      day.isWeekend ? "text-slate-400" : "text-slate-700"
+                    } ${onDateClick ? "cursor-pointer hover:ring-2 hover:ring-blue-300" : ""}`}
+                    onClick={() => onDateClick?.(day.date)}
+                  >
                     {day.dayNum}<span className="text-[9px] font-normal ml-px">({day.dayLabel})</span>
                   </span>
                   <div className="space-y-0.5">
@@ -93,7 +97,7 @@ export function MonthView({ grid, visible, calData }: {
                             const isWorking = ev.type === "actual" && ev.clockOut === null;
                             return (
                               <div key={member.id}
-                                className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 ${color.bg} ${color.text} ${color.bl} ${
+                                className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 outline-none ${color.bg} ${color.text} ${color.bl} ${
                                   isScheduleOnly ? "opacity-40 border-dashed" : ""
                                 }`}
                               >

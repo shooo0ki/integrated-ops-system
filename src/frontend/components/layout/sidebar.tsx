@@ -121,8 +121,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       ];
 
   function isActive(href: string) {
-    if (href === "/dashboard") return pathname === "/dashboard";
-    return pathname === href || pathname.startsWith(href + "/");
+    if (pathname === href) return true;
+    // サブパスを持つルートは完全一致のみ（/attendance が /attendance/corrections にも反応するのを防ぐ）
+    const exactMatchRoutes = ["/attendance", "/dashboard", "/mypage"];
+    if (exactMatchRoutes.includes(href)) return false;
+    return pathname.startsWith(href + "/");
   }
 
   return (
