@@ -28,6 +28,9 @@ interface DashboardData {
   teamAttendance?: TeamMember[];
   plSummary?: PLSummary | null;
   notStartedCount?: number | null;
+  memberCount?: number | null;
+  totalLaborCost?: number | null;
+  projectedLaborCost?: number | null;
 }
 
 export default function DashboardPage() {
@@ -61,6 +64,24 @@ export default function DashboardPage() {
         <h1 className="text-xl font-bold text-slate-800">ダッシュボード</h1>
         <p className="text-sm text-slate-500">{name}さん、お疲れ様です</p>
       </div>
+
+      {/* 3指標カード */}
+      {data && data.memberCount != null && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">メンバー総数</p>
+            <p className="mt-1 text-2xl font-bold text-slate-800">{data.memberCount}名</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">人件費合計（当月実績）</p>
+            <p className="mt-1 text-2xl font-bold text-slate-800">{formatCurrency(data.totalLaborCost ?? 0)}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">予測人件費（月末見込）</p>
+            <p className="mt-1 text-2xl font-bold text-blue-700">{formatCurrency(data.projectedLaborCost ?? 0)}</p>
+          </div>
+        </div>
+      )}
 
       {/* KPI テーブル */}
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">

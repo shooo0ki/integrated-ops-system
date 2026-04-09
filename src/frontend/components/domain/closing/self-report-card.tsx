@@ -141,7 +141,7 @@ export function SelfReportCard({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between w-full">
           <CardTitle>月次工数自己申告</CardTitle>
           {submitted && !editing && (
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>修正する</Button>

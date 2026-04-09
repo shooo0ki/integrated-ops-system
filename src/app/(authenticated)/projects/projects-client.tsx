@@ -54,7 +54,8 @@ const CONTRACT_TYPE_LABELS: Record<string, string> = {
 
 export default function ProjectsClient({ role }: { role: string }) {
   const router = useRouter();
-  const canCreate = role === "admin" || role === "manager";
+  const isPrivileged = role === "admin" || role === "manager";
+  const canCreate = true; // 全ロールが案件登録可能（2-2-1）
 
   const [companyFilter, setCompanyFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -196,16 +197,16 @@ export default function ProjectsClient({ role }: { role: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">プロジェクト一覧</h1>
+          <h1 className="text-xl font-bold text-slate-800">プロジェクトサマリー</h1>
           <p className="text-sm text-slate-500">{projects.length}件</p>
         </div>
         {canCreate && (
-          <button
-            onClick={() => { resetForm(); setCreateOpen(true); }}
+          <a
+            href="/projects/new"
             className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
             <Plus size={15} /> 新規登録
-          </button>
+          </a>
         )}
       </div>
 
@@ -240,7 +241,7 @@ export default function ProjectsClient({ role }: { role: string }) {
                 <th className="px-4 py-2.5 text-left font-medium text-slate-500">プロジェクト名</th>
                 <th className="px-4 py-2.5 text-left font-medium text-slate-500">会社</th>
                 <th className="px-4 py-2.5 text-left font-medium text-slate-500">ステータス</th>
-                <th className="px-4 py-2.5 text-right font-medium text-slate-500">月額契約</th>
+                {isPrivileged && <th className="px-4 py-2.5 text-right font-medium text-slate-500">月額契約</th>}
                 <th className="px-4 py-2.5 text-left font-medium text-slate-500">開始日</th>
                 <th className="px-4 py-2.5 text-right font-medium text-slate-500">メンバー</th>
                 {canCreate && <th className="px-4 py-2.5 w-10"></th>}
@@ -256,10 +257,37 @@ export default function ProjectsClient({ role }: { role: string }) {
                     {p.clientName && <span className="ml-2 text-xs text-slate-400">{p.clientName}</span>}
                   </td>
                   <td className="px-4 py-2.5 text-slate-700">{companyDisplay(p.company)}</td>
-                  <td className="px-4 py-2.5 text-slate-700">{STATUS_LABELS[p.status] ?? p.status}</td>
-                  <td className="px-4 py-2.5 text-right text-slate-800">{formatCurrency(p.monthlyContractAmount)}</td>
+                  <td className="px-4 py-2.5">
+                    {canCreate ? (
+                      <select
+                        value={p.status}
+                        onChange={async (e) => {
+                          await fetch(`/api/projects/${p.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ status: e.target.value }),
+                          });
+                          mutate();
+                        }}
+                        className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 focus:border-blue-400 focus:outline-none"
+                      >
+                        {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-slate-700">{STATUS_LABELS[p.status] ?? p.status}</span>
+                    )}
+                  </td>
+                  {isPrivileged && <td className="px-4 py-2.5 text-right text-slate-800">{formatCurrency(p.monthlyContractAmount)}</td>}
                   <td className="px-4 py-2.5 text-slate-500">{formatDate(p.startDate)}</td>
-                  <td className="px-4 py-2.5 text-right text-slate-700">{p.assignments.length}名</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      p.assignments.length > 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
+                    }`}>
+                      {p.assignments.length}名
+                    </span>
+                  </td>
                   {canCreate && (
                     <td className="px-2 py-2.5 text-right">
                       <button
@@ -340,7 +368,7 @@ export default function ProjectsClient({ role }: { role: string }) {
           {/* ポジション + 初期アサイン */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-semibold text-slate-700">ポジション定義</label>
+              <label className="text-sm font-semibold text-slate-700">想定メンバー</label>
               <button type="button" onClick={() => setPositions((p) => [...p, { positionName: "", requiredCount: "1" }])}
                 className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
                 <Plus size={13} /> 追加

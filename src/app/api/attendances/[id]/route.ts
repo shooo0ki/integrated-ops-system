@@ -5,6 +5,7 @@ import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 import { recalcAttendanceSummary } from "@/backend/attendance-summary";
+import { toTimeStr, parseTimeOnDate } from "@/backend/jst";
 
 
 type Params = { params: Promise<{ id: string }> };
@@ -65,16 +66,6 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: { code: "BAD_REQUEST", message: "リクエストボディが不正です" } }, { status: 400 });
   }
 
-  // "HH:MM"（JST）を attendance.date ベースの UTC Date に変換
-  function parseTimeOnDate(baseDate: Date, timeStr: string | null): Date | null {
-    if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) return null;
-    const [h, m] = timeStr.split(":").map(Number);
-    // baseDate は UTC midnight。JST midnight = baseDate - 9h
-    // ユーザー入力 h:m は JST なので UTC に変換: jstMidnight + h:m
-    const jstMidnightMs = baseDate.getTime() - 9 * 60 * 60 * 1000;
-    return new Date(jstMidnightMs + h * 60 * 60 * 1000 + m * 60 * 1000);
-  }
-
   const newClockIn = body.clockIn !== undefined
     ? parseTimeOnDate(attendance.date, body.clockIn)
     : undefined;
@@ -113,12 +104,6 @@ export async function PUT(req: NextRequest, { params }: Params) {
   });
 
   await recalcAttendanceSummary(updated.memberId, updated.date.toISOString().slice(0, 7));
-
-  function toTimeStr(dt: Date | null): string | null {
-    if (!dt) return null;
-    const jst = new Date(dt.getTime() + 9 * 60 * 60 * 1000);
-    return `${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
-  }
 
   const actualHours = updated.workMinutes != null
     ? Math.round((updated.workMinutes / 60) * 10) / 10

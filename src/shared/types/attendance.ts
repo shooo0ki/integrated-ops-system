@@ -13,6 +13,7 @@ export interface TodayRecord {
   doneToday: string | null;
   todoTomorrow: string | null;
   status: AttendanceStatus;
+  prevTodoTomorrow?: string | null;
 }
 
 export interface CorrectionRecord {

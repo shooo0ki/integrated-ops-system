@@ -9,7 +9,6 @@ import {
   Building2,
   CalendarDays,
   CalendarClock,
-  Settings,
   X,
   FolderOpen,
   BarChart2,
@@ -37,21 +36,23 @@ interface NavGroup {
 }
 
 const DAILY: NavGroup = {
-  title: "毎日使うもの",
+  title: "勤怠管理",
   items: [
-    { href: "/attendance", label: "打刻",       icon: Clock },
-    { href: "/calendar",   label: "カレンダー", icon: CalendarDays },
-    { href: "/schedule",   label: "勤務予定",   icon: CalendarClock },
+    { href: "/attendance",      label: "打刻",         icon: Clock },
+    { href: "/attendance/list", label: "勤怠修正申請", icon: ClipboardCheck },
+    { href: "/calendar",        label: "カレンダー",   icon: CalendarDays },
+    { href: "/schedule",        label: "勤務予定",     icon: CalendarClock },
   ],
 };
 
 const ADMIN_DAILY: NavGroup = {
-  title: "毎日使うもの",
+  title: "勤怠管理",
   items: [
     { href: "/attendance",             label: "打刻",         icon: Clock },
-    { href: "/attendance/corrections", label: "勤怠修正確認", icon: ClipboardCheck },
+    { href: "/attendance/list",        label: "勤怠修正申請", icon: ClipboardCheck },
     { href: "/calendar",               label: "カレンダー",   icon: CalendarDays },
     { href: "/schedule",               label: "勤務予定",     icon: CalendarClock },
+    { href: "/attendance/corrections", label: "勤怠修正確認", icon: ClipboardCheck },
   ],
 };
 
@@ -61,16 +62,16 @@ const MONTHLY: NavGroup = {
     { href: "/closing",      label: "請求管理",       icon: FileText },
     { href: "/pl/summary",   label: "PLサマリー",     icon: TrendingUp },
     { href: "/pl/cashflow",  label: "キャッシュフロー", icon: Wallet },
-    { href: "/evaluation",   label: "人事評価",       icon: Award },
   ],
 };
 
 const PROJECTS: NavGroup = {
-  title: "プロジェクト関連",
+  title: "プロジェクト管理",
   items: [
-    { href: "/projects", label: "プロジェクト",     icon: FolderOpen },
-    { href: "/workload", label: "工数管理",         icon: BarChart2 },
-    { href: "/skills",   label: "スキルマトリクス", icon: Star },
+    { href: "/projects",   label: "プロジェクト",     icon: FolderOpen },
+    { href: "/workload",   label: "工数管理",         icon: BarChart2 },
+    { href: "/skills",     label: "スキルマトリクス", icon: Star },
+    { href: "/evaluation", label: "評価サマリー",     icon: Award },
   ],
 };
 
@@ -89,6 +90,9 @@ const ADMIN_GROUPS: NavGroup[] = [ADMIN_DAILY, MONTHLY, PROJECTS, MEMBERS_GROUP]
 // member: 日常業務のみ（月末確認は請求管理・PLまで）
 const MEMBER_GROUPS: NavGroup[] = [
   DAILY,
+  { title: "プロジェクト", items: [
+    { href: "/projects",     label: "案件一覧",   icon: FolderOpen },
+  ]},
   { title: "月末確認", items: [
     { href: "/self-reports", label: "工数申告",   icon: ClipboardCheck },
     { href: "/closing",      label: "請求管理",   icon: FileText },
@@ -113,15 +117,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     ? [
         { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
         { href: "/mypage",    label: "マイページ",     icon: User },
-        { href: "/settings",  label: "設定",           icon: Settings },
       ]
     : [
         { href: "/mypage", label: "マイページ", icon: User },
       ];
 
   function isActive(href: string) {
-    if (href === "/dashboard") return pathname === "/dashboard";
-    return pathname === href || pathname.startsWith(href + "/");
+    if (pathname === href) return true;
+    // サブパスを持つルートは完全一致のみ（/attendance が /attendance/corrections にも反応するのを防ぐ）
+    const exactMatchRoutes = ["/attendance", "/dashboard", "/mypage"];
+    if (exactMatchRoutes.includes(href)) return false;
+    return pathname.startsWith(href + "/");
   }
 
   return (

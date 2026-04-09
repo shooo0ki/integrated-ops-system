@@ -4,14 +4,15 @@ import { useMemo, useCallback } from "react";
 import { COLORS } from "@/frontend/constants/calendar";
 import type { CalMember, CalData, AttEntry, SchedEntry } from "@/shared/types/calendar";
 import type { MonthDay } from "./calendar-utils";
-import { LocationBadge } from "./location-badge";
+
 
 const MAX_PER_CELL = 3;
 
-export function MonthView({ grid, visible, calData }: {
+export function MonthView({ grid, visible, calData, onDateClick }: {
   grid: MonthDay[][];
   visible: CalMember[];
   calData: CalData;
+  onDateClick?: (dateStr: string) => void;
 }) {
   const colorMap = useMemo(
     () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
@@ -33,8 +34,9 @@ export function MonthView({ grid, visible, calData }: {
   const getEvent = useCallback((memberId: string, date: string) => {
     const a = attMap.get(`${memberId}:${date}`);
     const s = schedMap.get(`${memberId}:${date}`);
-    if (a?.clockIn) return { type: "actual" as const, clockIn: a.clockIn, clockOut: a.clockOut, locationType: a.locationType };
-    if (s && !s.isOff && s.startTime) return { type: "schedule" as const, startTime: s.startTime, endTime: s.endTime, locationType: s.locationType };
+    const hasSchedule = !!(s && !s.isOff && s.startTime);
+    if (a?.clockIn) return { type: "actual" as const, clockIn: a.clockIn, clockOut: a.clockOut, locationType: a.locationType, hasSchedule };
+    if (hasSchedule) return { type: "schedule" as const, startTime: s!.startTime, endTime: s!.endTime, locationType: s!.locationType, hasSchedule: true };
     return null;
   }, [attMap, schedMap]);
 
@@ -58,7 +60,7 @@ export function MonthView({ grid, visible, calData }: {
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div className="overflow-x-auto">
         <div style={{ minWidth: 560 }}>
-          <div className="grid grid-cols-7 border-b border-slate-200">
+          <div className="grid border-b border-slate-200" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
             {["月", "火", "水", "木", "金", "土", "日"].map(d => (
               <div key={d} className={`py-2.5 text-center text-xs font-semibold ${d === "土" || d === "日" ? "text-slate-400" : "text-slate-500"}`}>
                 {d}
@@ -66,19 +68,22 @@ export function MonthView({ grid, visible, calData }: {
             ))}
           </div>
           {grid.map((week, wi) => (
-            <div key={wi} className="grid grid-cols-7 border-b border-slate-100 last:border-b-0">
+            <div key={wi} className="grid border-b border-slate-100 last:border-b-0" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
               {week.map(day => (
                 <div key={day.date}
                   className={`min-h-[80px] p-1.5 border-r border-slate-100 last:border-r-0 ${
                     !day.isCurrentMonth ? "bg-slate-50/60" : day.isWeekend ? "bg-slate-50/30" : ""
                   }`}
                 >
-                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium mb-1 ${
-                    day.isToday ? "bg-blue-600 text-white" :
-                    !day.isCurrentMonth ? "text-slate-300" :
-                    day.isWeekend ? "text-slate-400" : "text-slate-700"
-                  }`}>
-                    {day.dayNum}
+                  <span
+                    className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full text-xs font-medium mb-1 px-1 ${
+                      day.isToday ? "bg-blue-600 text-white" :
+                      !day.isCurrentMonth ? "text-slate-300" :
+                      day.isWeekend ? "text-slate-400" : "text-slate-700"
+                    } ${onDateClick ? "cursor-pointer hover:ring-2 hover:ring-blue-300" : ""}`}
+                    onClick={() => onDateClick?.(day.date)}
+                  >
+                    {day.dayNum}<span className="text-[9px] font-normal ml-px">({day.dayLabel})</span>
                   </span>
                   <div className="space-y-0.5">
                     {(() => {
@@ -88,16 +93,34 @@ export function MonthView({ grid, visible, calData }: {
                         <>
                           {items.slice(0, MAX_PER_CELL).map(({ member, ev }) => {
                             const color = colorMap.get(member.id) ?? COLORS[0];
+                            const isScheduleOnly = ev.type === "schedule";
+                            const isWorking = ev.type === "actual" && ev.clockOut === null;
                             return (
                               <div key={member.id}
-                                className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 ${color.bg} ${color.text} ${color.bl} ${
-                                  ev.type === "schedule" ? "opacity-60" : ""
+                                className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 outline-none ${
+                                  isScheduleOnly ? "border-dashed" : ""
                                 }`}
+                                style={{
+                                  backgroundColor: `${color.hex}25`,
+                                  color: "#334155",
+                                  borderLeftColor: color.hex,
+                                  borderLeftWidth: "3px",
+                                }}
                               >
                                 <div className="flex items-center gap-1">
                                   <span className="font-medium truncate">{member.name}</span>
+                                  {isWorking && (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                                  )}
                                 </div>
-                                <LocationBadge locationType={ev.locationType} />
+                                {ev.type === "actual"
+                                  ? <span className="text-[10px] opacity-70">
+                                      {ev.clockIn}〜{ev.clockOut ?? "勤務中"}
+                                    </span>
+                                  : <span className="text-[10px] opacity-70">
+                                      予定 {ev.startTime}〜{ev.endTime ?? ""}
+                                    </span>
+                                }
                               </div>
                             );
                           })}

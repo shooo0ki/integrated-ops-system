@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
-  if (!["admin", "manager"].includes(user.role)) return forbidden();
+  // 全ロールが案件登録可能（2-2-1）
 
   const body = await req.json().catch(() => null);
   const parsed = createProjectSchema.safeParse(body);
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     const p = await tx.project.create({
       data: {
         ...projectData,
-        startDate: new Date(projectData.startDate),
+        startDate: projectData.startDate ? new Date(projectData.startDate) : new Date(),
         endDate: endDate ? new Date(endDate) : null,
         monthlyContractAmount: projectData.monthlyContractAmount ?? 0,
         createdBy: user.id,

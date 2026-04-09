@@ -133,7 +133,7 @@ export default function ProjectNewPage() {
               <option value="on_hold">一時停止</option>
               <option value="completed">完了</option>
             </Select>
-            <Input id="startDate" type="date" label="開始日 *" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} required />
+            <Input id="startDate" type="date" label="開始日（任意）" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} />
             <div>
               {!noDeadline && (
                 <Input id="endDate" type="date" label="終了日（予定）" value={form.endDate} onChange={(e) => set("endDate", e.target.value)} />
@@ -166,7 +166,7 @@ export default function ProjectNewPage() {
 
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">ポジション定義</h2>
+            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">想定メンバー</h2>
             <Button type="button" variant="outline" size="sm" onClick={addPos}><Plus size={14} /> 追加</Button>
           </div>
           <div className="space-y-3">

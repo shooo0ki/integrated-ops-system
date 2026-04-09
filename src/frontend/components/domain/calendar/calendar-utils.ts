@@ -4,25 +4,24 @@ export function localDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function normalizeHour(h: number): number {
-  return h;
+/** "HH:MM" → 0時からの経過分 */
+export function timeToMin(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
 }
 
 export function timeToY(t: string): number {
-  const [hRaw, m] = t.split(":").map(Number);
-  const h = normalizeHour(hRaw);
-  const clamped = Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, h * 60 + m));
+  const clamped = Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, timeToMin(t)));
   return ((clamped - START_HOUR * 60) / 60) * HOUR_PX;
 }
 
 export function spanPx(start: string, end: string): number {
-  const [h1r, m1] = start.split(":").map(Number);
-  const [h2r, m2] = end.split(":").map(Number);
-  let h1 = normalizeHour(h1r);
-  let h2 = normalizeHour(h2r);
-  if (h2 <= h1) h2 += 24;
-  const s = Math.max(START_HOUR * 60, h1 * 60 + m1);
-  const e = Math.min(END_HOUR * 60, h2 * 60 + m2);
+  const startMin = timeToMin(start);
+  let endMin = timeToMin(end);
+  // 日跨ぎ判定: 分単位で比較（同一時刻や短時間の差を24h扱いしない）
+  if (endMin < startMin) endMin += 24 * 60;
+  const s = Math.max(START_HOUR * 60, startMin);
+  const e = Math.min(END_HOUR * 60, endMin);
   return Math.max(HOUR_PX / 4, ((e - s) / 60) * HOUR_PX);
 }
 
@@ -32,9 +31,7 @@ export function nowTimeStr() {
 }
 
 export function nowY() {
-  const n = new Date();
-  const h = normalizeHour(n.getHours());
-  return ((h * 60 + n.getMinutes() - START_HOUR * 60) / 60) * HOUR_PX;
+  return timeToY(nowTimeStr());
 }
 
 export type WeekDay = {
@@ -66,6 +63,7 @@ export function buildWeekDays(anchor: Date, today: string): WeekDay[] {
 export type MonthDay = {
   date: string;
   dayNum: number;
+  dayLabel: string;
   isCurrentMonth: boolean;
   isWeekend: boolean;
   isToday: boolean;
@@ -85,6 +83,7 @@ export function buildMonthGrid(year: number, month: number, today: string): Mont
       week.push({
         date: ds,
         dayNum: cur.getDate(),
+        dayLabel: DOW_JP[cur.getDay()],
         isCurrentMonth: cur.getMonth() === month - 1,
         isWeekend: cur.getDay() === 0 || cur.getDay() === 6,
         isToday: ds === today,

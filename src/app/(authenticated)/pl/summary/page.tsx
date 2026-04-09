@@ -574,7 +574,7 @@ export default function PLSummaryPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>稼働申告状況（{month}）</CardTitle>
+                  <CardTitle>月次工数申告状況（{month}）</CardTitle>
                   <div className="flex items-center gap-3 text-xs text-slate-500">
                     {!reportLoading && (
                       <>
@@ -591,6 +591,7 @@ export default function PLSummaryPage() {
                   </div>
                 </div>
               </CardHeader>
+              <p className="px-1 pb-2 text-xs text-slate-400">各メンバーがプロジェクトごとの工数配分を申告した状況です</p>
               {reportLoading ? (
                 <InlineSkeleton />
               ) : (
@@ -600,8 +601,8 @@ export default function PLSummaryPage() {
                       <tr className="text-xs text-slate-500">
                         <th className="py-2 text-left font-medium">メンバー</th>
                         <th className="py-2 text-center font-medium">申告状況</th>
-                        <th className="py-2 text-right font-medium">合計時間</th>
-                        <th className="py-2 text-left font-medium">申告プロジェクト</th>
+                        <th className="py-2 text-right font-medium">工数配分（%）</th>
+                        <th className="py-2 text-left font-medium">配分先プロジェクト</th>
                         <th className="py-2 text-right font-medium">提出日時</th>
                       </tr>
                     </thead>

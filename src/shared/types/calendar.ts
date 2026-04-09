@@ -36,4 +36,4 @@ export interface CalData {
   projects: CalProject[];
 }
 
-export type ViewMode = "week" | "month";
+export type ViewMode = "week" | "month" | "day";

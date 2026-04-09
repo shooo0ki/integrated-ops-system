@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   User, Mail, Phone, Calendar, Bell, Shield,
   Award, Pencil, MapPin, CreditCard, Star,
-  ChevronDown, ChevronUp, Clock, Briefcase,
+  ChevronDown, ChevronUp, Clock, Briefcase, Settings,
 } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
@@ -97,9 +97,16 @@ export default function MyPage() {
 
   return (
     <div className="space-y-4 max-w-3xl">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">マイページ</h1>
-        <p className="text-sm text-slate-500">{memberDetail?.name ?? ""}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">マイページ</h1>
+          <p className="text-sm text-slate-500">{memberDetail?.name ?? ""}</p>
+        </div>
+        {role === "admin" && (
+          <a href="/settings" className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <Settings size={14} /> システム設定
+          </a>
+        )}
       </div>
 
       {/* タブ */}

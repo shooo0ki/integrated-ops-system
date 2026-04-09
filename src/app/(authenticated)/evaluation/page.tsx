@@ -3,27 +3,29 @@ import { Select } from "@/frontend/components/common/input";
 
 import { useState } from "react";
 import useSWR from "swr";
-import { notFound } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { buildMonths } from "@/shared/utils";
-import { EVALUATION_AXES, calcAxisAverage, type EvalScores } from "@/shared/constants/evaluation-taxonomy";
+import { EVALUATION_AXES } from "@/shared/constants/evaluation-taxonomy";
 
 import type { EvalRow, OwnEval } from "@/shared/types/evaluation";
 import { GradeBadge, AvgBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
-import { EditModal } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
-import type { ModalState } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 const MONTHS = buildMonths(12);
 
 export default function EvaluationPage() {
   const { role, memberId, isLoading: authLoading } = useAuth();
-  const [month, setMonth] = useState(MONTHS[0]);
-  const [modal, setModal] = useState<ModalState | null>(null);
+  const searchParams = useSearchParams();
+  const [month, setMonth] = useState(searchParams.get("month") ?? MONTHS[0]);
 
   const isAdmin = role === "admin";
   const isManager = role === "manager";
   const canEdit = isAdmin;
+
+  const [sortKey, setSortKey] = useState<"name" | "total">("name");
+  const [sortAsc, setSortAsc] = useState(true);
+  const [evalFilter, setEvalFilter] = useState<"all" | "done" | "pending">("all");
 
   const adminKey = (isAdmin || isManager) ? `/api/evaluations?month=${month}` : null;
   const memberKey = (!isAdmin && !isManager && memberId) ? `/api/evaluations?month=${month}` : null;
@@ -42,26 +44,11 @@ export default function EvaluationPage() {
     return notFound();
   }
 
-  function openModal(row: EvalRow) {
-    if (!canEdit) return;
-    setModal({
-      memberId: row.memberId,
-      memberName: row.memberName,
-      targetPeriod: month,
-      scores: row.scores ?? {},
-      comment: row.comment ?? "",
-    });
-  }
-
-  function handleSaved(_updated: EvalRow) {
-    // SWR will revalidate on next focus
-  }
-
   // ---- 一般ユーザー用ビュー ----
   if (!isAdmin && !isManager) {
     return (
       <div className="mx-auto max-w-xl space-y-6">
-        <h1 className="text-xl font-bold text-slate-800">人事評価</h1>
+        <h1 className="text-xl font-bold text-slate-800">評価サマリー</h1>
 
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium text-slate-600">月:</label>
@@ -135,7 +122,7 @@ export default function EvaluationPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">人事評価</h1>
+        <h1 className="text-xl font-bold text-slate-800">評価サマリー</h1>
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium text-slate-600">月:</label>
           <Select
@@ -163,6 +150,34 @@ export default function EvaluationPage() {
         ))}
       </div>
 
+      {/* フィルター・ソート */}
+      {!loading && rows.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">表示:</span>
+            {(["all", "done", "pending"] as const).map((v) => (
+              <button key={v} onClick={() => setEvalFilter(v)}
+                className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                  evalFilter === v ? "bg-blue-600 text-white border-transparent" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                }`}>
+                {v === "all" ? "全員" : v === "done" ? "評価済み" : "未評価"}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">並び順:</span>
+            <button onClick={() => { setSortKey("name"); setSortAsc(true); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                sortKey === "name" ? "bg-blue-600 text-white border-transparent" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+              }`}>名前</button>
+            <button onClick={() => { if (sortKey === "total") { setSortAsc(!sortAsc); } else { setSortKey("total"); setSortAsc(false); } }}
+              className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                sortKey === "total" ? "bg-blue-600 text-white border-transparent" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+              }`}>総合{sortKey === "total" ? (sortAsc ? " ↑" : " ↓") : ""}</button>
+          </div>
+        </div>
+      )}
+
       {rowsError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           データ取得に失敗しました: {rowsError.message}
@@ -188,19 +203,38 @@ export default function EvaluationPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
+              {[...rows]
+                .filter((r) => evalFilter === "all" ? true : evalFilter === "done" ? r.evaluated : !r.evaluated)
+                .sort((a, b) => {
+                  if (sortKey === "total") {
+                    const av = a.totalAvg ?? -1, bv = b.totalAvg ?? -1;
+                    return sortAsc ? av - bv : bv - av;
+                  }
+                  return sortAsc ? a.memberName.localeCompare(b.memberName) : b.memberName.localeCompare(a.memberName);
+                })
+                .map((row) => (
                 <tr key={row.memberId} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium text-slate-800">{row.memberName}</td>
                   {row.evaluated ? (
                     <>
-                      {EVALUATION_AXES.map((axis) => (
-                        <td key={axis.id} className="px-3 py-3 text-center">
-                          <AvgBadge avg={row.axisAverages?.[axis.key] ?? null} />
-                        </td>
-                      ))}
-                      <td className="px-3 py-3 text-center font-semibold text-blue-700">
-                        {row.totalAvg != null ? row.totalAvg.toFixed(2) : "—"}
-                      </td>
+                      {EVALUATION_AXES.map((axis) => {
+                        const avg = row.axisAverages?.[axis.key] ?? null;
+                        const cellBg = avg == null ? "" : avg >= 3.0 ? "bg-green-50" : avg >= 2.0 ? "bg-blue-50" : avg >= 1.0 ? "bg-amber-50" : "bg-red-50";
+                        return (
+                          <td key={axis.id} className={`px-3 py-3 text-center ${cellBg}`}>
+                            <AvgBadge avg={avg} />
+                          </td>
+                        );
+                      })}
+                      {(() => {
+                        const avg = row.totalAvg;
+                        const cellBg = avg == null ? "" : avg >= 3.0 ? "bg-green-50" : avg >= 2.0 ? "bg-blue-50" : avg >= 1.0 ? "bg-amber-50" : "bg-red-50";
+                        return (
+                          <td className={`px-3 py-3 text-center font-semibold ${cellBg}`}>
+                            <AvgBadge avg={avg ?? null} />
+                          </td>
+                        );
+                      })()}
                       <td className="max-w-xs px-4 py-3 text-slate-500 truncate">
                         {row.comment ?? "—"}
                       </td>
@@ -212,12 +246,12 @@ export default function EvaluationPage() {
                   )}
                   {canEdit && (
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => openModal(row)}
+                      <a
+                        href={`/evaluation/${row.memberId}?month=${month}`}
                         className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
                       >
-                        {row.evaluated ? "編集" : "評価する"}
-                      </button>
+                        {row.evaluated ? "編集" : "評価する"} →
+                      </a>
                     </td>
                   )}
                 </tr>
@@ -227,13 +261,6 @@ export default function EvaluationPage() {
         </div>
       )}
 
-      {modal && (
-        <EditModal
-          initial={modal}
-          onClose={() => setModal(null)}
-          onSaved={handleSaved}
-        />
-      )}
     </div>
   );
 }

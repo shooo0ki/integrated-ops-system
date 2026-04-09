@@ -7,13 +7,15 @@ import type { ViewMode } from "@/shared/types/calendar";
 import { useCalendarData } from "@/frontend/hooks/calendar/use-calendar-data";
 import { WeekView } from "@/frontend/components/domain/calendar/week-view";
 import { MonthView } from "@/frontend/components/domain/calendar/month-view";
+import { DayView } from "@/frontend/components/domain/calendar/day-view";
 import { CalendarSkeleton, InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 export default function CalendarPage() {
   const {
     view, anchor, displayYear, displayMonth, selectedIds, selectedProjId, loading,
-    calData, weekDays, monthGrid, memberColorMap, projectFilteredMembers, visibleMembers, weekLabel,
-    setView, toggleMember, selectAll, deselectAll, handleProjectFilter, goToday, prev, next,
+    calData, weekDays, monthGrid, memberColorMap, projectFilteredMembers, visibleMembers,
+    weekLabel, dayLabel, selectedDate,
+    setView, toggleMember, selectAll, deselectAll, handleProjectFilter, goToday, goToDay, prev, next,
   } = useCalendarData();
 
   const [filterOpen, setFilterOpen] = useState(false);
@@ -29,7 +31,7 @@ export default function CalendarPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">全体カレンダー</h1>
           <p className="text-sm text-slate-500">
-            {view === "week" ? weekLabel : `${displayYear}年${displayMonth}月`}
+            {view === "day" ? dayLabel : view === "week" ? weekLabel : `${displayYear}年${displayMonth}月`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -48,12 +50,12 @@ export default function CalendarPage() {
             </button>
           </div>
           <div className="flex gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
-            {(["week", "month"] as ViewMode[]).map(v => (
+            {(["day", "week", "month"] as ViewMode[]).map(v => (
               <button key={v} onClick={() => setView(v)}
                 className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
                   view === v ? "bg-white shadow text-slate-800" : "text-slate-500 hover:text-slate-700"
                 }`}>
-                {v === "week" ? "週" : "月"}
+                {v === "day" ? "日" : v === "week" ? "週" : "月"}
               </button>
             ))}
           </div>
@@ -68,7 +70,7 @@ export default function CalendarPage() {
         >
           <span className="flex items-center gap-2 text-slate-600 font-medium">
             <Users size={14} />
-            メンバー絞り込み
+            絞り込み（プロジェクト / メンバー）
             <span className="text-xs text-slate-400 font-normal">
               {visibleMembers.length}/{projectFilteredMembers.length}名 選択中
             </span>
@@ -111,6 +113,10 @@ export default function CalendarPage() {
             )}
 
             <div className="flex flex-wrap gap-1.5 items-center">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0 mr-1">
+                <Users size={13} />
+                <span>メンバー:</span>
+              </div>
               <div className="flex gap-1 mr-1 shrink-0">
                 <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">全選択</button>
                 <span className="text-slate-300 select-none">|</span>
@@ -122,7 +128,7 @@ export default function CalendarPage() {
                 return (
                   <button key={m.id} onClick={() => toggleMember(m.id)}
                     className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-all ${
-                      on ? `${color.bg} ${color.text} border-transparent` : "bg-white text-slate-400 border-slate-200"
+                      on ? `${color.bg} ${color.text} ${color.bl}` : "bg-white text-slate-400 border-slate-200"
                     }`}
                   >
                     <span className="h-2 w-2 rounded-full shrink-0"
@@ -139,12 +145,16 @@ export default function CalendarPage() {
       {/* 凡例 */}
       <div className="flex items-center gap-5 text-xs text-slate-500 px-1 flex-wrap">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3.5 rounded-sm border-l-2 border-l-blue-400 bg-blue-100 opacity-60" />
+          <span className="h-3 w-3.5 rounded-sm border-l-2 border-dashed border-l-blue-400 bg-blue-100 opacity-30" />
           勤務予定
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3.5 rounded-sm border-l-2 border-l-blue-400 bg-blue-100" />
           勤怠実績
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+          勤務中
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500 shrink-0" />
@@ -163,10 +173,12 @@ export default function CalendarPage() {
       {/* ─ カレンダー本体 ─ */}
       {loading ? (
         <InlineSkeleton />
+      ) : view === "day" && selectedDate ? (
+        <DayView date={selectedDate} visible={visibleMembers} calData={calData} />
       ) : view === "week" ? (
-        <WeekView weekDays={weekDays} visible={visibleMembers} calData={calData} />
+        <WeekView weekDays={weekDays} visible={visibleMembers} calData={calData} onDateClick={goToDay} />
       ) : (
-        <MonthView grid={monthGrid} visible={visibleMembers} calData={calData} />
+        <MonthView grid={monthGrid} visible={visibleMembers} calData={calData} onDateClick={goToDay} />
       )}
     </div>
   );

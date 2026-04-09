@@ -1,24 +1,24 @@
 "use client";
 import { Select } from "@/frontend/components/common/input";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
-import { Copy, CheckCircle, RotateCcw, Save, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle, Save, AlertTriangle, Trash2 } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { Card } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
 
-type WorkType = "出社" | "オンライン" | "休み";
+type WorkType = "出社" | "オンライン";
 
 const WORK_TYPE_TO_LOCATION: Record<WorkType, string> = {
-  "出社": "office", "オンライン": "online", "休み": "office",
+  "出社": "office", "オンライン": "online",
 };
 const LOCATION_TO_WORK_TYPE: Record<string, WorkType> = {
   "office": "出社", "online": "オンライン",
 };
 
 interface DayEntry {
-  date: string;       // YYYY-MM-DD
+  date: string;
   dayLabel: string;
   isHoliday: boolean;
   isOff: boolean;
@@ -31,28 +31,30 @@ const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 const DEFAULT_START = "09:30";
 const DEFAULT_END = "18:30";
 
-// 来週の月曜から日曜を生成
-function buildNextWeek(): DayEntry[] {
-  const today = new Date();
-  const dow = today.getDay(); // 0=日
-  const daysToNextMon = dow === 0 ? 1 : 8 - dow;
-  const entries: DayEntry[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + daysToNextMon + i);
+/** 指定日を含む週（月〜日）を生成 */
+function buildWeek(anchor: Date): DayEntry[] {
+  const dow = anchor.getDay();
+  const mon = new Date(anchor);
+  mon.setDate(anchor.getDate() + (dow === 0 ? -6 : 1 - dow));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
     const dayLabel = DAY_LABELS[d.getDay()];
-    const isHoliday = d.getDay() === 0 || d.getDay() === 6;
-    entries.push({
+    return {
       date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
       dayLabel,
-      isHoliday,
+      isHoliday: d.getDay() === 0 || d.getDay() === 6,
       isOff: false,
       plannedStart: DEFAULT_START,
       plannedEnd: DEFAULT_END,
-      workType: "出社",
-    });
-  }
-  return entries;
+      workType: "出社" as WorkType,
+    };
+  });
+}
+
+function todayStr(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
 }
 
 // ─── 管理者向け：未提出アラート ───────────────────────────
@@ -66,11 +68,8 @@ interface UnsubmittedData {
 
 function AdminUnsubmittedAlert() {
   const { data } = useSWR<UnsubmittedData>("/api/schedules/unsubmitted");
-
   if (!data || data.unsubmitted.length === 0) return null;
-
   const weekLabel = `${data.from.slice(5).replace("-", "/")} 〜 ${data.to.slice(5).replace("-", "/")}`;
-
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       <div className="flex items-start gap-2">
@@ -92,27 +91,47 @@ function AdminUnsubmittedAlert() {
 
 export default function SchedulePage() {
   const { memberId, name, role } = useAuth();
+  const isAdmin = role === "admin" || role === "manager";
+
+  // 週ナビ: anchor を基準に週を計算
+  const [anchor, setAnchor] = useState<Date | null>(null);
   const [entries, setEntries] = useState<DayEntry[]>([]);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const today = useMemo(() => todayStr(), []);
 
+  // 初期表示: 来週
   useEffect(() => {
-    setEntries(buildNextWeek());
+    const now = new Date();
+    const dow = now.getDay();
+    const nextMon = new Date(now);
+    nextMon.setDate(now.getDate() + (dow === 0 ? 1 : 8 - dow));
+    setAnchor(nextMon);
   }, []);
 
-  const nextWeek = entries;
-  const weekLabel = nextWeek.length >= 7
-    ? `${nextWeek[0].date.slice(5).replace("-", "/")} 〜 ${nextWeek[6].date.slice(5).replace("-", "/")}`
+  // anchor が変わったら entries を再生成
+  useEffect(() => {
+    if (!anchor) return;
+    setEntries(buildWeek(anchor));
+    setSaved(false);
+  }, [anchor]);
+
+  const weekLabel = entries.length >= 7
+    ? `${entries[0].date.slice(5).replace("-", "/")} 〜 ${entries[6].date.slice(5).replace("-", "/")}`
     : "";
 
-  const from = nextWeek[0]?.date;
-  const to = nextWeek[6]?.date;
-  const { data: existingSchedules } = useSWR<{ date: string; startTime: string | null; endTime: string | null; isOff: boolean; locationType: string }[]>(
+  const from = entries[0]?.date;
+  const to = entries[6]?.date;
+  const { data: existingSchedules, mutate: mutateSchedules } = useSWR<{ date: string; startTime: string | null; endTime: string | null; isOff: boolean; locationType: string }[]>(
     memberId && from && to ? `/api/members/${memberId}/work-schedules?from=${from}&to=${to}` : null
   );
 
-  // 既存のスケジュールを取得して上書き
+  const registeredDates = useMemo(
+    () => new Set((existingSchedules ?? []).map((s) => s.date)),
+    [existingSchedules]
+  );
+
+  // 既存スケジュールを反映
   useEffect(() => {
     if (!Array.isArray(existingSchedules) || existingSchedules.length === 0) return;
     setEntries((prev) =>
@@ -128,35 +147,68 @@ export default function SchedulePage() {
         };
       })
     );
-    setLoaded(true);
   }, [existingSchedules]);
+
+  // 週ナビ
+  function prevWeek() {
+    if (!anchor) return;
+    const d = new Date(anchor);
+    d.setDate(d.getDate() - 7);
+    setAnchor(d);
+  }
+  function nextWeek() {
+    if (!anchor) return;
+    const d = new Date(anchor);
+    d.setDate(d.getDate() + 7);
+    setAnchor(d);
+  }
+  function goThisWeek() {
+    setAnchor(new Date());
+  }
+  function goNextWeek() {
+    const now = new Date();
+    const dow = now.getDay();
+    const nextMon = new Date(now);
+    nextMon.setDate(now.getDate() + (dow === 0 ? 1 : 8 - dow));
+    setAnchor(nextMon);
+  }
+
+  /** その日を編集可能か判定 */
+  function canEditDay(date: string): boolean {
+    if (isAdmin) return true;
+    // メンバー: 当日以降は編集不可（前日までOK）
+    return date > today;
+  }
 
   function update(i: number, key: keyof DayEntry, value: string | boolean) {
     setEntries((prev) => prev.map((e, idx) => idx === i ? { ...e, [key]: value } : e));
     setSaved(false);
   }
 
-  function copyFromPrev() {
-    setEntries((prev) =>
-      prev.map((e) => ({ ...e, plannedStart: DEFAULT_START, plannedEnd: DEFAULT_END, workType: "出社", isOff: false }))
-    );
-  }
-
-  function resetDefault() {
-    setEntries(buildNextWeek());
-    setSaved(false);
+  async function handleDelete(date: string) {
+    if (!memberId) return;
+    const res = await fetch(`/api/members/${memberId}/work-schedules?date=${date}`, { method: "DELETE" });
+    if (res.ok) {
+      setEntries((prev) => prev.map((e) =>
+        e.date === date ? { ...e, isOff: false, plannedStart: DEFAULT_START, plannedEnd: DEFAULT_END, workType: "出社" as WorkType } : e
+      ));
+      await mutateSchedules();
+    }
   }
 
   async function handleSave() {
     if (!memberId) return;
     setSaving(true);
-    const payload = entries.map((e) => ({
-      date: e.date,
-      startTime: e.isOff ? null : e.plannedStart,
-      endTime: e.isOff ? null : e.plannedEnd,
-      isOff: e.isOff,
-      locationType: WORK_TYPE_TO_LOCATION[e.workType],
-    }));
+    // 編集可能な日のみ送信
+    const payload = entries
+      .filter((e) => canEditDay(e.date))
+      .map((e) => ({
+        date: e.date,
+        startTime: e.isOff ? null : e.plannedStart,
+        endTime: e.isOff ? null : e.plannedEnd,
+        isOff: e.isOff,
+        locationType: WORK_TYPE_TO_LOCATION[e.workType] ?? "office",
+      }));
 
     const res = await fetch(`/api/members/${memberId}/work-schedules`, {
       method: "POST",
@@ -166,15 +218,37 @@ export default function SchedulePage() {
     setSaving(false);
     if (res.ok) {
       setSaved(true);
+      await mutateSchedules();
       setTimeout(() => setSaved(false), 3000);
     }
   }
 
+  if (!anchor) return null;
+
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">勤務予定登録</h1>
-        <p className="text-sm text-slate-500">{name} — 翌週（{weekLabel}）</p>
+    <div className="space-y-5 max-w-2xl">
+      {/* ヘッダー + 週ナビ */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">勤務予定</h1>
+          <p className="text-sm text-slate-500">{name} — {weekLabel}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={goThisWeek} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            今週
+          </button>
+          <button onClick={goNextWeek} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            来週
+          </button>
+          <div className="flex">
+            <button onClick={prevWeek} className="rounded-l-md border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50">
+              <ChevronLeft size={16} />
+            </button>
+            <button onClick={nextWeek} className="rounded-r-md border border-slate-200 border-l-0 p-1.5 text-slate-500 hover:bg-slate-50">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {(role === "admin" || role === "manager") && <AdminUnsubmittedAlert />}
@@ -185,42 +259,56 @@ export default function SchedulePage() {
         </div>
       )}
 
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={copyFromPrev}>
-          <Copy size={14} /> 前週からコピー
-        </Button>
-        <Button variant="outline" size="sm" onClick={resetDefault}>
-          <RotateCcw size={14} /> デフォルトに戻す
-        </Button>
-      </div>
+      {/* 日ごとのカード */}
+      <div className="space-y-2">
+        {entries.map((entry, i) => {
+          const isRegistered = registeredDates.has(entry.date);
+          const editable = canEditDay(entry.date);
+          const isPast = entry.date <= today;
 
-      <Card>
-        <div className="space-y-2">
-          {entries.map((entry, i) => (
-            <div
-              key={entry.date}
-              className={`rounded-lg px-4 py-3 ${
-                entry.isOff ? "bg-slate-50" : "bg-white border border-slate-200"
-              }`}
-            >
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="w-20">
-                  <span
-                    className={`font-semibold ${
+          return (
+            <Card key={entry.date}>
+              <div className={`${!editable ? "opacity-60" : ""}`}>
+                {/* 日付ヘッダー行 */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {/* 登録状態ドット */}
+                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${isRegistered ? "bg-green-500" : "bg-slate-300"}`} />
+                    <span className={`font-semibold ${
                       entry.dayLabel === "土" ? "text-blue-500" : entry.dayLabel === "日" ? "text-red-500" : "text-slate-800"
-                    }`}
-                  >
-                    {entry.dayLabel}
-                  </span>
-                  <span className="ml-1.5 text-xs text-slate-400">{entry.date.slice(5).replace("-", "/")}</span>
+                    }`}>
+                      {entry.date.slice(5).replace("-", "/")}({entry.dayLabel})
+                    </span>
+                    {/* ステータスバッジ */}
+                    {isRegistered ? (
+                      <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">登録済み</span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-400">未登録</span>
+                    )}
+                    {isPast && !isAdmin && (
+                      <span className="text-[10px] text-slate-400">（変更不可）</span>
+                    )}
+                  </div>
+                  {/* 削除ボタン */}
+                  {isRegistered && editable && (
+                    <button
+                      onClick={() => handleDelete(entry.date)}
+                      className="text-slate-400 hover:text-red-500 transition-colors"
+                      title="この日の予定を削除"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
 
-                <>
+                {/* フォーム行 */}
+                <div className="flex items-center gap-4 flex-wrap">
                   <label className="flex items-center gap-1.5 text-sm text-slate-600 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={entry.isOff}
                       onChange={(e) => update(i, "isOff", e.target.checked)}
+                      disabled={!editable}
                       className="rounded"
                     />
                     終日休み
@@ -231,6 +319,7 @@ export default function SchedulePage() {
                       <Select
                         value={entry.workType}
                         onChange={(e) => update(i, "workType", e.target.value as WorkType)}
+                        disabled={!editable}
                         className="px-2 py-1"
                       >
                         <option>出社</option>
@@ -242,14 +331,16 @@ export default function SchedulePage() {
                           type="time"
                           value={entry.plannedStart}
                           onChange={(e) => update(i, "plannedStart", e.target.value)}
-                          className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
+                          disabled={!editable}
+                          className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
                         />
                         <span className="text-slate-400 text-sm">〜</span>
                         <input
                           type="time"
                           value={entry.plannedEnd}
                           onChange={(e) => update(i, "plannedEnd", e.target.value)}
-                          className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
+                          disabled={!editable}
+                          className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
                         />
                       </div>
 
@@ -257,25 +348,26 @@ export default function SchedulePage() {
                         const [sh, sm] = entry.plannedStart.split(":").map(Number);
                         const [eh, em] = entry.plannedEnd.split(":").map(Number);
                         const h = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
-                        return <span className="text-xs text-slate-400">（実働 {h.toFixed(1)}h）</span>;
+                        return <span className="text-xs text-slate-400">（{h.toFixed(1)}h）</span>;
                       })()}
                     </>
                   )}
-                </>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+            </Card>
+          );
+        })}
+      </div>
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-400">
+          {isAdmin ? "※ 管理者はすべての日を変更可能" : "※ 当日以降は管理者のみ変更可能"}
+        </p>
         <Button variant="primary" size="lg" onClick={handleSave} disabled={saving || !memberId}>
           <Save size={16} />
           {saving ? "保存中..." : "保存する"}
         </Button>
       </div>
-
-      <p className="text-xs text-slate-400 text-right">※ 前日までは本人が変更可能。当日以降は管理者のみ</p>
     </div>
   );
 }
