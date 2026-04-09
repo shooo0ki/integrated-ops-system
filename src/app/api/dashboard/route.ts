@@ -129,8 +129,51 @@ export async function GET(req: Request) {
     }
   }
 
+  // 3指標: メンバー総数, 人件費合計, 予測人件費（5-3-2）
+  let memberCount = 0;
+  let totalLaborCost = 0;
+  let projectedLaborCost = 0;
+  if (isAdmin && !isLite) {
+    try {
+      const allMembersForCost = await prisma.member.findMany({
+        where: { deletedAt: null, leftAt: null },
+        select: { id: true, salaryType: true, salaryAmount: true },
+      });
+      memberCount = allMembersForCost.length;
+
+      const summaries = await prisma.monthlyAttendanceSummary.findMany({
+        where: { targetMonth: currentMonth },
+        select: { memberId: true, totalMinutes: true },
+      });
+      const workMinMap = new Map(summaries.map((s) => [s.memberId, s.totalMinutes]));
+
+      const daysInMonth = new Date(jstNow.getUTCFullYear(), jstNow.getUTCMonth() + 1, 0).getUTCDate();
+      const daysPassed = jstNow.getUTCDate();
+
+      for (const m of allMembersForCost) {
+        const workedMin = workMinMap.get(m.id) ?? 0;
+        if (m.salaryType === "hourly") {
+          totalLaborCost += Math.round((workedMin / 60) * m.salaryAmount);
+        } else {
+          totalLaborCost += m.salaryAmount;
+        }
+        // 予測
+        if (m.salaryType === "monthly") {
+          projectedLaborCost += m.salaryAmount;
+        } else if (daysPassed > 0 && workedMin > 0) {
+          projectedLaborCost += Math.round(((workedMin / daysPassed) * daysInMonth / 60) * m.salaryAmount);
+        }
+      }
+    } catch (e) {
+      console.error("[Dashboard] 3指標の集計でエラー:", e);
+    }
+  }
+
   return NextResponse.json({
     today: todayStr,
+    memberCount: isAdmin && !isLite ? memberCount : null,
+    totalLaborCost: isAdmin && !isLite ? totalLaborCost : null,
+    projectedLaborCost: isAdmin && !isLite ? projectedLaborCost : null,
     myAttendance: myAttendance
       ? {
           id: myAttendance.id,

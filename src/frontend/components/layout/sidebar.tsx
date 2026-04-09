@@ -9,7 +9,6 @@ import {
   Building2,
   CalendarDays,
   CalendarClock,
-  Settings,
   X,
   FolderOpen,
   BarChart2,
@@ -91,6 +90,9 @@ const ADMIN_GROUPS: NavGroup[] = [ADMIN_DAILY, MONTHLY, PROJECTS, MEMBERS_GROUP]
 // member: 日常業務のみ（月末確認は請求管理・PLまで）
 const MEMBER_GROUPS: NavGroup[] = [
   DAILY,
+  { title: "プロジェクト", items: [
+    { href: "/projects",     label: "案件一覧",   icon: FolderOpen },
+  ]},
   { title: "月末確認", items: [
     { href: "/self-reports", label: "工数申告",   icon: ClipboardCheck },
     { href: "/closing",      label: "請求管理",   icon: FileText },
@@ -115,7 +117,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     ? [
         { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
         { href: "/mypage",    label: "マイページ",     icon: User },
-        { href: "/settings",  label: "設定",           icon: Settings },
       ]
     : [
         { href: "/mypage", label: "マイページ", icon: User },

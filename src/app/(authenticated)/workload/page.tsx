@@ -147,7 +147,7 @@ export default function WorkloadPage() {
                 viewMode === "monthly" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
-              単月
+              月次
             </button>
             <button
               onClick={() => { setViewMode("period"); setEditMode(false); }}
@@ -155,7 +155,7 @@ export default function WorkloadPage() {
                 viewMode === "period" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
-              期間
+              期間比較
             </button>
           </div>
 

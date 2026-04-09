@@ -133,7 +133,7 @@ export default function ProjectNewPage() {
               <option value="on_hold">一時停止</option>
               <option value="completed">完了</option>
             </Select>
-            <Input id="startDate" type="date" label="開始日 *" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} required />
+            <Input id="startDate" type="date" label="開始日（任意）" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} />
             <div>
               {!noDeadline && (
                 <Input id="endDate" type="date" label="終了日（予定）" value={form.endDate} onChange={(e) => set("endDate", e.target.value)} />

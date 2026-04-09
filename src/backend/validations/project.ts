@@ -6,7 +6,7 @@ export const createProjectSchema = z.object({
   status: z.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
   company: z.enum(["boost", "salt2"]),
   projectType: z.enum(["boost_dispatch", "salt2_own"]).optional(),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   clientName: z.string().max(200).optional(),
   contractType: z.enum(["quasi_mandate", "contract", "in_house", "other"]).optional().nullable(),

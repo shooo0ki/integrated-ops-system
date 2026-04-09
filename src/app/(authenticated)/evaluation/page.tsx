@@ -23,6 +23,10 @@ export default function EvaluationPage() {
   const isManager = role === "manager";
   const canEdit = isAdmin;
 
+  const [sortKey, setSortKey] = useState<"name" | "total">("name");
+  const [sortAsc, setSortAsc] = useState(true);
+  const [evalFilter, setEvalFilter] = useState<"all" | "done" | "pending">("all");
+
   const adminKey = (isAdmin || isManager) ? `/api/evaluations?month=${month}` : null;
   const memberKey = (!isAdmin && !isManager && memberId) ? `/api/evaluations?month=${month}` : null;
 
@@ -146,6 +150,34 @@ export default function EvaluationPage() {
         ))}
       </div>
 
+      {/* フィルター・ソート */}
+      {!loading && rows.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">表示:</span>
+            {(["all", "done", "pending"] as const).map((v) => (
+              <button key={v} onClick={() => setEvalFilter(v)}
+                className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                  evalFilter === v ? "bg-blue-600 text-white border-transparent" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                }`}>
+                {v === "all" ? "全員" : v === "done" ? "評価済み" : "未評価"}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">並び順:</span>
+            <button onClick={() => { setSortKey("name"); setSortAsc(true); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                sortKey === "name" ? "bg-blue-600 text-white border-transparent" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+              }`}>名前</button>
+            <button onClick={() => { if (sortKey === "total") { setSortAsc(!sortAsc); } else { setSortKey("total"); setSortAsc(false); } }}
+              className={`rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+                sortKey === "total" ? "bg-blue-600 text-white border-transparent" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+              }`}>総合{sortKey === "total" ? (sortAsc ? " ↑" : " ↓") : ""}</button>
+          </div>
+        </div>
+      )}
+
       {rowsError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           データ取得に失敗しました: {rowsError.message}
@@ -171,7 +203,16 @@ export default function EvaluationPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
+              {[...rows]
+                .filter((r) => evalFilter === "all" ? true : evalFilter === "done" ? r.evaluated : !r.evaluated)
+                .sort((a, b) => {
+                  if (sortKey === "total") {
+                    const av = a.totalAvg ?? -1, bv = b.totalAvg ?? -1;
+                    return sortAsc ? av - bv : bv - av;
+                  }
+                  return sortAsc ? a.memberName.localeCompare(b.memberName) : b.memberName.localeCompare(a.memberName);
+                })
+                .map((row) => (
                 <tr key={row.memberId} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium text-slate-800">{row.memberName}</td>
                   {row.evaluated ? (
