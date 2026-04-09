@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import {
@@ -39,16 +39,19 @@ export default function EvaluationDetailPage({
 
   const [scores, setScores] = useState<EvalScores>({});
   const [comment, setComment] = useState("");
-  const [initialized, setInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // データ取得後に初期値をセット
-  if (row && !initialized) {
+  // データ取得後に初期値をセット（render中setStateを避ける）
+  useEffect(() => {
+    if (!row) {
+      setScores({});
+      setComment("");
+      return;
+    }
     setScores(row.scores ?? {});
     setComment(row.comment ?? "");
-    setInitialized(true);
-  }
+  }, [row?.id, monthParam]);
 
   const totalAvg = calcTotalAverage(scores);
 
