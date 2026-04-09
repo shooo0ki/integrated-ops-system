@@ -9,13 +9,10 @@ import {
   EVALUATION_AXES,
   GRADES,
   GRADE_LABELS,
-  type EvalScores,
   type ScoreGrade,
 } from "@/shared/constants/evaluation-taxonomy";
 import type { EvalRow } from "@/shared/types/evaluation";
 import { GradeBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
-import { EditModal } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
-import type { ModalState } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 const MONTHS = buildMonths(12);
@@ -41,23 +38,11 @@ export default function SkillsPage() {
   const canEdit = isAdmin;
 
   const [month, setMonth] = useState(MONTHS[0]);
-  const [modal, setModal] = useState<ModalState | null>(null);
 
   const adminKey = (isAdmin || isManager) ? `/api/skills?month=${month}` : null;
   const { data: rowsData, isLoading: rowsLoading, error: rowsError } = useSWR<EvalRow[]>(adminKey);
   const rows = rowsData ?? [];
   const loading = authLoading || rowsLoading || (adminKey != null && rowsData === undefined && !rowsError);
-
-  function openModal(row: EvalRow) {
-    if (!canEdit) return;
-    setModal({
-      memberId: row.memberId,
-      memberName: row.memberName,
-      targetPeriod: month,
-      scores: row.scores ?? row.prevScores ?? {},
-      comment: row.comment ?? "",
-    });
-  }
 
   return (
     <div className="space-y-6">
@@ -147,15 +132,15 @@ export default function SkillsPage() {
                 <tr key={row.memberId} className="hover:bg-slate-50">
                   <td className="sticky left-0 z-10 bg-white border border-slate-200 px-4 py-2 font-medium text-slate-700 whitespace-nowrap">
                     <span className="inline-flex items-center gap-2">
-                      {canEdit && (
-                        <button
-                          onClick={() => openModal(row)}
-                          className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                        >
-                          {row.evaluated ? "編集" : "評価"}
-                        </button>
-                      )}
                       {row.memberName}
+                      {canEdit && (
+                        <a
+                          href={`/evaluation/${row.memberId}?month=${month}`}
+                          className="text-[10px] text-blue-600 hover:underline"
+                        >
+                          評価 →
+                        </a>
+                      )}
                     </span>
                   </td>
                   {row.evaluated ? (
@@ -182,15 +167,6 @@ export default function SkillsPage() {
         </div>
       )}
 
-      {modal && (
-        <EditModal
-          initial={modal}
-          onClose={() => setModal(null)}
-          onSaved={() => {}}
-          apiEndpoint="/api/skills"
-          title="スキル評価"
-        />
-      )}
     </div>
   );
 }

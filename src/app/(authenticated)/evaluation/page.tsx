@@ -6,7 +6,7 @@ import useSWR from "swr";
 import { notFound, useSearchParams } from "next/navigation";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { buildMonths } from "@/shared/utils";
-import { EVALUATION_AXES, calcAxisAverage, type EvalScores } from "@/shared/constants/evaluation-taxonomy";
+import { EVALUATION_AXES } from "@/shared/constants/evaluation-taxonomy";
 
 import type { EvalRow, OwnEval } from "@/shared/types/evaluation";
 import { GradeBadge, AvgBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
@@ -44,7 +44,7 @@ export default function EvaluationPage() {
   if (!isAdmin && !isManager) {
     return (
       <div className="mx-auto max-w-xl space-y-6">
-        <h1 className="text-xl font-bold text-slate-800">人事評価</h1>
+        <h1 className="text-xl font-bold text-slate-800">評価サマリー</h1>
 
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium text-slate-600">月:</label>
@@ -118,7 +118,7 @@ export default function EvaluationPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">人事評価</h1>
+        <h1 className="text-xl font-bold text-slate-800">評価サマリー</h1>
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium text-slate-600">月:</label>
           <Select
@@ -176,14 +176,24 @@ export default function EvaluationPage() {
                   <td className="px-4 py-3 font-medium text-slate-800">{row.memberName}</td>
                   {row.evaluated ? (
                     <>
-                      {EVALUATION_AXES.map((axis) => (
-                        <td key={axis.id} className="px-3 py-3 text-center">
-                          <AvgBadge avg={row.axisAverages?.[axis.key] ?? null} />
-                        </td>
-                      ))}
-                      <td className="px-3 py-3 text-center font-semibold text-blue-700">
-                        {row.totalAvg != null ? row.totalAvg.toFixed(2) : "—"}
-                      </td>
+                      {EVALUATION_AXES.map((axis) => {
+                        const avg = row.axisAverages?.[axis.key] ?? null;
+                        const cellBg = avg == null ? "" : avg >= 3.0 ? "bg-green-50" : avg >= 2.0 ? "bg-blue-50" : avg >= 1.0 ? "bg-amber-50" : "bg-red-50";
+                        return (
+                          <td key={axis.id} className={`px-3 py-3 text-center ${cellBg}`}>
+                            <AvgBadge avg={avg} />
+                          </td>
+                        );
+                      })}
+                      {(() => {
+                        const avg = row.totalAvg;
+                        const cellBg = avg == null ? "" : avg >= 3.0 ? "bg-green-50" : avg >= 2.0 ? "bg-blue-50" : avg >= 1.0 ? "bg-amber-50" : "bg-red-50";
+                        return (
+                          <td className={`px-3 py-3 text-center font-semibold ${cellBg}`}>
+                            <AvgBadge avg={avg ?? null} />
+                          </td>
+                        );
+                      })()}
                       <td className="max-w-xs px-4 py-3 text-slate-500 truncate">
                         {row.comment ?? "—"}
                       </td>

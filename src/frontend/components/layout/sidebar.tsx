@@ -72,7 +72,7 @@ const PROJECTS: NavGroup = {
     { href: "/projects",   label: "プロジェクト",     icon: FolderOpen },
     { href: "/workload",   label: "工数管理",         icon: BarChart2 },
     { href: "/skills",     label: "スキルマトリクス", icon: Star },
-    { href: "/evaluation", label: "人事評価",         icon: Award },
+    { href: "/evaluation", label: "評価サマリー",     icon: Award },
   ],
 };
 

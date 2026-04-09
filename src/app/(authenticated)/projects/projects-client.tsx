@@ -196,7 +196,7 @@ export default function ProjectsClient({ role }: { role: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">プロジェクト一覧</h1>
+          <h1 className="text-xl font-bold text-slate-800">プロジェクトサマリー</h1>
           <p className="text-sm text-slate-500">{projects.length}件</p>
         </div>
         {canCreate && (
@@ -340,7 +340,7 @@ export default function ProjectsClient({ role }: { role: string }) {
           {/* ポジション + 初期アサイン */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-semibold text-slate-700">ポジション定義</label>
+              <label className="text-sm font-semibold text-slate-700">想定メンバー</label>
               <button type="button" onClick={() => setPositions((p) => [...p, { positionName: "", requiredCount: "1" }])}
                 className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
                 <Plus size={13} /> 追加

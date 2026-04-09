@@ -166,7 +166,7 @@ export default function ProjectNewPage() {
 
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">ポジション定義</h2>
+            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">想定メンバー</h2>
             <Button type="button" variant="outline" size="sm" onClick={addPos}><Plus size={14} /> 追加</Button>
           </div>
           <div className="space-y-3">

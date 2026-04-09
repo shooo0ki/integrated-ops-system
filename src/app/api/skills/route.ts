@@ -44,32 +44,33 @@ export async function GET(req: NextRequest) {
 
   try {
     if (isAdmin || isManager) {
-      const [members, assessments, prevAssessments] = await Promise.all([
+      // personnelEvaluation テーブルを参照（評価サマリーと同一データソース）
+      const [members, evaluations, prevEvaluations] = await Promise.all([
         prisma.member.findMany({
           where: { deletedAt: null },
           select: { id: true, name: true },
           orderBy: [{ name: "asc" }],
         }),
-        prisma.skillAssessment.findMany({
+        prisma.personnelEvaluation.findMany({
           where: { targetPeriod: month },
           select: {
             id: true, memberId: true, targetPeriod: true,
             scores: true, comment: true, updatedAt: true,
           },
         }),
-        prisma.skillAssessment.findMany({
+        prisma.personnelEvaluation.findMany({
           where: { targetPeriod: prevMonth },
           select: { memberId: true, scores: true },
         }),
       ]);
 
-      const assessMap = new Map(assessments.map((a) => [a.memberId, a]));
-      const prevMap = new Map(prevAssessments.map((a) => [a.memberId, a.scores as EvalScores]));
+      const evalMap = new Map(evaluations.map((a) => [a.memberId, a]));
+      const prevMap = new Map(prevEvaluations.map((a) => [a.memberId, a.scores as EvalScores]));
 
       return NextResponse.json(
         members.map((m) => {
-          const sa = assessMap.get(m.id);
-          if (!sa) {
+          const ev = evalMap.get(m.id);
+          if (!ev) {
             return {
               memberId: m.id,
               memberName: m.name,
@@ -77,17 +78,17 @@ export async function GET(req: NextRequest) {
               prevScores: prevMap.get(m.id) ?? null,
             };
           }
-          const scores = (sa.scores ?? {}) as EvalScores;
+          const scores = (ev.scores ?? {}) as EvalScores;
           return {
-            id: sa.id,
+            id: ev.id,
             memberId: m.id,
             memberName: m.name,
-            targetPeriod: sa.targetPeriod,
+            targetPeriod: ev.targetPeriod,
             scores,
             axisAverages: buildAxisAverages(scores),
             totalAvg: calcTotalAverage(scores),
-            comment: sa.comment,
-            updatedAt: sa.updatedAt,
+            comment: ev.comment,
+            updatedAt: ev.updatedAt,
             evaluated: true,
           };
         })
@@ -107,8 +108,16 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/skills — upsert (admin のみ)
+// POST /api/skills — 廃止（評価入力は /api/evaluations に統一。マージ後に削除予定）
 export async function POST(req: NextRequest) {
+  return NextResponse.json(
+    { error: { code: "GONE", message: "このエンドポイントは廃止されました。/api/evaluations を使用してください。" } },
+    { status: 410 }
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _legacyPost(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
   if (user.role !== "admin") return forbidden();

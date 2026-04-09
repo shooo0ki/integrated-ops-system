@@ -70,7 +70,7 @@ export default function CalendarPage() {
         >
           <span className="flex items-center gap-2 text-slate-600 font-medium">
             <Users size={14} />
-            メンバー絞り込み
+            絞り込み（プロジェクト / メンバー）
             <span className="text-xs text-slate-400 font-normal">
               {visibleMembers.length}/{projectFilteredMembers.length}名 選択中
             </span>
@@ -113,6 +113,10 @@ export default function CalendarPage() {
             )}
 
             <div className="flex flex-wrap gap-1.5 items-center">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0 mr-1">
+                <Users size={13} />
+                <span>メンバー:</span>
+              </div>
               <div className="flex gap-1 mr-1 shrink-0">
                 <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">全選択</button>
                 <span className="text-slate-300 select-none">|</span>
