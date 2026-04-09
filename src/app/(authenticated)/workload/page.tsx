@@ -37,6 +37,10 @@ export default function WorkloadPage() {
   const [periodFrom, setPeriodFrom] = useState("");
   const [periodTo, setPeriodTo] = useState("");
 
+  // フィルター
+  const [filterProjectId, setFilterProjectId] = useState("");
+  const [filterMemberId, setFilterMemberId] = useState("");
+
   // 編集モード（単月のみ）
   const [editMode, setEditMode] = useState(false);
   const [cells, setCells] = useState<Record<string, Record<string, CellData>>>({});
@@ -70,9 +74,12 @@ export default function WorkloadPage() {
     if (data?.matrix) setCells(data.matrix);
   }, [data]);
 
-  const members = data?.members ?? [];
-  const projects = data?.projects ?? [];
+  const allMembers = data?.members ?? [];
+  const allProjects = data?.projects ?? [];
   const months = data?.months ?? [];
+
+  const members = filterMemberId ? allMembers.filter((m) => m.id === filterMemberId) : allMembers;
+  const projects = filterProjectId ? allProjects.filter((p) => p.id === filterProjectId) : allProjects;
 
   function memberTotal(memberId: string): number {
     return Object.values(cells[memberId] ?? {}).reduce((s, c) => s + (c?.hours ?? 0), 0);
@@ -190,6 +197,35 @@ export default function WorkloadPage() {
           )}
         </div>
       </div>
+
+      {/* フィルター */}
+      {(allMembers.length > 0 || allProjects.length > 0) && (
+        <div className="flex items-center gap-3 flex-wrap text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">PJ:</span>
+            <Select value={filterProjectId} onChange={(e) => setFilterProjectId(e.target.value)} className="px-2 py-1 text-xs">
+              <option value="">すべて</option>
+              {allProjects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">メンバー:</span>
+            <Select value={filterMemberId} onChange={(e) => setFilterMemberId(e.target.value)} className="px-2 py-1 text-xs">
+              <option value="">すべて</option>
+              {allMembers.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </Select>
+          </div>
+          {(filterProjectId || filterMemberId) && (
+            <button onClick={() => { setFilterProjectId(""); setFilterMemberId(""); }} className="text-xs text-blue-600 hover:underline">
+              フィルター解除
+            </button>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <InlineSkeleton />

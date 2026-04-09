@@ -18,7 +18,10 @@ export function useAttendance() {
     setTodayLabel(now.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric", weekday: "long" }));
   }, []);
 
-  const { data: myRecord = null, mutate: mutateToday } = useSWR<TodayRecord | null>("/api/attendances/today");
+  const { data: rawToday = null, mutate: mutateToday } = useSWR<TodayRecord | { prevTodoTomorrow: string | null } | null>("/api/attendances/today");
+  // API が { prevTodoTomorrow } のみ返す場合（未出勤）は myRecord = null として扱う
+  const myRecord: TodayRecord | null = rawToday && "id" in rawToday ? rawToday : null;
+  const prevTodoTomorrow = rawToday && "prevTodoTomorrow" in rawToday ? rawToday.prevTodoTomorrow : null;
   const myStatus: AttendanceStatus = myRecord?.status ?? "not_started";
   const toast = useToast();
 
@@ -34,8 +37,13 @@ export function useAttendance() {
   const [actionLog, setActionLog] = useState<string[]>([]);
 
   useEffect(() => {
-    if (myRecord?.todoToday) setTodayPlan(myRecord.todoToday);
-  }, [myRecord]);
+    if (myRecord?.todoToday) {
+      setTodayPlan(myRecord.todoToday);
+    } else if (prevTodoTomorrow && !todayPlan) {
+      // 未出勤時: 前回退勤時の「次回やること」をプリフィル（1-1-1）
+      setTodayPlan(prevTodoTomorrow);
+    }
+  }, [myRecord, prevTodoTomorrow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const timeStr = () => {
     const n = new Date();

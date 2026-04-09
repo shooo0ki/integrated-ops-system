@@ -144,3 +144,29 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   return NextResponse.json({ saved: saved.length, gcalError });
 }
+
+// ─── DELETE /api/members/:id/work-schedules?date=YYYY-MM-DD ──
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const user = await getSessionUser();
+  if (!user) return unauthorized();
+
+  const { id: memberId } = await params;
+  if (user.memberId !== memberId && !["admin", "manager"].includes(user.role)) {
+    return forbidden();
+  }
+
+  const { searchParams } = new URL(req.url);
+  const date = searchParams.get("date");
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return NextResponse.json(
+      { error: { code: "VALIDATION_ERROR", message: "date は YYYY-MM-DD 形式で指定してください" } },
+      { status: 400 }
+    );
+  }
+
+  await prisma.workSchedule.deleteMany({
+    where: { memberId, date: new Date(date) },
+  });
+
+  return NextResponse.json({ ok: true });
+}

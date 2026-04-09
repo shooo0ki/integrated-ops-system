@@ -36,8 +36,20 @@ export async function GET() {
   // 今日のレコードがあればそれを優先、なければ未退勤の過去レコードを表示
   const attendance = todayRec ?? openRec ?? null;
 
+  // 前回退勤時の「次回やること」を取得（出勤フォームのプリフィル用）
+  const lastDone = await prisma.attendance.findFirst({
+    where: {
+      memberId: user.memberId,
+      clockOut: { not: null },
+      todoTomorrow: { not: null },
+    },
+    orderBy: { date: "desc" },
+    select: { todoTomorrow: true },
+  });
+  const prevTodoTomorrow = lastDone?.todoTomorrow ?? null;
+
   if (!attendance) {
-    return NextResponse.json(null);
+    return NextResponse.json({ prevTodoTomorrow });
   }
 
   // status 判定
@@ -65,5 +77,6 @@ export async function GET() {
     todoTomorrow: attendance.todoTomorrow,
     locationType: attendance.locationType,
     status,
+    prevTodoTomorrow,
   });
 }

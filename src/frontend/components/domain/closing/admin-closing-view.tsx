@@ -20,7 +20,6 @@ import {
   confirmVariant, confirmLabel, receiptConfig,
   formatCurrency, buildMonthOptions,
 } from "@/frontend/constants/closing";
-import { SelfReportCard } from "./self-report-card";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 export function AdminClosingView() {
@@ -43,13 +42,7 @@ export function AdminClosingView() {
 
   const { data: records = [], isLoading: closingLoading, mutate: mutateClosing } = useSWR<ClosingRecord[]>(targetMonth ? `/api/closing?month=${targetMonth}` : null);
   const { data: invoices = [], isLoading: invoicesLoading, mutate: mutateInvoices } = useSWR<Invoice[]>(targetMonth ? `/api/invoices?month=${targetMonth}` : null);
-  const { data: selfReportSummary = [] } = useSWR<{ memberId: string; submitted: boolean }[]>(targetMonth ? `/api/self-reports?month=${targetMonth}` : null);
   const loading = closingLoading || invoicesLoading;
-
-  const selfReportMap = useMemo(
-    () => new Map(selfReportSummary.map((s) => [s.memberId, s.submitted])),
-    [selfReportSummary]
-  );
 
   const showToast = toast.show;
 
@@ -150,14 +143,13 @@ export function AdminClosingView() {
   const {
     notSentCount, hasMissingDays, missingDaysCount,
     hourlyRecords, salaryRecords, receivedCount, hourlyLaborCost, salaryLaborCost,
-    totalLaborCost, invoiceMap, selfReportDoneCount,
+    totalLaborCost, invoiceMap,
   } = useMemo(() => {
     const hourlyRecs = records.filter((r) => r.salaryType === "hourly");
     const salaryRecs = records.filter((r) => r.salaryType === "monthly");
     const hourlyLabor = hourlyRecs.reduce((s, r) => s + r.estimatedAmount, 0);
     const salaryLabor = salaryRecs.reduce((s, r) => s + r.salaryAmount, 0);
     const received = hourlyRecs.filter((r) => r.invoiceStatus === "sent" || r.invoiceStatus === "approved" || r.invoiceStatus === "accounting_sent").length;
-    const srDone = records.filter((r) => selfReportMap.get(r.memberId) === true).length;
     return {
       notSentCount:     records.filter((r) => r.confirmStatus === "not_sent").length,
       hasMissingDays:   records.some((r) => r.missingDays > 0),
@@ -169,9 +161,8 @@ export function AdminClosingView() {
       salaryLaborCost:  salaryLabor,
       totalLaborCost:   hourlyLabor + salaryLabor,
       invoiceMap:       new Map(invoices.map((i) => [i.memberId, i])),
-      selfReportDoneCount: srDone,
     };
-  }, [records, invoices, selfReportMap]);
+  }, [records, invoices]);
 
   return (
     <div className="space-y-6">
@@ -214,12 +205,6 @@ export function AdminClosingView() {
               </p>
             </Card>
             <Card>
-              <p className="text-xs text-slate-500">月次申告</p>
-              <p className={`mt-1 text-2xl font-bold ${selfReportDoneCount === records.length && records.length > 0 ? "text-green-600" : "text-amber-600"}`}>
-                {selfReportDoneCount}<span className="text-base font-normal text-slate-500">/{records.length}名</span>
-              </p>
-            </Card>
-            <Card>
               <p className="text-xs text-slate-500">Slack通知</p>
               <p className={`mt-1 text-lg font-bold truncate sm:text-2xl ${notSentCount > 0 ? "text-amber-600" : "text-green-600"}`}>
                 {notSentCount > 0 ? `未通知${notSentCount}名` : "全員通知済"}
@@ -251,9 +236,6 @@ export function AdminClosingView() {
       </div>
       )}
 
-      {/* 自分の月次申告 */}
-      <SelfReportCard month={targetMonth} />
-
       {/* 請求書受領状況テーブル */}
       {loading ? (
         <InlineSkeleton />
@@ -273,7 +255,6 @@ export function AdminClosingView() {
                     <th className="px-4 py-3 text-right font-medium">時給</th>
                     <th className="px-4 py-3 text-right font-medium">人件費</th>
                     <th className="px-4 py-3 text-left font-medium">請求書</th>
-                    <th className="px-4 py-3 text-left font-medium">月次申告</th>
                     <th className="px-4 py-3 text-left font-medium">勤怠確認</th>
                     <th className="px-4 py-3 text-left font-medium">操作</th>
                   </tr>
@@ -286,7 +267,6 @@ export function AdminClosingView() {
                     const cfg = receiptConfig[displayStatus] ?? receiptConfig["none"];
                     const isSending = sendingSlackId === rec.memberId;
                     const isForcing = forcingId === rec.memberId;
-                    const srDone = selfReportMap.get(rec.memberId);
                     return (
                       <tr key={rec.memberId} className="border-b border-slate-50 hover:bg-slate-50">
                         <td className="px-4 py-3">
@@ -309,9 +289,6 @@ export function AdminClosingView() {
                               <span className="text-[10px] text-slate-400">{inv.invoiceNumber}</span>
                             )}
                           </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {srDone ? <Badge variant="success">済</Badge> : <Badge variant="default">未</Badge>}
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant={confirmVariant[rec.confirmStatus]}>
@@ -383,7 +360,6 @@ export function AdminClosingView() {
                     <tr className="text-xs text-slate-500">
                       <th className="px-4 py-3 text-left font-medium">メンバー</th>
                       <th className="px-4 py-3 text-right font-medium">月額</th>
-                      <th className="px-4 py-3 text-left font-medium">月次申告</th>
                       <th className="px-4 py-3 text-left font-medium">勤怠確認</th>
                       <th className="px-4 py-3 text-left font-medium">操作</th>
                     </tr>
@@ -392,7 +368,6 @@ export function AdminClosingView() {
                     {salaryRecords.map((rec) => {
                       const isSending = sendingSlackId === rec.memberId;
                       const isForcing = forcingId === rec.memberId;
-                      const srDone = selfReportMap.get(rec.memberId);
                       return (
                         <tr key={rec.memberId} className="border-b border-slate-50 hover:bg-slate-50">
                           <td className="px-4 py-3">
@@ -403,9 +378,6 @@ export function AdminClosingView() {
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-800">
                             {formatCurrency(rec.salaryAmount)}
-                          </td>
-                          <td className="px-4 py-3">
-                            {srDone ? <Badge variant="success">済</Badge> : <Badge variant="default">未</Badge>}
                           </td>
                           <td className="px-4 py-3">
                             <Badge variant={confirmVariant[rec.confirmStatus]}>
