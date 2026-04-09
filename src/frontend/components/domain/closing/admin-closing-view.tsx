@@ -205,7 +205,7 @@ export function AdminClosingView() {
           <>
             <Card>
               <p className="text-xs text-slate-500">人件費合計</p>
-              <p className="mt-1 text-xl font-bold text-blue-700">{formatCurrency(totalLaborCost)}</p>
+              <p className="mt-1 text-lg font-bold text-blue-700 truncate sm:text-xl">{formatCurrency(totalLaborCost)}</p>
             </Card>
             <Card>
               <p className="text-xs text-slate-500">請求書受領</p>
@@ -221,7 +221,7 @@ export function AdminClosingView() {
             </Card>
             <Card>
               <p className="text-xs text-slate-500">Slack通知</p>
-              <p className={`mt-1 text-2xl font-bold ${notSentCount > 0 ? "text-amber-600" : "text-green-600"}`}>
+              <p className={`mt-1 text-lg font-bold truncate sm:text-2xl ${notSentCount > 0 ? "text-amber-600" : "text-green-600"}`}>
                 {notSentCount > 0 ? `未通知${notSentCount}名` : "全員通知済"}
               </p>
             </Card>

@@ -3,23 +3,21 @@ import { Select } from "@/frontend/components/common/input";
 
 import { useState } from "react";
 import useSWR from "swr";
-import { notFound } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { buildMonths } from "@/shared/utils";
 import { EVALUATION_AXES, calcAxisAverage, type EvalScores } from "@/shared/constants/evaluation-taxonomy";
 
 import type { EvalRow, OwnEval } from "@/shared/types/evaluation";
 import { GradeBadge, AvgBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
-import { EditModal } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
-import type { ModalState } from "@/frontend/components/domain/evaluation/evaluation-edit-modal";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
 const MONTHS = buildMonths(12);
 
 export default function EvaluationPage() {
   const { role, memberId, isLoading: authLoading } = useAuth();
-  const [month, setMonth] = useState(MONTHS[0]);
-  const [modal, setModal] = useState<ModalState | null>(null);
+  const searchParams = useSearchParams();
+  const [month, setMonth] = useState(searchParams.get("month") ?? MONTHS[0]);
 
   const isAdmin = role === "admin";
   const isManager = role === "manager";
@@ -40,21 +38,6 @@ export default function EvaluationPage() {
 
   if (!authLoading && role !== "admin" && role !== "manager" && role !== "member") {
     return notFound();
-  }
-
-  function openModal(row: EvalRow) {
-    if (!canEdit) return;
-    setModal({
-      memberId: row.memberId,
-      memberName: row.memberName,
-      targetPeriod: month,
-      scores: row.scores ?? {},
-      comment: row.comment ?? "",
-    });
-  }
-
-  function handleSaved(_updated: EvalRow) {
-    // SWR will revalidate on next focus
   }
 
   // ---- 一般ユーザー用ビュー ----
@@ -212,12 +195,12 @@ export default function EvaluationPage() {
                   )}
                   {canEdit && (
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => openModal(row)}
+                      <a
+                        href={`/evaluation/${row.memberId}?month=${month}`}
                         className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
                       >
-                        {row.evaluated ? "編集" : "評価する"}
-                      </button>
+                        {row.evaluated ? "編集" : "評価する"} →
+                      </a>
                     </td>
                   )}
                 </tr>
@@ -227,13 +210,6 @@ export default function EvaluationPage() {
         </div>
       )}
 
-      {modal && (
-        <EditModal
-          initial={modal}
-          onClose={() => setModal(null)}
-          onSaved={handleSaved}
-        />
-      )}
     </div>
   );
 }

@@ -37,16 +37,17 @@ interface NavGroup {
 }
 
 const DAILY: NavGroup = {
-  title: "毎日使うもの",
+  title: "勤怠管理",
   items: [
-    { href: "/attendance", label: "打刻",       icon: Clock },
-    { href: "/calendar",   label: "カレンダー", icon: CalendarDays },
-    { href: "/schedule",   label: "勤務予定",   icon: CalendarClock },
+    { href: "/attendance",      label: "打刻",         icon: Clock },
+    { href: "/attendance/list", label: "勤怠修正申請", icon: ClipboardCheck },
+    { href: "/calendar",        label: "カレンダー",   icon: CalendarDays },
+    { href: "/schedule",        label: "勤務予定",     icon: CalendarClock },
   ],
 };
 
 const ADMIN_DAILY: NavGroup = {
-  title: "毎日使うもの",
+  title: "勤怠管理",
   items: [
     { href: "/attendance",             label: "打刻",         icon: Clock },
     { href: "/attendance/corrections", label: "勤怠修正確認", icon: ClipboardCheck },
@@ -61,16 +62,16 @@ const MONTHLY: NavGroup = {
     { href: "/closing",      label: "請求管理",       icon: FileText },
     { href: "/pl/summary",   label: "PLサマリー",     icon: TrendingUp },
     { href: "/pl/cashflow",  label: "キャッシュフロー", icon: Wallet },
-    { href: "/evaluation",   label: "人事評価",       icon: Award },
   ],
 };
 
 const PROJECTS: NavGroup = {
-  title: "プロジェクト関連",
+  title: "プロジェクト管理",
   items: [
-    { href: "/projects", label: "プロジェクト",     icon: FolderOpen },
-    { href: "/workload", label: "工数管理",         icon: BarChart2 },
-    { href: "/skills",   label: "スキルマトリクス", icon: Star },
+    { href: "/projects",   label: "プロジェクト",     icon: FolderOpen },
+    { href: "/workload",   label: "工数管理",         icon: BarChart2 },
+    { href: "/skills",     label: "スキルマトリクス", icon: Star },
+    { href: "/evaluation", label: "人事評価",         icon: Award },
   ],
 };
 
