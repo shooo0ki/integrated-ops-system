@@ -14,7 +14,7 @@
 | HIGH | 6 | **全件対応済み (2026-04-09)** |
 | MEDIUM | 6 | **2件対応済み** / 残4件（M-2, M-3, M-5, M-6） |
 
-**総合判定: CRITICAL 全件 + HIGH/MEDIUM 6件を解消済み。残課題は暗号化基盤（Phase 3）とバリデーション強化**
+**総合判定: CRITICAL 全件 + HIGH 全件 + MEDIUM 2件を解消済み。残課題はバリデーション強化等（M-2, M-3, M-5, M-6）**
 
 ---
 
@@ -132,7 +132,7 @@ if (!secret || authHeader !== `Bearer ${secret}`) {
 
 > **修正日:** 2026-04-09
 > **修正内容:** `src/backend/crypto.ts` に AES-256-GCM 暗号化/復号ユーティリティを作成。書き込み時に `encryptBankFields()`、読み取り時に `decryptBankFields()` を適用。デュアルリード対応（平文/暗号文を自動判別）。
-> 既存データのマイグレーションスクリプト: `scripts/encrypt-existing-data.ts`
+> 既存データのマイグレーション: `GET /api/admin/encrypt-migration` エンドポイント（本番移行完了後に削除予定）
 
 ### H-4: OAuthアクセストークンが平文保存 — **対応済み**
 
