@@ -11,7 +11,7 @@
 | 深刻度 | 件数 | ステータス |
 |--------|------|-----------|
 | CRITICAL | 4 | **全件対応済み (2026-04-09)** |
-| HIGH | 6 | **4件対応済み** / 残2件（H-3 銀行口座暗号化, H-4 OAuthトークン暗号化） |
+| HIGH | 6 | **5件対応済み** / 残1件（H-3 銀行口座暗号化 ※H-4 OAuthトークン暗号化と同基盤） |
 | MEDIUM | 6 | **2件対応済み** / 残4件（M-2, M-3, M-5, M-6） |
 
 **総合判定: CRITICAL 全件 + HIGH/MEDIUM 6件を解消済み。残課題は暗号化基盤（Phase 3）とバリデーション強化**
@@ -141,8 +141,12 @@ if (!secret || authHeader !== `Bearer ${secret}`) {
 > **修正日:** 2026-04-09
 > **修正内容:** `CRON_SECRET` による Bearer トークン認証を追加（Cron エンドポイントと同じパターン）。
 
-### H-6: OAuth stateパラメータが予測可能
-- `src/backend/google-calendar.ts` L22: `memberId` をstateに使用。CSRF防止には不十分
+### H-6: OAuth stateパラメータが予測可能 — **対応済み**
+
+> **修正日:** 2026-04-09
+> **修正内容:** `getAuthUrl()` を暗号的ランダム state（`crypto.randomBytes(32)`）に変更。state と memberId の対応は httpOnly Cookie（5分有効）で管理し、callback で照合。
+>
+> 修正ファイル: `google-calendar.ts`, `google/auth/route.ts`, `google/callback/route.ts`
 
 ---
 

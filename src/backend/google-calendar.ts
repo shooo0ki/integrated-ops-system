@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/backend/db";
 
@@ -12,15 +13,17 @@ function createOAuth2Client() {
   );
 }
 
-/** OAuth 同意画面の URL を生成 */
-export function getAuthUrl(memberId: string): string {
+/** OAuth 同意画面の URL と CSRF 用ランダム state を生成 */
+export function getAuthUrl(): { url: string; state: string } {
   const client = createOAuth2Client();
-  return client.generateAuthUrl({
+  const state = randomBytes(32).toString("hex");
+  const url = client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
     scope: SCOPES,
-    state: memberId,
+    state,
   });
+  return { url, state };
 }
 
 /** OAuth コールバックでトークンを保存 */

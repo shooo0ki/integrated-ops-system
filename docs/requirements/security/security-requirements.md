@@ -133,7 +133,26 @@ if (!secret || authHeader !== `Bearer ${secret}`) {
 - `src/app/api/cron/weekly-schedule-reminder/route.ts`
 - `src/app/api/warmup/route.ts`
 
-### 3-3. Webhook 署名検証
+### 3-3. OAuth CSRF 対策（state パラメータ）
+
+Google OAuth フローで CSRF 攻撃を防止するため、暗号的に安全なランダム state を使用する。
+
+```
+認証開始 → crypto.randomBytes(32) で state を生成
+         → state:memberId を httpOnly Cookie に保存（5分有効）
+         → Google に state 付きで遷移
+
+コールバック → Google から返された state と Cookie の state を照合
+             → memberId も Cookie から復元し、ログインユーザーと一致するか検証
+             → 検証後 Cookie を削除
+```
+
+**関連ファイル:**
+- `src/backend/google-calendar.ts` — `getAuthUrl()` でランダム state 生成
+- `src/app/api/google/auth/route.ts` — Cookie 保存
+- `src/app/api/google/callback/route.ts` — Cookie 検証・削除
+
+### 3-4. Webhook 署名検証
 
 DocuSign Webhook は HMAC-SHA256 による署名検証を実施。
 
@@ -284,7 +303,6 @@ Prisma ORM によるパラメタライズドクエリを全面採用。
 |------|--------|---------|------|
 | 銀行口座情報の暗号化（AES-256） | HIGH | Phase 3 | security-audit.md H-3 |
 | OAuth トークンの暗号化保存 | HIGH | Phase 3 | security-audit.md H-4 |
-| OAuth state パラメータのランダム化 | HIGH | 次スプリント | security-audit.md H-6 |
 | GET エンドポイントの認可強化 | MEDIUM | 次スプリント | security-audit.md M-2 |
 | 一部エンドポイントの Zod バリデーション追加 | MEDIUM | 次スプリント | security-audit.md M-3 |
 | リスト系 API のページネーション | MEDIUM | 次スプリント | security-audit.md M-5 |
