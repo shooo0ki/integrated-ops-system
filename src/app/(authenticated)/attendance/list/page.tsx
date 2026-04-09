@@ -203,12 +203,7 @@ export default function AttendanceListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/attendance" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-blue-600">
-          <ArrowLeft size={16} /> 打刻画面に戻る
-        </Link>
-        <h1 className="text-xl font-bold text-slate-800">勤怠一覧</h1>
-      </div>
+      <h1 className="text-xl font-bold text-slate-800">勤怠一覧</h1>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">

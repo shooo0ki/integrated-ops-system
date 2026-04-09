@@ -28,7 +28,6 @@ export default function SelfReportsPage() {
           <p className="text-sm text-slate-500">プロジェクトごとの工数配分を申告</p>
         </div>
         <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-slate-600">月:</label>
           <Select value={month} onChange={(e) => setMonth(e.target.value)}>
             {MONTHS.map((m) => (
               <option key={m} value={m}>{m.replace("-", "年")}月</option>
