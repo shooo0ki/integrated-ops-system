@@ -34,10 +34,11 @@ function LoginForm() {
       : null;
 
   useEffect(() => {
-    if (isLoggedIn) {
+    // session-expired で来た場合はリダイレクトしない（再ログインさせる）
+    if (isLoggedIn && reason !== "expired") {
       router.push("/dashboard");
     }
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn, reason, router]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

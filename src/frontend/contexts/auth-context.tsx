@@ -100,8 +100,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: string,
       password: string
     ): Promise<{ success: boolean; error?: string }> => {
-      const result = await authClient.signIn.email({ email, password });
+      const result = await authClient.signIn.email({
+        email,
+        password,
+        fetchOptions: {
+          onError: () => { /* エラーハンドリングは result.error で行う */ },
+        },
+      });
       if (result.error) {
+        const status = result.error.status;
+        if (status === 429) {
+          return {
+            success: false,
+            error: "リクエスト回数の上限に達しました。しばらく時間をおいてお試しください。",
+          };
+        }
         return {
           success: false,
           error: "メールアドレスまたはパスワードが正しくありません。",
