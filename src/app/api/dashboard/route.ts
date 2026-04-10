@@ -120,10 +120,10 @@ export async function GET(req: Request) {
         plSummary = {
           totalRevenue,
           totalGrossProfit: totalAgg._sum.grossProfit ?? 0,
-          boostRevenue: (boostAgg!._sum.revenueContract ?? 0) + (boostAgg!._sum.revenueExtra ?? 0),
-          salt2Revenue: (salt2Agg!._sum.revenueContract ?? 0) + (salt2Agg!._sum.revenueExtra ?? 0),
-          boostGrossProfit: boostAgg!._sum.grossProfit ?? 0,
-          salt2GrossProfit: salt2Agg!._sum.grossProfit ?? 0,
+          boostRevenue: (boostAgg?._sum.revenueContract ?? 0) + (boostAgg?._sum.revenueExtra ?? 0),
+          salt2Revenue: (salt2Agg?._sum.revenueContract ?? 0) + (salt2Agg?._sum.revenueExtra ?? 0),
+          boostGrossProfit: boostAgg?._sum.grossProfit ?? 0,
+          salt2GrossProfit: salt2Agg?._sum.grossProfit ?? 0,
         };
       }
     }

@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/backend/db";
-import { unauthorized, forbidden } from "@/backend/api-response";
+import { unauthorized } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 
 

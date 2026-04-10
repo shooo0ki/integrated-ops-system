@@ -262,7 +262,7 @@ export function DayView({ date, visible, calData }: {
         <div
           className="fixed z-50 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-lg text-sm"
           style={{
-            left: Math.min(preview.x - 100, typeof window !== "undefined" ? window.innerWidth - 240 : 0),
+            left: Math.min(preview.x - 100, window.innerWidth - 240),
             top: Math.max(preview.y - 110, 8),
           }}
           onClick={(e) => e.stopPropagation()}
