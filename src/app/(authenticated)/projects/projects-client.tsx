@@ -9,8 +9,11 @@ import { Select, Input } from "@/frontend/components/common/input";
 import { Button } from "@/frontend/components/common/button";
 import { Modal } from "@/frontend/components/common/modal";
 import { TablePageSkeleton } from "@/frontend/components/common/skeleton";
+import { ConfirmDialog } from "@/frontend/components/common/confirm-dialog";
 import { formatDate, formatCurrency } from "@/shared/utils";
 import { PROJECT_STATUS_LABELS as STATUS_LABELS, companyDisplay } from "@/frontend/constants/projects";
+import { CurrencyInput } from "@/frontend/components/common/currency-input";
+import { EmptyState } from "@/frontend/components/common/empty-state";
 
 interface Assignment {
   id: string;
@@ -57,6 +60,7 @@ export default function ProjectsClient({ role }: { role: string }) {
   const isPrivileged = role === "admin" || role === "manager";
   const canCreate = true; // 全ロールが案件登録可能（2-2-1）
 
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [companyFilter, setCompanyFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -230,9 +234,7 @@ export default function ProjectsClient({ role }: { role: string }) {
       {loading ? (
         <TablePageSkeleton rows={6} cols={6} />
       ) : projects.length === 0 ? (
-        <div className="py-16 text-center text-sm text-slate-500">
-          該当するプロジェクトがありません
-        </div>
+        <EmptyState title="該当するプロジェクトがありません" action={{ label: "新規作成", href: "/projects/new" }} />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full text-sm">
@@ -291,7 +293,7 @@ export default function ProjectsClient({ role }: { role: string }) {
                   {canCreate && (
                     <td className="px-2 py-2.5 text-right">
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(p.id); }}
                         className="text-slate-300 hover:text-red-500 transition-colors p-1"
                         title="削除"
                       >
@@ -353,8 +355,7 @@ export default function ProjectsClient({ role }: { role: string }) {
                 <option key={v} value={v}>{l}</option>
               ))}
             </Select>
-            <Input id="create-amount" type="number" label="月額契約金額（円）" value={form.monthlyContractAmount}
-              onChange={(e) => set("monthlyContractAmount", e.target.value)} placeholder="500000" />
+            <CurrencyInput id="create-amount" label="月額契約金額（円）" value={form.monthlyContractAmount} onChange={(v) => set("monthlyContractAmount", v)} placeholder="500,000" />
           </div>
 
           {/* 説明 */}
@@ -419,6 +420,16 @@ export default function ProjectsClient({ role }: { role: string }) {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="プロジェクトを削除"
+        description="この操作は取り消せません。本当に削除しますか？"
+        confirmLabel="削除する"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

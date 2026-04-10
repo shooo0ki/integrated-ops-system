@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { ChevronLeft, ChevronRight, CheckCircle, Save, AlertTriangle, Trash2 } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { Card } from "@/frontend/components/common/card";
+import { ConfirmDialog } from "@/frontend/components/common/confirm-dialog";
 import { Button } from "@/frontend/components/common/button";
 
 type WorkType = "出社" | "オンライン";
@@ -99,6 +100,7 @@ export default function SchedulePage() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const today = useMemo(() => todayStr(), []);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // 初期表示: 来週
   useEffect(() => {
@@ -292,7 +294,7 @@ export default function SchedulePage() {
                   {/* 削除ボタン */}
                   {isRegistered && editable && (
                     <button
-                      onClick={() => handleDelete(entry.date)}
+                      onClick={() => setDeleteTarget(entry.date)}
                       className="text-slate-400 hover:text-red-500 transition-colors"
                       title="この日の予定を削除"
                     >
@@ -368,6 +370,16 @@ export default function SchedulePage() {
           {saving ? "保存中..." : "保存する"}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="勤務予定を削除"
+        description="この日の勤務予定を削除します。よろしいですか？"
+        confirmLabel="削除する"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

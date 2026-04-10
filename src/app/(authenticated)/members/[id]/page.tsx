@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";
 import { Input, Select } from "@/frontend/components/common/input";
+import { CurrencyInput } from "@/frontend/components/common/currency-input";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { roleLabel } from "@/frontend/constants/common";
 import { MEMBER_STATUS_LABELS as statusLabel, SALARY_TYPE_LABELS as salaryTypeLabel, CONTRACT_STATUS_LABELS as contractStatusLabel, roleFromStatus } from "@/frontend/constants/members";
@@ -338,9 +339,9 @@ export default function MemberDetailPage({
               <option value="monthly">月給制</option>
               <option value="hourly">時給制</option>
             </Select>
-            <Input id="edit-salaryAmount" type="number" label="金額（円）"
+            <CurrencyInput id="edit-salaryAmount" label="金額（円）"
               value={String(editForm.salaryAmount ?? "")}
-              onChange={(e) => setEditForm((f) => ({ ...f, salaryAmount: Number(e.target.value) }))} />
+              onChange={(v) => setEditForm((f) => ({ ...f, salaryAmount: Number(v) || 0 }))} />
             <Input id="edit-phone" label="電話番号"
               value={String(editForm.phone ?? "")}
               onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
@@ -435,8 +436,8 @@ export default function MemberDetailPage({
                   onChange={(e) => setToolForm((f) => ({ ...f, toolName: e.target.value }))} />
                 <Input id="tool-plan" label="プラン" value={toolForm.plan}
                   onChange={(e) => setToolForm((f) => ({ ...f, plan: e.target.value }))} />
-                <Input id="tool-cost" type="number" label="月額費用（円）" value={toolForm.monthlyCost}
-                  onChange={(e) => setToolForm((f) => ({ ...f, monthlyCost: e.target.value }))} />
+                <CurrencyInput id="tool-cost" label="月額費用（円）" value={toolForm.monthlyCost}
+                  onChange={(v) => setToolForm((f) => ({ ...f, monthlyCost: v }))} />
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setShowToolForm(false)}>キャンセル</Button>
@@ -458,8 +459,8 @@ export default function MemberDetailPage({
                       onChange={(e) => setToolForm((f) => ({ ...f, toolName: e.target.value }))} />
                     <Input id="et-plan" label="プラン" value={toolForm.plan}
                       onChange={(e) => setToolForm((f) => ({ ...f, plan: e.target.value }))} />
-                    <Input id="et-cost" type="number" label="月額費用（円）" value={toolForm.monthlyCost}
-                      onChange={(e) => setToolForm((f) => ({ ...f, monthlyCost: e.target.value }))} />
+                    <CurrencyInput id="et-cost" label="月額費用（円）" value={toolForm.monthlyCost}
+                      onChange={(v) => setToolForm((f) => ({ ...f, monthlyCost: v }))} />
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button variant="outline" size="sm" onClick={() => setEditingTool(null)}>キャンセル</Button>

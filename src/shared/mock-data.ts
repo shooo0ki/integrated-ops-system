@@ -1318,18 +1318,8 @@ export function getTodayAttendance(memberId: string): AttendanceRecord | undefin
   return ATTENDANCE_RECORDS.find((a) => a.memberId === memberId && a.date === "2026-02-20");
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: "JPY",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-export function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
-}
+// formatCurrency / formatDate は shared/utils.ts に統一。後方互換のため re-export。
+export { formatCurrency, formatDate } from "./utils";
 
 export function getStatusLabel(status: AttendanceStatus): string {
   const labels: Record<AttendanceStatus, string> = {

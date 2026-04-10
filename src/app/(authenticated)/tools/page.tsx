@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
 import { Modal } from "@/frontend/components/common/modal";
 import { Input, Select } from "@/frontend/components/common/input";
+import { CurrencyInput } from "@/frontend/components/common/currency-input";
 import { formatCurrency, formatDate } from "@/shared/utils";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 
@@ -314,7 +315,7 @@ export default function ToolsPage() {
           </div>
           <Input id="toolName" label="ツール名 *" value={form.toolName} onChange={(e) => setForm((f) => ({ ...f, toolName: e.target.value }))} placeholder="Claude" />
           <Input id="plan" label="プラン" value={form.plan} onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))} placeholder="Pro" />
-          <Input id="monthlyCost" type="number" label="月額（円）" value={form.monthlyCost} onChange={(e) => setForm((f) => ({ ...f, monthlyCost: e.target.value }))} placeholder="3200" />
+          <CurrencyInput id="monthlyCost" label="月額（円）" value={form.monthlyCost} onChange={(v) => setForm((f) => ({ ...f, monthlyCost: v }))} placeholder="3,200" />
           <Input id="note" label="備考" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} placeholder="用途など" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setAddOpen(false)}>キャンセル</Button>
@@ -333,7 +334,7 @@ export default function ToolsPage() {
               メンバー: <span className="font-medium">{editTarget.memberName}</span>
             </div>
             <Input id="editPlan" label="プラン" value={editForm.plan} onChange={(e) => setEditForm((f) => ({ ...f, plan: e.target.value }))} />
-            <Input id="editCost" type="number" label="月額（円）" value={editForm.monthlyCost} onChange={(e) => setEditForm((f) => ({ ...f, monthlyCost: e.target.value }))} />
+            <CurrencyInput id="editCost" label="月額（円）" value={editForm.monthlyCost} onChange={(v) => setEditForm((f) => ({ ...f, monthlyCost: v }))} />
             <Input id="editNote" label="備考" value={editForm.note} onChange={(e) => setEditForm((f) => ({ ...f, note: e.target.value }))} />
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setEditTarget(null)}>キャンセル</Button>

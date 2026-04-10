@@ -10,6 +10,7 @@ import { Button } from "@/frontend/components/common/button";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Modal } from "@/frontend/components/common/modal";
 import { Input, Select } from "@/frontend/components/common/input";
+import { CurrencyInput } from "@/frontend/components/common/currency-input";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { DetailPageSkeleton } from "@/frontend/components/common/skeleton";
 import { formatDate, formatCurrency, toJSTDateString } from "@/shared/utils";
@@ -462,8 +463,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </Select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">月額契約金額（円）</label>
-                <input type="number" min={0} value={form.monthlyContractAmount} onChange={set("monthlyContractAmount")} className="w-full" />
+                <CurrencyInput id="edit-amount" label="月額契約金額（円）" value={String(form.monthlyContractAmount)} onChange={(v) => setForm((f) => ({ ...f, monthlyContractAmount: v }))} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">開始日</label>
