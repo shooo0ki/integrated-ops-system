@@ -11,6 +11,8 @@ import { EVALUATION_AXES } from "@/shared/constants/evaluation-taxonomy";
 import type { EvalRow, OwnEval } from "@/shared/types/evaluation";
 import { GradeBadge, AvgBadge } from "@/frontend/components/domain/evaluation/evaluation-score-display";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
+import { EmptyState } from "@/frontend/components/common/empty-state";
+import { ErrorAlert } from "@/frontend/components/common/error-alert";
 
 const MONTHS = buildMonths(12);
 
@@ -179,13 +181,11 @@ export default function EvaluationPage() {
       )}
 
       {rowsError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          データ取得に失敗しました: {rowsError.message}
-        </div>
+        <ErrorAlert message={`データ取得に失敗しました: ${rowsError.message}`} />
       ) : loading ? (
         <InlineSkeleton />
       ) : rows.length === 0 ? (
-        <p className="text-sm text-slate-400">メンバーが見つかりません</p>
+        <EmptyState title="メンバーが見つかりません" description="対象月にメンバーが登録されていません" />
       ) : (
         <div className="overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm max-h-[calc(100vh-320px)]">
           <table className="w-full min-w-[800px] text-sm">

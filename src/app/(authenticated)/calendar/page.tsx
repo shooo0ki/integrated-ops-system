@@ -28,12 +28,7 @@ export default function CalendarPage() {
     <div className="space-y-3">
       {/* ─ ヘッダー ─ */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">全体カレンダー</h1>
-          <p className="text-sm text-slate-500">
-            {view === "day" ? dayLabel : view === "week" ? weekLabel : `${displayYear}年${displayMonth}月`}
-          </p>
-        </div>
+        <h1 className="text-lg font-bold text-slate-800">全体カレンダー</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={goToday}
@@ -60,6 +55,13 @@ export default function CalendarPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ─ 表示期間 ─ */}
+      <div className="text-center">
+        <p className="text-2xl font-bold text-slate-800">
+          {view === "day" ? dayLabel : view === "week" ? weekLabel : `${displayYear}年${displayMonth}月`}
+        </p>
       </div>
 
       {/* ─ フィルターパネル（折りたたみ） ─ */}

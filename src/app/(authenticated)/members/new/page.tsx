@@ -6,6 +6,7 @@ import Link from "@/frontend/components/common/prefetch-link";
 import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/frontend/components/common/button";
 import { Input, Select } from "@/frontend/components/common/input";
+import { CurrencyInput } from "@/frontend/components/common/currency-input";
 import { Card } from "@/frontend/components/common/card";
 import { MEMBER_STATUS_LABELS as STATUS_LABELS, roleFromStatus } from "@/frontend/constants/members";
 import { roleLabel as ROLE_LABELS } from "@/frontend/constants/common";
@@ -196,13 +197,12 @@ export default function MemberNewPage() {
               <option value="monthly">月給制</option>
               <option value="hourly">時給制</option>
             </Select>
-            <Input
+            <CurrencyInput
               id="salaryAmount"
-              type="number"
               label={form.salaryType === "monthly" ? "月額（円） *" : "時給（円） *"}
               value={form.salaryAmount}
-              onChange={(e) => set("salaryAmount", e.target.value)}
-              placeholder={form.salaryType === "monthly" ? "400000" : "1500"}
+              onChange={(v) => set("salaryAmount", v)}
+              placeholder={form.salaryType === "monthly" ? "400,000" : "1,500"}
               required
             />
           </div>

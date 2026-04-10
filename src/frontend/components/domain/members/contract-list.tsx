@@ -1,5 +1,6 @@
 import { FileText } from "lucide-react";
-import { type Contract, formatCurrency, formatDate } from "@/shared/mock-data";
+import { type Contract } from "@/shared/mock-data";
+import { formatCurrency, formatDate } from "@/shared/utils";
 
 interface ContractListProps {
   contracts: Contract[];

@@ -83,7 +83,7 @@ export default function AttendancePage() {
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 />
               </div>
-              {clockInError && <p className="text-xs text-red-600">{clockInError}</p>}
+              {clockInError && <p className="flex items-center gap-1 text-xs text-red-600"><span className="shrink-0">&#9888;</span>{clockInError}</p>}
               <Button variant="primary" size="lg" className="w-full" onClick={clockIn} disabled={!memberId || clockingIn}>
                 <CheckCircle size={18} />
                 {clockingIn ? "送信中..." : "出勤する"}
@@ -132,16 +132,10 @@ export default function AttendancePage() {
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 />
               </div>
-              {clockInError && <p className="text-xs text-red-600">{clockInError}</p>}
-              <button
-                className="w-full inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 text-base font-medium bg-red-600 text-white hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                disabled={clockingOut}
-                onClick={() => {
-                  if (validateClockOut()) clockOut();
-                }}
-              >
+              {clockInError && <p className="flex items-center gap-1 text-xs text-red-600"><span className="shrink-0">&#9888;</span>{clockInError}</p>}
+              <Button variant="danger" size="lg" className="w-full" disabled={clockingOut} onClick={() => { if (validateClockOut()) clockOut(); }}>
                 {clockingOut ? "送信中..." : "退勤する"}
-              </button>
+              </Button>
             </div>
           )}
 

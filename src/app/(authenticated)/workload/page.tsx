@@ -7,6 +7,7 @@ import { Select } from "@/frontend/components/common/input";
 import { Card } from "@/frontend/components/common/card";
 import { Button } from "@/frontend/components/common/button";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
+import { EmptyState } from "@/frontend/components/common/empty-state";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -311,7 +312,7 @@ export default function WorkloadPage() {
               </tfoot>
             </table>
             {members.length === 0 && (
-              <div className="py-12 text-center text-sm text-slate-400">アクティブなアサインがありません</div>
+              <EmptyState title="アクティブなアサインがありません" description="プロジェクトにメンバーをアサインしてください" />
             )}
           </div>
         </Card>
@@ -405,7 +406,7 @@ export default function WorkloadPage() {
               </tfoot>
             </table>
             {members.length === 0 && (
-              <div className="py-12 text-center text-sm text-slate-400">アクティブなアサインがありません</div>
+              <EmptyState title="アクティブなアサインがありません" description="プロジェクトにメンバーをアサインしてください" />
             )}
           </div>
         </Card>

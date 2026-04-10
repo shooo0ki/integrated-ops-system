@@ -6,6 +6,7 @@ import Link from "@/frontend/components/common/prefetch-link";
 import { ArrowLeft, Plus, Trash2, CheckCircle } from "lucide-react";
 import { Button } from "@/frontend/components/common/button";
 import { Input, Select } from "@/frontend/components/common/input";
+import { CurrencyInput } from "@/frontend/components/common/currency-input";
 import { Card } from "@/frontend/components/common/card";
 
 interface PositionInput {
@@ -154,7 +155,7 @@ export default function ProjectNewPage() {
                 <option key={v} value={v}>{l}</option>
               ))}
             </Select>
-            <Input id="monthlyContractAmount" type="number" label="月額契約金額（円）" value={form.monthlyContractAmount} onChange={(e) => set("monthlyContractAmount", e.target.value)} placeholder="500000" />
+            <CurrencyInput id="monthlyContractAmount" label="月額契約金額（円）" value={form.monthlyContractAmount} onChange={(v) => set("monthlyContractAmount", v)} placeholder="500,000" />
           </div>
           <div className="mt-3">
             <label className="text-sm font-medium text-slate-700">説明</label>

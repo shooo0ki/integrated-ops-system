@@ -11,8 +11,8 @@ export function LocationBadge({ locationType }: { locationType: string }) {
   const cfg = LOCATION_CONFIG[locationType];
   if (!cfg) return null;
   return (
-    <span className={`inline-flex items-center gap-0.5 rounded px-1 py-px text-[9px] font-medium leading-none ${cfg.cls}`}>
-      {cfg.icon}{cfg.label}
+    <span className={`inline-flex items-center gap-0.5 rounded px-1 py-px text-[9px] font-medium leading-none max-w-full truncate shrink-0 ${cfg.cls}`}>
+      {cfg.icon}<span className="truncate">{cfg.label}</span>
     </span>
   );
 }
