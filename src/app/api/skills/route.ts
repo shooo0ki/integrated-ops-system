@@ -1,13 +1,11 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/backend/db";
-import { unauthorized, forbidden } from "@/backend/api-response";
+import { unauthorized } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 import { logger } from "@/backend/logger";
 import {
   EVALUATION_AXES,
-  ALL_ITEM_IDS,
-  GRADES,
   calcAxisAverage,
   calcTotalAverage,
   type EvalScores,
@@ -109,110 +107,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/skills — 廃止（評価入力は /api/evaluations に統一。マージ後に削除予定）
-export async function POST(req: NextRequest) {
+// POST /api/skills — 廃止（評価入力は /api/evaluations に統一）
+export async function POST() {
   return NextResponse.json(
     { error: { code: "GONE", message: "このエンドポイントは廃止されました。/api/evaluations を使用してください。" } },
     { status: 410 }
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function _legacyPost(req: NextRequest) {
-  const user = await getSessionUser();
-  if (!user) return unauthorized();
-  if (user.role !== "admin") return forbidden();
-
-  const body = await req.json().catch(() => null);
-  const { memberId, targetPeriod, scores, comment } = body ?? {};
-
-  if (!memberId || !targetPeriod || !scores || typeof scores !== "object") {
-    return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "memberId, targetPeriod, scores は必須です" } },
-      { status: 400 }
-    );
-  }
-
-  const validGrades = new Set<string | null>([...GRADES, null]);
-  for (const [key, val] of Object.entries(scores as Record<string, unknown>)) {
-    if (!ALL_ITEM_IDS.includes(key)) {
-      return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", message: `不正な評価項目ID: ${key}` } },
-        { status: 400 }
-      );
-    }
-    if (val !== null && !validGrades.has(val as string)) {
-      return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", message: `${key} の値は A/B/C/D/null のいずれかです` } },
-        { status: 400 }
-      );
-    }
-  }
-
-  const now = new Date();
-  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  if (targetPeriod > currentPeriod) {
-    return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR", message: "未来の月は評価できません" } },
-      { status: 400 }
-    );
-  }
-
-  const member = await prisma.member.findFirst({ where: { id: memberId, deletedAt: null } });
-  if (!member) {
-    return NextResponse.json(
-      { error: { code: "NOT_FOUND", message: "メンバーが見つかりません" } },
-      { status: 404 }
-    );
-  }
-
-  const existing = await prisma.skillAssessment.findUnique({
-    where: { memberId_targetPeriod: { memberId, targetPeriod } },
-  });
-
-  const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "127.0.0.1";
-  const saData = { scores: scores as EvalScores, comment: comment ?? null };
-
-  const sa = await prisma.$transaction(async (tx) => {
-    let record;
-    if (existing) {
-      record = await tx.skillAssessment.update({
-        where: { id: existing.id },
-        data: { ...saData, evaluatorId: user.id },
-      });
-    } else {
-      record = await tx.skillAssessment.create({
-        data: { memberId, evaluatorId: user.id, targetPeriod, ...saData },
-      });
-    }
-
-    await tx.auditLog.create({
-      data: {
-        operatorId: user.id,
-        targetTable: "skill_assessments",
-        targetId: record.id,
-        action: existing ? "UPDATE" : "CREATE",
-        ...(existing ? { beforeData: JSON.parse(JSON.stringify(existing.scores)) } : {}),
-        afterData: JSON.parse(JSON.stringify({ memberId, targetPeriod, ...saData })),
-        ipAddress: ip,
-      },
-    });
-
-    return record;
-  });
-
-  const saScores = (sa.scores ?? {}) as EvalScores;
-  return NextResponse.json(
-    {
-      id: sa.id,
-      memberId: sa.memberId,
-      targetPeriod: sa.targetPeriod,
-      scores: saScores,
-      axisAverages: buildAxisAverages(saScores),
-      totalAvg: calcTotalAverage(saScores),
-      comment: sa.comment,
-      updatedAt: sa.updatedAt,
-    },
-    { status: existing ? 200 : 201 }
   );
 }
