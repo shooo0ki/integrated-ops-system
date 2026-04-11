@@ -10,12 +10,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const { isLoggedIn, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // ページ遷移時にモバイルサイドバーを閉じる
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {

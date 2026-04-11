@@ -23,7 +23,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       <div className="flex items-center gap-2">
         <button
           onClick={onMenuClick}
-          className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 md:hidden"
+          className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
           aria-label="メニューを開く"
         >
           <Menu size={20} />
