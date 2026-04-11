@@ -44,13 +44,14 @@ export function encrypt(plaintext: string | null | undefined): string | null {
 
 /**
  * "enc:<base64>" 形式の文字列を復号する
- * プレフィックスがない場合は平文とみなしてそのまま返す（デュアルリード対応）
+ * 全データ暗号化済みのため、平文が来たらエラー（暗号化バイパスの検知）
  */
 export function decrypt(value: string | null | undefined): string | null {
   if (!value) return value as string | null;
 
-  // 平文（未暗号化データ）はそのまま返す
-  if (!value.startsWith(ENCRYPTED_PREFIX)) return value;
+  if (!value.startsWith(ENCRYPTED_PREFIX)) {
+    throw new Error("Unencrypted data detected — all values must be encrypted");
+  }
 
   const key = getKey();
   const combined = Buffer.from(value.slice(ENCRYPTED_PREFIX.length), "base64");
