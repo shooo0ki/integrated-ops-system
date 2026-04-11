@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
+import { logger } from "@/backend/logger";
 import {
   EVALUATION_AXES,
   ALL_ITEM_IDS,
@@ -106,9 +107,9 @@ export async function GET(req: NextRequest) {
       updatedAt: ev.updatedAt,
     });
   } catch (e) {
-    console.error("[GET /api/evaluations]", e);
+    logger.error("evaluations", "GET failed", e);
     return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: String(e) } },
+      { error: { code: "INTERNAL_ERROR", message: "サーバーエラーが発生しました" } },
       { status: 500 }
     );
   }

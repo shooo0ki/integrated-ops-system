@@ -1,15 +1,26 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  ReactNode,
+} from "react";
 import useSWR, { useSWRConfig } from "swr";
-import type { SessionUser } from "@/backend/auth";
+import { authClient } from "@/frontend/lib/auth-client";
+import type { AppRole } from "@/shared/types/auth";
+
+// ─────────────────────────────────────────────
+// 型定義 (既存コードとの互換性を維持)
+// ─────────────────────────────────────────────
 
 interface AuthState {
   isLoggedIn: boolean;
-  userId: string | null;    // UserAccount.id (UUID)
-  memberId: string | null;  // Member.id (UUID)
+  userId: string | null;
+  memberId: string | null;
   role: string;
-  name: string | null;      // 表示用: SessionUser.name
+  name: string | null;
 }
 
 interface AuthContextValue extends AuthState {
@@ -23,67 +34,116 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// 401 を null で返すカスタムフェッチャー（SWRのエラーにしない）
-const sessionFetcher = (url: string) =>
-  fetch(url, { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null));
+// ─────────────────────────────────────────────
+// プロフィール取得 (role, memberId)
+// ─────────────────────────────────────────────
+
+interface UserProfile {
+  memberId: string;
+  role: AppRole;
+}
+
+const profileFetcher = async (url: string): Promise<UserProfile | null> => {
+  const res = await fetch(url, { credentials: "same-origin", cache: "no-store" });
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`Profile fetch failed: ${res.status}`);
+  return res.json();
+};
+
+function useFetchProfile(userId: string | null) {
+  const { data, isLoading } = useSWR<UserProfile | null>(
+    userId ? "/api/auth/profile" : null,
+    profileFetcher,
+    { dedupingInterval: 60_000, revalidateOnFocus: false }
+  );
+  return { data: data ?? null, isPending: isLoading };
+}
+
+// ─────────────────────────────────────────────
+// Provider
+// ─────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { mutate } = useSWRConfig();
 
-  const { data, isLoading } = useSWR<{ user: SessionUser } | null>(
-    "/api/auth/session",
-    sessionFetcher,
-    { dedupingInterval: 60_000, revalidateOnFocus: false }
-  );
+  const {
+    data: session,
+    isPending: isSessionLoading,
+  } = authClient.useSession();
 
-  const user = data?.user ?? null;
-  const state: AuthState = useMemo(
-    () =>
-      user
-        ? {
-            isLoggedIn: true,
-            userId: user.id,
-            memberId: user.memberId,
-            role: user.role,
-            name: user.name,
-          }
-        : { isLoggedIn: false, userId: null, memberId: null, role: "member", name: null },
-    [user]
-  );
+  const {
+    data: profile,
+    isPending: isProfileLoading,
+  } = useFetchProfile(session?.user?.id ?? null);
 
-  const login = useCallback(async (
-    email: string,
-    password: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const responseData = await res.json();
-    if (!res.ok) {
-      return { success: false, error: responseData.error ?? "ログインに失敗しました。" };
+  const state: AuthState = useMemo(() => {
+    if (!session?.user || !profile) {
+      return {
+        isLoggedIn: false,
+        userId: null,
+        memberId: null,
+        role: "member",
+        name: null,
+      };
     }
-    // SWR キャッシュを更新（再フェッチなし）
-    await mutate("/api/auth/session", { user: responseData.user }, false);
-    return { success: true };
-  }, [mutate]);
+    return {
+      isLoggedIn: true,
+      userId: session.user.id,
+      memberId: profile.memberId,
+      role: profile.role,
+      name: session.user.name,
+    };
+  }, [session, profile]);
+
+  const login = useCallback(
+    async (
+      email: string,
+      password: string
+    ): Promise<{ success: boolean; error?: string }> => {
+      const result = await authClient.signIn.email({
+        email,
+        password,
+        fetchOptions: {
+          onError: () => { /* エラーハンドリングは result.error で行う */ },
+        },
+      });
+      if (result.error) {
+        const status = result.error.status;
+        if (status === 429) {
+          return {
+            success: false,
+            error: "リクエスト回数の上限に達しました。しばらく時間をおいてお試しください。",
+          };
+        }
+        return {
+          success: false,
+          error: "メールアドレスまたはパスワードが正しくありません。",
+        };
+      }
+      // セッション確立後にプロフィールを即時取得
+      await mutate("/api/auth/profile");
+      return { success: true };
+    },
+    [mutate]
+  );
 
   const logout = useCallback(async (): Promise<void> => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    // SWR キャッシュをクリア（再フェッチなし）
-    await mutate("/api/auth/session", null, false);
+    await authClient.signOut();
+    await mutate("/api/auth/profile", null, { revalidate: false });
   }, [mutate]);
 
   const value = useMemo(
-    () => ({ ...state, isLoading, login, logout }),
-    [state, isLoading, login, logout]
+    () => ({
+      ...state,
+      isLoading: isSessionLoading || isProfileLoading,
+      login,
+      logout,
+    }),
+    [state, isSessionLoading, isProfileLoading, login, logout]
   );
 
   return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 }
 

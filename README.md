@@ -22,7 +22,8 @@ cp .env.example .env.local
 ```env
 DATABASE_URL="postgresql://postgres:password@localhost:5432/integrated_ops_dev?schema=public"
 DIRECT_URL="postgresql://postgres:password@localhost:5432/integrated_ops_dev?schema=public"
-SESSION_SECRET="<openssl rand -base64 32 で生成>"
+BETTER_AUTH_SECRET="<openssl rand -base64 32 で生成>"
+BETTER_AUTH_URL="http://localhost:3001"
 NEXT_PUBLIC_APP_URL="http://localhost:3001"
 ```
 

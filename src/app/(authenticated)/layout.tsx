@@ -19,13 +19,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
-      router.push("/login");
+      router.push("/login?reason=expired");
     }
   }, [isLoading, isLoggedIn, router]);
 
-  // middleware がセッションクッキーの存在を保証しているため isLoading 中もレイアウトを描画する
-  // セッション切れ時は useEffect がリダイレクトし、その直前のみスピナーを表示する
-  if (!isLoading && !isLoggedIn) {
+  // ローディング中はスピナー表示
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
@@ -33,9 +32,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
+  // リダイレクト待ち — 何も描画しない (スピナーフラッシュ防止)
+  if (!isLoggedIn) {
+    return null;
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      {/* モバイル backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/40 md:hidden"

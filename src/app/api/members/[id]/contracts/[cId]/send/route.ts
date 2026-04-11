@@ -4,6 +4,7 @@ import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 import { sendEnvelope } from "@/backend/docusign";
+import { decrypt } from "@/backend/crypto";
 
 
 function formatJpDate(date: Date): string {
@@ -70,10 +71,10 @@ export async function POST(
       startDate: contract.startDate ? formatJpDate(contract.startDate) : undefined,
       endDate: contract.endDate ? formatJpDate(contract.endDate) : undefined,
       address: m.address ?? undefined,
-      bankName: m.bankName ?? undefined,
-      bankBranch: m.bankBranch ?? undefined,
-      bankAccountNumber: m.bankAccountNumber ?? undefined,
-      bankAccountHolder: m.bankAccountHolder ?? undefined,
+      bankName: decrypt(m.bankName) ?? undefined,
+      bankBranch: decrypt(m.bankBranch) ?? undefined,
+      bankAccountNumber: decrypt(m.bankAccountNumber) ?? undefined,
+      bankAccountHolder: decrypt(m.bankAccountHolder) ?? undefined,
     },
   });
 
