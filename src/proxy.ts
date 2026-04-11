@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/backend/rate-limit";
 
-// Better Auth の Cookie 名 (advanced.cookiePrefix: "salt2" → "salt2.session_token")
-const SESSION_COOKIE = "salt2.session_token";
+// Better Auth の Cookie 名
+// ローカル(HTTP): "salt2.session_token", 本番(HTTPS): "__Secure-salt2.session_token"
+const SESSION_COOKIES = ["salt2.session_token", "__Secure-salt2.session_token"];
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -73,7 +74,7 @@ export function proxy(req: NextRequest) {
   }
 
   // Cookie の存在チェックのみ (認証判定はしない — CVE-2025-29927 対策)
-  const hasSession = req.cookies.has(SESSION_COOKIE);
+  const hasSession = SESSION_COOKIES.some((name) => req.cookies.has(name));
   if (!hasSession) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
