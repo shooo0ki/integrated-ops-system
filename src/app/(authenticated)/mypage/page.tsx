@@ -160,8 +160,8 @@ export default function MyPage() {
             ) : attendances.length === 0 ? (
               <p className="text-sm text-slate-400">{attMonth.replace("-", "年")}月の勤怠データがありません</p>
             ) : (
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <table className="w-full min-w-[560px] text-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[500px] text-sm">
                   <thead className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">日付</th>

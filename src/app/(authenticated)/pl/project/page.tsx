@@ -343,7 +343,7 @@ export default function ProjectPLPage() {
                     <button onClick={() => setSimMarkup("")} className="text-xs text-slate-400 hover:text-slate-600 px-1">リセット</button>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                   <div>
                     <p className="text-xs text-slate-400">シミュレート請求額</p>
                     <p className="font-bold text-slate-800">{formatCurrency(simRevenue)}</p>

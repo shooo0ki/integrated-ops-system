@@ -139,7 +139,7 @@ export default function EvaluationPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
           { label: "総メンバー", value: rows.length },
           { label: "評価済み", value: rows.filter((r) => r.evaluated).length },

@@ -458,7 +458,8 @@ export function AdminClosingView() {
               <span>発行日: {detailInvoice.issuedAt}</span>
             </div>
 
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[400px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs text-slate-500">
                   <th className="pb-2 text-left font-medium">項目名</th>
@@ -504,6 +505,7 @@ export function AdminClosingView() {
                 </tr>
               </tfoot>
             </table>
+            </div>
 
             <div className="flex justify-end">
               <Button variant="outline" onClick={() => setDetailInvoice(null)}>閉じる</Button>

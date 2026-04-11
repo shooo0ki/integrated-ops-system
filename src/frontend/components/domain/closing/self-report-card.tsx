@@ -155,7 +155,7 @@ export function SelfReportCard({
             <CheckCircle size={15} className="text-green-600" />
             <span className="text-sm text-green-700 font-medium">申告済み</span>
           </div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b border-slate-100">
               <tr className="text-xs text-slate-500">
                 <th className="py-2 text-left font-medium">項目</th>
@@ -170,7 +170,7 @@ export function SelfReportCard({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <p className="text-xs text-slate-400 text-right">合計: {totalPercent}%</p>
         </div>
       ) : (
@@ -183,7 +183,7 @@ export function SelfReportCard({
             <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
           )}
 
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b border-slate-100">
               <tr className="text-xs text-slate-500">
                 <th className="py-2 text-left font-medium">項目</th>
@@ -247,7 +247,7 @@ export function SelfReportCard({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
 
           <button
             onClick={addRow}

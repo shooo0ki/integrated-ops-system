@@ -98,14 +98,14 @@ export default function MembersClient({ role }: MembersClientProps) {
           該当するメンバーが見つかりません
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table className="w-full min-w-[480px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="px-4 py-2.5 text-left font-medium text-slate-500">名前</th>
                 <th className="px-4 py-2.5 text-left font-medium text-slate-500">ステータス</th>
                 <th className="px-4 py-2.5 text-left font-medium text-slate-500">ロール</th>
-                <th className="px-4 py-2.5 text-left font-medium text-slate-500">メール</th>
+                <th className="hidden px-4 py-2.5 text-left font-medium text-slate-500 sm:table-cell">メール</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -131,7 +131,7 @@ export default function MembersClient({ role }: MembersClientProps) {
                   <td className="px-4 py-2.5 text-slate-700">
                     {roleLabel[m.role] ?? m.role}
                   </td>
-                  <td className="px-4 py-2.5 text-slate-500">{m.email}</td>
+                  <td className="hidden px-4 py-2.5 text-slate-500 sm:table-cell">{m.email}</td>
                 </tr>
               ))}
             </tbody>

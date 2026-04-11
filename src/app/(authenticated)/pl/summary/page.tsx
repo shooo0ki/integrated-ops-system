@@ -252,7 +252,7 @@ export default function PLSummaryPage() {
                 <p className="text-xs text-orange-700 mb-3">
                   Boostが案件獲得 → SALT2が人員派遣 → Boostへ「人件費 × 掛け率 ＋ ツール費（実費）」を請求
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <p className="text-xs text-slate-500">Boost請求額合計</p>
                     <p className="text-lg font-bold text-slate-800">{formatCurrency(dispatchTotals.revenue)}</p>
@@ -288,7 +288,7 @@ export default function PLSummaryPage() {
                 <p className="text-xs text-blue-700 mb-3">
                   SALT2が案件を直接獲得 → クライアントから売上が入る → 通常の損益計算
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <p className="text-xs text-slate-500">売上合計</p>
                     <p className="text-lg font-bold text-slate-800">{formatCurrency(ownTotals.revenue)}</p>
@@ -548,7 +548,7 @@ export default function PLSummaryPage() {
                       粗利率 {margin}%
                     </div>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <p className="text-xs text-slate-400">{isDispatchCompany ? "Boost請求額" : "売上"}</p>
                       <p className="text-lg font-bold text-slate-800">{formatCurrency(rev)}</p>
