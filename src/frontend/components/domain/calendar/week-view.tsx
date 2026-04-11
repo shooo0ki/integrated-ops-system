@@ -4,38 +4,14 @@ import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import {
   HOUR_PX, START_HOUR, END_HOUR, GRID_H, TIME_W, DAY_MIN_W, HOURS, COLORS, DEFAULT_SCROLL_HOUR, MIN_BLOCK_PX,
 } from "@/frontend/constants/calendar";
-import type { CalMember, CalData, AttEntry, SchedEntry } from "@/shared/types/calendar";
-import type { WeekDay } from "./calendar-utils";
+import type { CalMember, CalData } from "@/shared/types/calendar";
+import { useCalendarMaps } from "@/frontend/hooks/calendar/use-calendar-maps";
+import type { WeekDay, CalBlock, CalPreview } from "./calendar-utils";
 import { timeToMin, timeToY, spanPx, nowTimeStr, nowY } from "./calendar-utils";
 import { LocationBadge } from "./location-badge";
 
-type Block = {
-  memberId: string;
-  memberName: string;
-  startMin: number;
-  endMin: number;
-  top: number;
-  height: number;
-  type: "attendance" | "schedule";
-  clockIn?: string;
-  clockOut?: string | null;
-  startTime?: string;
-  endTime?: string | null;
-  locationType: string;
-  color: typeof COLORS[number];
-};
-
-type Preview = {
-  memberName: string;
-  type: "attendance" | "schedule";
-  clockIn?: string;
-  clockOut?: string | null;
-  startTime?: string;
-  endTime?: string | null;
-  locationType: string;
-  x: number;
-  y: number;
-};
+type Block = CalBlock;
+type Preview = CalPreview;
 
 /** 同じ日のブロック群に対して、時間が重なるブロックのみを列分割する */
 function layoutBlocks(blocks: Block[]): { block: Block; col: number; totalCols: number }[] {
@@ -104,26 +80,7 @@ export function WeekView({ weekDays, visible, calData, onDateClick }: {
     return () => clearInterval(t);
   }, []);
 
-  const colorMap = useMemo(
-    () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
-    [calData.members]
-  );
-
-  const attMap = useMemo(() => {
-    const map = new Map<string, AttEntry>();
-    for (const a of calData.attendances) {
-      map.set(`${a.memberId}:${a.date}`, a);
-    }
-    return map;
-  }, [calData.attendances]);
-
-  const schedMap = useMemo(() => {
-    const map = new Map<string, SchedEntry>();
-    for (const s of calData.schedules) {
-      map.set(`${s.memberId}:${s.date}`, s);
-    }
-    return map;
-  }, [calData.schedules]);
+  const { colorMap, attMap, schedMap } = useCalendarMaps(calData);
 
   // 日ごとのブロックを事前計算（予定と実績を分離して2層描画）
   const dayBlocks = useMemo(() => {

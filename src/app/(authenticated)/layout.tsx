@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/frontend/components/layout/sidebar";
 import { Header } from "@/frontend/components/layout/header";
 import { useAuth } from "@/frontend/contexts/auth-context";
@@ -9,7 +9,6 @@ import { useAuth } from "@/frontend/contexts/auth-context";
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("sidebar") !== "closed";

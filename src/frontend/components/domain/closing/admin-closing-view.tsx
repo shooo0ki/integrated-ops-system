@@ -4,7 +4,7 @@ import { Select } from "@/frontend/components/common/input";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import {
-  AlertTriangle, Send, RefreshCw, CheckCircle, Zap, FileText,
+  AlertTriangle, Send, RefreshCw, CheckCircle,
 } from "lucide-react";
 import { Card } from "@/frontend/components/common/card";
 import { Badge } from "@/frontend/components/common/badge";
@@ -21,6 +21,7 @@ import {
   formatCurrency, buildMonthOptions,
 } from "@/frontend/constants/closing";
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
+import { ClosingActions } from "./closing-actions";
 
 export function AdminClosingView() {
   const [targetMonth, setTargetMonth] = useState("");
@@ -296,33 +297,17 @@ export function AdminClosingView() {
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {rec.confirmStatus === "not_sent" && (
-                              <Button size="sm" variant="outline" onClick={() => handleSendSlack(rec.memberId, rec.memberName)} disabled={isSending}>
-                                <Send size={12} /> {isSending ? "送信中" : "通知"}
-                              </Button>
-                            )}
-                            {rec.confirmStatus === "waiting" && (
-                              <>
-                                <Button size="sm" variant="outline" onClick={() => handleSendSlack(rec.memberId, rec.memberName)} disabled={isSending}>
-                                  <RefreshCw size={12} /> {isSending ? "送信中" : "再通知"}
-                                </Button>
-                                <Button size="sm" variant="secondary" onClick={() => handleForce(rec.memberId)} disabled={isForcing}>
-                                  <Zap size={12} /> {isForcing ? "処理中" : "強制確定"}
-                                </Button>
-                              </>
-                            )}
-                            {inv && (
-                              <Button size="sm" variant="outline" onClick={() => setDetailInvoice(inv)}>
-                                <FileText size={12} /> 明細
-                              </Button>
-                            )}
-                            {inv && invStatus === "sent" && (
-                              <Button size="sm" variant="primary" onClick={() => handleAccounting(inv.id, rec.memberName)} disabled={accountingId === inv.id}>
-                                <Send size={12} /> {accountingId === inv.id ? "送付中" : "LayerX"}
-                              </Button>
-                            )}
-                          </div>
+                          <ClosingActions
+                            confirmStatus={rec.confirmStatus}
+                            isSending={isSending}
+                            isForcing={isForcing}
+                            onSendSlack={() => handleSendSlack(rec.memberId, rec.memberName)}
+                            onForce={() => handleForce(rec.memberId)}
+                            invoice={inv}
+                            onShowDetail={() => inv && setDetailInvoice(inv)}
+                            onSendAccounting={inv && invStatus === "sent" ? () => handleAccounting(inv.id, rec.memberName) : undefined}
+                            isSendingAccounting={accountingId === inv?.id}
+                          />
                         </td>
                       </tr>
                     );
@@ -385,23 +370,13 @@ export function AdminClosingView() {
                             </Badge>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {rec.confirmStatus === "not_sent" && (
-                                <Button size="sm" variant="outline" onClick={() => handleSendSlack(rec.memberId, rec.memberName)} disabled={isSending}>
-                                  <Send size={12} /> {isSending ? "送信中" : "通知"}
-                                </Button>
-                              )}
-                              {rec.confirmStatus === "waiting" && (
-                                <>
-                                  <Button size="sm" variant="outline" onClick={() => handleSendSlack(rec.memberId, rec.memberName)} disabled={isSending}>
-                                    <RefreshCw size={12} /> {isSending ? "送信中" : "再通知"}
-                                  </Button>
-                                  <Button size="sm" variant="secondary" onClick={() => handleForce(rec.memberId)} disabled={isForcing}>
-                                    <Zap size={12} /> {isForcing ? "処理中" : "強制確定"}
-                                  </Button>
-                                </>
-                              )}
-                            </div>
+                            <ClosingActions
+                              confirmStatus={rec.confirmStatus}
+                              isSending={isSending}
+                              isForcing={isForcing}
+                              onSendSlack={() => handleSendSlack(rec.memberId, rec.memberName)}
+                              onForce={() => handleForce(rec.memberId)}
+                            />
                           </td>
                         </tr>
                       );
