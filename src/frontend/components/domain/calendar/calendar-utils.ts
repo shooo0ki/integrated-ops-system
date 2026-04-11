@@ -1,4 +1,36 @@
-import { HOUR_PX, START_HOUR, END_HOUR, DOW_JP } from "@/frontend/constants/calendar";
+import { HOUR_PX, START_HOUR, END_HOUR, DOW_JP, COLORS } from "@/frontend/constants/calendar";
+
+// ─── 共通型定義 ─────────────────────────────────────────
+
+export type CalBlock = {
+  memberId: string;
+  memberName: string;
+  startMin: number;
+  endMin: number;
+  top: number;
+  height: number;
+  type: "attendance" | "schedule";
+  clockIn?: string;
+  clockOut?: string | null;
+  startTime?: string;
+  endTime?: string | null;
+  locationType: string;
+  color: typeof COLORS[number];
+};
+
+export type CalPreview = {
+  memberName: string;
+  type: "attendance" | "schedule";
+  clockIn?: string;
+  clockOut?: string | null;
+  startTime?: string;
+  endTime?: string | null;
+  locationType: string;
+  x: number;
+  y: number;
+};
+
+// ─── ユーティリティ関数 ─────────────────────────────────
 
 export function localDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

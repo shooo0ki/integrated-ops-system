@@ -5,34 +5,13 @@ import {
   HOUR_PX, START_HOUR, END_HOUR, GRID_H, TIME_W, DAY_MIN_W, HOURS, COLORS, DEFAULT_SCROLL_HOUR, MIN_BLOCK_PX,
 } from "@/frontend/constants/calendar";
 import type { CalMember, CalData } from "@/shared/types/calendar";
+import type { CalBlock, CalPreview } from "./calendar-utils";
 import { timeToY, spanPx, nowTimeStr, nowY } from "./calendar-utils";
+import { useCalendarMaps } from "@/frontend/hooks/calendar/use-calendar-maps";
 import { LocationBadge } from "./location-badge";
 
-type Block = {
-  memberId: string;
-  memberName: string;
-  top: number;
-  height: number;
-  type: "attendance" | "schedule";
-  clockIn?: string;
-  clockOut?: string | null;
-  startTime?: string;
-  endTime?: string | null;
-  locationType: string;
-  color: typeof COLORS[number];
-};
-
-type Preview = {
-  memberName: string;
-  type: "attendance" | "schedule";
-  clockIn?: string;
-  clockOut?: string | null;
-  startTime?: string;
-  endTime?: string | null;
-  locationType: string;
-  x: number;
-  y: number;
-};
+type Block = Omit<CalBlock, "startMin" | "endMin">;
+type Preview = CalPreview;
 
 export function DayView({ date, visible, calData }: {
   date: string;
@@ -54,10 +33,7 @@ export function DayView({ date, visible, calData }: {
     return () => clearInterval(t);
   }, []);
 
-  const colorMap = useMemo(
-    () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
-    [calData.members]
-  );
+  const { colorMap } = useCalendarMaps(calData);
 
   // メンバーごとの予定・実績ブロックを計算
   const memberBlocks = useMemo(() => {

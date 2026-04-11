@@ -2,8 +2,9 @@
 
 import { useMemo, useCallback } from "react";
 import { COLORS } from "@/frontend/constants/calendar";
-import type { CalMember, CalData, AttEntry, SchedEntry } from "@/shared/types/calendar";
+import type { CalMember, CalData } from "@/shared/types/calendar";
 import type { MonthDay } from "./calendar-utils";
+import { useCalendarMaps } from "@/frontend/hooks/calendar/use-calendar-maps";
 
 
 const MAX_PER_CELL = 3;
@@ -14,22 +15,7 @@ export function MonthView({ grid, visible, calData, onDateClick }: {
   calData: CalData;
   onDateClick?: (dateStr: string) => void;
 }) {
-  const colorMap = useMemo(
-    () => new Map(calData.members.map((m, i) => [m.id, COLORS[i % COLORS.length]])),
-    [calData.members]
-  );
-
-  const attMap = useMemo(() => {
-    const map = new Map<string, AttEntry>();
-    for (const a of calData.attendances) map.set(`${a.memberId}:${a.date}`, a);
-    return map;
-  }, [calData.attendances]);
-
-  const schedMap = useMemo(() => {
-    const map = new Map<string, SchedEntry>();
-    for (const s of calData.schedules) map.set(`${s.memberId}:${s.date}`, s);
-    return map;
-  }, [calData.schedules]);
+  const { colorMap, attMap, schedMap } = useCalendarMaps(calData);
 
   const getEvent = useCallback((memberId: string, date: string) => {
     const a = attMap.get(`${memberId}:${date}`);
