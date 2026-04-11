@@ -10,7 +10,25 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const { isLoggedIn, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("sidebar") !== "closed";
+  });
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 開閉状態を永続化
+  useEffect(() => {
+    localStorage.setItem("sidebar", sidebarOpen ? "open" : "closed");
+  }, [sidebarOpen]);
+
+  // モバイル判定
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
@@ -34,14 +52,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      {sidebarOpen && (
+      {/* モバイル時のみ暗転backdrop表示 */}
+      {sidebarOpen && isMobile && (
         <div
-          className="fixed inset-0 z-20 bg-black/40 md:hidden"
+          style={{ position: "fixed", inset: 0, zIndex: 20, backgroundColor: "rgba(0,0,0,0.4)" }}
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isMobile={isMobile} />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen((prev) => !prev)} />

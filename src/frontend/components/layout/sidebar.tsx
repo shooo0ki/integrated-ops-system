@@ -102,9 +102,10 @@ const MEMBER_GROUPS: NavGroup[] = [
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  isMobile?: boolean;
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, isMobile }: SidebarProps) {
   const pathname = usePathname();
   const { role, isLoading } = useAuth();
 
@@ -133,7 +134,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       <aside
         className="flex h-full w-56 flex-col border-r border-slate-200 bg-white"
-        style={{ display: isOpen ? "flex" : "none" }}
+        style={
+          !isOpen
+            ? { display: "none" }
+            : isMobile
+              ? { display: "flex", position: "fixed", top: 0, bottom: 0, left: 0, zIndex: 30 }
+              : { display: "flex" }
+        }
       >
         {/* Logo */}
         <div className="flex h-14 items-center border-b border-slate-200 px-4">
@@ -163,7 +170,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       <li key={item.href}>
                         <a
                           href={item.href}
-                          onClick={onClose}
+                          onClick={() => { if (isMobile) onClose(); }}
                           className={cn(
                             "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                             isActive(item.href)
