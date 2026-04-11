@@ -9,7 +9,6 @@ import {
   Building2,
   CalendarDays,
   CalendarClock,
-  X,
   FolderOpen,
   BarChart2,
   Star,
@@ -133,25 +132,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <>
       <aside
-        className={cn(
-          "flex h-full w-56 flex-col border-r border-slate-200 bg-white",
-          "hidden md:flex",
-          isOpen && "fixed inset-y-0 left-0 z-30 flex"
-        )}
+        className="flex h-full w-56 flex-col border-r border-slate-200 bg-white"
+        style={{ display: isOpen ? "flex" : "none" }}
       >
         {/* Logo */}
-        <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
+        <div className="flex h-14 items-center border-b border-slate-200 px-4">
           <div className="flex items-center gap-2 min-w-0">
             <Building2 size={20} className="shrink-0 text-blue-600" />
             <p className="truncate text-sm font-bold text-slate-800">統合業務管理</p>
           </div>
-          <button
-            onClick={onClose}
-            className="ml-2 shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 md:hidden"
-            aria-label="メニューを閉じる"
-          >
-            <X size={16} />
-          </button>
         </div>
 
         {/* Nav groups */}
