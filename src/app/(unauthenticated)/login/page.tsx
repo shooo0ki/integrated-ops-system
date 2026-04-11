@@ -34,9 +34,8 @@ function LoginForm() {
       : null;
 
   useEffect(() => {
-    // session-expired で来た場合はリダイレクトしない（再ログインさせる）
     if (isLoggedIn && reason !== "expired") {
-      router.push("/dashboard");
+      router.push("/attendance");
     }
   }, [isLoggedIn, reason, router]);
 
@@ -47,9 +46,10 @@ function LoginForm() {
     try {
       const result = await login(email, password);
       if (result.success) {
-        preload("/api/dashboard", fetcher);
         preload("/api/attendances/today", fetcher);
-        router.push("/dashboard");
+        // ログイン直後は role が未反映の可能性があるため、一律 /attendance に遷移
+        // admin/manager は useEffect 側でダッシュボードにリダイレクト
+        router.push("/attendance");
       } else {
         setError(result.error ?? "ログインに失敗しました。");
       }
