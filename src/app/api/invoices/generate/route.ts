@@ -4,7 +4,20 @@ import { getSessionUser } from "@/backend/auth";
 import { prisma } from "@/backend/db";
 import { generateInvoicePdf } from "@/backend/invoice-pdf";
 import { uploadFile } from "@/backend/storage";
+import { decryptBankFields } from "@/backend/crypto";
 import { unauthorized, apiError } from "@/backend/api-response";
+import { z } from "zod";
+
+const invoiceGenerateSchema = z.object({
+  targetMonth: z.string().regex(/^\d{4}-\d{2}$/, "targetMonth は YYYY-MM 形式で指定してください"),
+  items: z.array(z.object({
+    name: z.string().min(1).max(200),
+    amount: z.number().min(0).max(99_999_999),
+    taxable: z.boolean().optional(),
+    linkedProjectId: z.string().optional(),
+  })).min(1, "items は1件以上必要です"),
+  note: z.string().max(1000).optional(),
+});
 
 function calcAmounts(items: { amount: number; taxable?: boolean }[]) {
   const taxableTotal = items.filter((i) => i.taxable !== false).reduce((s, i) => s + i.amount, 0);
@@ -21,20 +34,13 @@ export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return unauthorized();
 
-  const body = await req.json() as {
-    targetMonth: string;
-    items: { name: string; amount: number; taxable?: boolean; linkedProjectId?: string }[];
-    note?: string;
-  };
-
-  const { targetMonth, items, note } = body;
-
-  if (!targetMonth || !/^\d{4}-\d{2}$/.test(targetMonth)) {
-    return apiError("VALIDATION_ERROR", "targetMonth は YYYY-MM 形式で指定してください", 400);
+  const raw = await req.json().catch(() => null);
+  const parsed = invoiceGenerateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return apiError("VALIDATION_ERROR", parsed.error.issues.map((i) => i.message).join(", "), 400);
   }
-  if (!Array.isArray(items) || items.length === 0) {
-    return apiError("VALIDATION_ERROR", "items は1件以上必要です", 400);
-  }
+
+  const { targetMonth, items, note } = parsed.data;
 
   // 月次申告チェック: 未申告なら請求書作成不可
   const selfReports = await prisma.monthlySelfReport.findMany({
@@ -143,10 +149,12 @@ export async function POST(req: NextRequest) {
     memberInfo: {
       phone: member?.phone,
       address: member?.address,
-      bankName: member?.bankName,
-      bankBranch: member?.bankBranch,
-      bankAccountNumber: member?.bankAccountNumber,
-      bankAccountHolder: member?.bankAccountHolder,
+      ...decryptBankFields({
+        bankName: member?.bankName,
+        bankBranch: member?.bankBranch,
+        bankAccountNumber: member?.bankAccountNumber,
+        bankAccountHolder: member?.bankAccountHolder,
+      }),
     },
   });
 

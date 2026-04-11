@@ -4,6 +4,7 @@ import { type MemberContractStatus } from "@prisma/client";
 import { prisma } from "@/backend/db";
 import { verifyWebhookSignature } from "@/backend/docusign";
 import { unauthorized, apiError } from "@/backend/api-response";
+import { logger } from "@/backend/logger";
 
 // DocuSign Connect Webhook ステータスマッピング
 const DOCUSIGN_STATUS_MAP: Record<string, MemberContractStatus> = {
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!contract) {
-    console.error(`[docusign] unknown envelopeId: ${envelopeId}`);
+    logger.warn("docusign", `unknown envelopeId: ${envelopeId}`);
     return NextResponse.json({ ok: true });
   }
 

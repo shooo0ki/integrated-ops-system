@@ -98,6 +98,80 @@ enum AuditAction {
   DELETE
 }
 
+// =============================================================================
+// Better Auth テーブル (認証基盤)
+// =============================================================================
+
+model BaUser {
+  id            String    @id                          // = UserAccount.id と同一値
+  email         String    @unique
+  name          String
+  emailVerified Boolean   @default(false) @map("email_verified")
+  image         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  sessions BaSession[]
+  accounts BaAccount[]
+
+  @@map("ba_user")
+}
+
+model BaSession {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique                          // セッショントークン (Cookie に格納)
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user BaUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("ba_session")
+}
+
+model BaAccount {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  accountId         String   @map("account_id")       // provider ごとの識別子
+  providerId        String   @map("provider_id")       // "credential" | "google" etc.
+  accessToken       String?  @map("access_token")
+  refreshToken      String?  @map("refresh_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope             String?
+  idToken           String?  @map("id_token")
+  password          String?                            // credential provider 用の bcrypt ハッシュ
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user BaUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerId])
+  @@index([userId])
+  @@index([accountId, providerId])
+  @@map("ba_account")
+}
+
+model BaVerification {
+  id         String   @id @default(uuid())
+  identifier String                                    // メールアドレス等
+  value      String                                    // トークン値
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("ba_verification")
+}
+
+// =============================================================================
+// 業務テーブル
+// =============================================================================
+
 // ─────────────────────────────────────────────
 // 1. user_accounts（ユーザーアカウント）
 // ─────────────────────────────────────────────

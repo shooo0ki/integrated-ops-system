@@ -16,6 +16,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { id: memberId } = await params;
 
+  // 本人または admin/manager のみ閲覧可
+  if (user.memberId !== memberId && !["admin", "manager"].includes(user.role)) {
+    return forbidden();
+  }
+
   const records = await prisma.memberSkill.findMany({
     where: { memberId },
     include: {
@@ -27,6 +32,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       },
     },
     orderBy: { evaluatedAt: "desc" },
+    take: 500,
   });
 
   return NextResponse.json(

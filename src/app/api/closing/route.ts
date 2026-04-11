@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/backend/auth";
 import { prisma } from "@/backend/db";
 import { unauthorized, apiError } from "@/backend/api-response";
+import { logger } from "@/backend/logger";
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser();
@@ -152,7 +153,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(result);
   } catch (error) {
-    console.error("Closing API error:", error);
+    logger.error("closing", "API error", error);
     return NextResponse.json([], { status: 200 });
   }
 }

@@ -4,6 +4,7 @@ import { type MemberContractStatus } from "@prisma/client";
 import { prisma } from "@/backend/db";
 import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
+import { encryptBankFields } from "@/backend/crypto";
 import { z } from "zod";
 
 const newMemberContractSchema = z.object({
@@ -86,10 +87,12 @@ export async function POST(req: NextRequest) {
           status: d.status,
           phone: d.phone ?? null,
           address: d.address ?? null,
-          bankName: d.bankName ?? null,
-          bankBranch: d.bankBranch ?? null,
-          bankAccountNumber: d.bankAccountNumber ?? null,
-          bankAccountHolder: d.bankAccountHolder ?? null,
+          ...encryptBankFields({
+            bankName: d.bankName ?? null,
+            bankBranch: d.bankBranch ?? null,
+            bankAccountNumber: d.bankAccountNumber ?? null,
+            bankAccountHolder: d.bankAccountHolder ?? null,
+          }),
           salaryType: "monthly",
           salaryAmount: 0,
           joinedAt: today,

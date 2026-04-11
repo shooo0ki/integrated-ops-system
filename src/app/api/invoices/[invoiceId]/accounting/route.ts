@@ -5,6 +5,8 @@ import { prisma } from "@/backend/db";
 import { generateInvoicePdf } from "@/backend/invoice-pdf";
 import { sendEmail } from "@/backend/email";
 import { unauthorized, forbidden, apiError } from "@/backend/api-response";
+import { decryptBankFields } from "@/backend/crypto";
+import { logger } from "@/backend/logger";
 
 // PATCH /api/invoices/[invoiceId]/accounting
 // admin/manager: LayerX へメール送付 → status を confirmed に更新
@@ -56,15 +58,17 @@ export async function PATCH(
       memberInfo: {
         phone: invoice.member.phone,
         address: invoice.member.address,
-        bankName: invoice.member.bankName,
-        bankBranch: invoice.member.bankBranch,
-        bankAccountNumber: invoice.member.bankAccountNumber,
-        bankAccountHolder: invoice.member.bankAccountHolder,
+        ...decryptBankFields({
+          bankName: invoice.member.bankName,
+          bankBranch: invoice.member.bankBranch,
+          bankAccountNumber: invoice.member.bankAccountNumber,
+          bankAccountHolder: invoice.member.bankAccountHolder,
+        }),
       },
     });
   } catch (e) {
-    console.error("PDF generation failed:", e);
-    return apiError("INTERNAL_ERROR", `PDF生成に失敗しました: ${e instanceof Error ? e.message : String(e)}`, 500);
+    logger.error("invoices/accounting", "PDF generation failed", e);
+    return apiError("INTERNAL_ERROR", "PDF生成に失敗しました", 500);
   }
 
   // ── LayerX へメール送信 ────────────────────────────────
@@ -88,8 +92,8 @@ export async function PATCH(
         },
       });
     } catch (e) {
-      console.error("Email sending failed:", e);
-      return apiError("INTERNAL_ERROR", `メール送信に失敗しました: ${e instanceof Error ? e.message : String(e)}`, 500);
+      logger.error("invoices/accounting", "Email sending failed", e);
+      return apiError("INTERNAL_ERROR", "メール送信に失敗しました", 500);
     }
   }
 

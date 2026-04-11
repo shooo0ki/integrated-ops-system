@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/backend/auth";
 import { prisma } from "@/backend/db";
 import { unauthorized, apiError } from "@/backend/api-response";
+import { decryptBankFields } from "@/backend/crypto";
 import {
   EVALUATION_AXES,
   calcAxisAverage,
@@ -88,10 +89,12 @@ export async function GET() {
       name: member.name,
       phone: member.phone,
       address: member.address,
-      bankName: member.bankName,
-      bankBranch: member.bankBranch,
-      bankAccountNumber: member.bankAccountNumber,
-      bankAccountHolder: member.bankAccountHolder,
+      ...decryptBankFields({
+        bankName: member.bankName,
+        bankBranch: member.bankBranch,
+        bankAccountNumber: member.bankAccountNumber,
+        bankAccountHolder: member.bankAccountHolder,
+      }),
       status: member.status,
       salaryType: member.salaryType,
       salaryAmount: member.salaryAmount,
