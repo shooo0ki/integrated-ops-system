@@ -5,6 +5,7 @@ import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 import { recalcAttendanceSummary } from "@/backend/attendance-summary";
 import { toTimeStr, parseTimeOnDate, jstNow, parseDate } from "@/backend/jst";
+import { sendSlack } from "@/backend/slack";
 
 // ─── GET /api/attendances?memberId=&month=YYYY-MM ─────────
 export async function GET(req: NextRequest) {
@@ -147,6 +148,14 @@ export async function POST(req: NextRequest) {
   });
 
   await recalcAttendanceSummary(memberId, date.slice(0, 7));
+
+  // 管理者向け Slack 通知（fire-and-forget）
+  const ciStr = toTimeStr(created.clockIn) ?? "—";
+  const coStr = toTimeStr(created.clockOut) ?? "—";
+  sendSlack(
+    `📝 *勤怠修正申請* が届きました\n申請者: *${user.name}*\n対象日: ${date}\n出勤: ${ciStr} / 退勤: ${coStr}\n<${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/attendance/corrections|確認する>`,
+    "attendance"
+  ).catch(() => {});
 
   const actualHours = created.workMinutes != null
     ? Math.round((created.workMinutes / 60) * 10) / 10

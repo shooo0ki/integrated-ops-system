@@ -3,7 +3,18 @@
     "allow": [
       "Bash(find /Users/shouki/integrated-ops-system -name *s3* -o -name *storage*)",
       "Bash(git reset:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(find /Users/shouki/integrated-ops-system/src/app/api -name \"route.ts\" -exec sed -i '' '1s/^/export const dynamic = \"\"force-dynamic\"\";\\\\n/' {} +)",
+      "Bash(grep -n \"useSWR\" src/app/\\\\\\(authenticated\\\\\\)/**/*.tsx)",
+      "Bash(while read:*)",
+      "Bash(do sed:*)",
+      "Bash(done)",
+      "Bash(grep '\"\"types\"\"' /Users/shouki/integrated-ops-system/node_modules/jspdf/package.json)",
+      "Read(//Users/shouki/integrated-ops-system/**)",
+      "Bash(find /Users/shouki/integrated-ops-system -name *.ttf -o -name *.otf -o -name *.woff -o -name *.woff2)",
+      "Bash(python3 -c \":*)",
+      "WebFetch(domain:initial.inc)",
+      "Bash(git stash:*)"
     ],
     "additionalDirectories": [
       "/Users/shouki/integrated-ops-system/src/app/api/projects/[id]/positions/[positionId]"
