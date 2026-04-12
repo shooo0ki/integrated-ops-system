@@ -83,30 +83,37 @@ export function MonthView({ grid, visible, calData, onDateClick }: {
                             const isWorking = ev.type === "actual" && ev.clockOut === null;
                             return (
                               <div key={member.id}
-                                className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate border-l-2 outline-none ${
-                                  isScheduleOnly ? "border-dashed" : ""
+                                className={`flex flex-col rounded px-1.5 py-0.5 text-xs truncate outline-none ${
+                                  isScheduleOnly ? "border border-dashed" : "border-l-[3px]"
                                 }`}
                                 style={{
-                                  backgroundColor: `${color.hex}25`,
+                                  backgroundColor: isScheduleOnly ? `${color.hex}12` : `${color.hex}30`,
                                   color: "#334155",
-                                  borderLeftColor: color.hex,
-                                  borderLeftWidth: "3px",
+                                  ...(isScheduleOnly
+                                    ? { borderColor: `${color.hex}50` }
+                                    : { borderLeftColor: color.hex }),
                                 }}
                               >
                                 <div className="flex items-center gap-1">
-                                  <span className="font-medium truncate">{member.name}</span>
+                                  <span className={`font-medium truncate ${isScheduleOnly ? "opacity-60" : ""}`}>{member.name}</span>
                                   {isWorking && (
                                     <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
                                   )}
                                 </div>
-                                {ev.type === "actual"
-                                  ? <span className="text-[10px] opacity-70">
-                                      {ev.clockIn}〜{ev.clockOut ?? "勤務中"}
+                                {ev.type === "actual" ? (
+                                  <div>
+                                    <span className="text-[10px] opacity-70">
+                                      {ev.clockIn}〜{ev.clockOut ?? <span className="text-green-600">勤務中</span>}
                                     </span>
-                                  : <span className="text-[10px] opacity-70">
-                                      予定 {ev.startTime}〜{ev.endTime ?? ""}
-                                    </span>
-                                }
+                                    {ev.hasSchedule && isWorking && (
+                                      <span className="text-[9px] text-slate-400 ml-1">(予定〜{(schedMap.get(`${member.id}:${day.date}`) as { endTime?: string | null } | undefined)?.endTime ?? ""})</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] opacity-50">
+                                    予定 {ev.startTime}〜{ev.endTime ?? ""}
+                                  </span>
+                                )}
                               </div>
                             );
                           })}

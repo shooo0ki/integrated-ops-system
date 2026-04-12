@@ -259,81 +259,142 @@ export function WeekView({ weekDays, visible, calData, onDateClick }: {
                     </div>
                   )}
 
-                  {/* 勤務予定（背景レイヤー: 薄色＋破線）(1-2-1 + 1-2-2) */}
-                  {(dayBlocks.get(day.date)?.scheduleBlocks ?? []).map((block) => {
-                    const { col, totalCols } = dayBlocks.get(day.date)?.memberColumns.get(block.memberId) ?? { col: 0, totalCols: 1 };
-                    const widthPct = 100 / totalCols;
-                    const leftPct = col * widthPct;
-                    return (
-                      <div
-                        key={`${block.memberId}-sched`}
-                        className="absolute rounded-md border-l-2 border-dashed overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none opacity-30"
-                        style={{
-                          top: block.top,
-                          height: block.height,
-                          left: `${leftPct + 0.5}%`,
-                          width: `${widthPct - 1}%`,
-                          padding: "2px 4px",
-                          zIndex: 1,
-                          backgroundColor: `${block.color.hex}80`,
-                          borderLeftColor: block.color.hex,
-                        }}
-                        onClick={(e) => handleBlockClick(block, e)}
-                      >
-                        <p className="text-xs font-semibold truncate leading-tight" style={{ color: block.color.darkHex }}>
-                          {block.memberName}
-                        </p>
-                        {block.height >= 32 && (
-                          <p className="text-xs truncate leading-tight opacity-80" style={{ color: block.color.darkHex }}>
-                            {block.startTime}〜{block.endTime ?? ""}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {/* 予定＋実績を統合レンダリング */}
+                  {(() => {
+                    const blocks = dayBlocks.get(day.date);
+                    if (!blocks) return null;
+                    const { scheduleBlocks, attendanceBlocks, memberColumns } = blocks;
 
-                  {/* 勤怠実績（前面レイヤー: 濃色＋実線）(1-2-1 + 1-2-2 + 1-2-6 + 1-2-7) */}
-                  {(dayBlocks.get(day.date)?.attendanceBlocks ?? []).map((block) => {
-                    const { col, totalCols } = dayBlocks.get(day.date)?.memberColumns.get(block.memberId) ?? { col: 0, totalCols: 1 };
-                    const widthPct = 100 / totalCols;
-                    const leftPct = col * widthPct;
-                    const isWorking = block.clockOut === null;
+                    // メンバーIDでまとめる
+                    const memberIds = new Set([
+                      ...scheduleBlocks.map(b => b.memberId),
+                      ...attendanceBlocks.map(b => b.memberId),
+                    ]);
 
-                    return (
-                      <div
-                        key={`${block.memberId}-att`}
-                        className="absolute rounded-md border-l-2 overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none"
-                        style={{
-                          top: block.top,
-                          height: block.height,
-                          left: `${leftPct + 0.5}%`,
-                          width: `${widthPct - 1}%`,
-                          padding: "2px 4px",
-                          zIndex: 2,
-                          backgroundColor: `${block.color.hex}99`,
-                          borderLeftColor: block.color.hex,
-                        }}
-                        onClick={(e) => handleBlockClick(block, e)}
-                      >
-                        <div className="flex items-center gap-1">
-                          <p className="text-xs font-semibold truncate leading-tight" style={{ color: block.color.darkHex }}>
-                            {block.memberName}
-                          </p>
-                          {isWorking && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-                          )}
-                        </div>
-                        {block.height >= 32 && (
-                          <p className="text-xs truncate leading-tight opacity-80" style={{ color: block.color.darkHex }}>
-                            {block.clockIn}〜{block.clockOut ?? "勤務中"}
-                          </p>
-                        )}
-                        {block.height >= 48 && (
-                          <LocationBadge locationType={block.locationType} />
-                        )}
-                      </div>
-                    );
-                  })}
+                    return Array.from(memberIds).map(mid => {
+                      const sched = scheduleBlocks.find(b => b.memberId === mid);
+                      const att = attendanceBlocks.find(b => b.memberId === mid);
+                      const { col, totalCols } = memberColumns.get(mid) ?? { col: 0, totalCols: 1 };
+                      const widthPct = 100 / totalCols;
+                      const leftPct = col * widthPct;
+                      const color = (att ?? sched)!.color;
+
+                      // 予定のみ（実績なし）
+                      if (sched && !att) {
+                        return (
+                          <div
+                            key={`${mid}-sched`}
+                            className="absolute rounded-md border border-dashed overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none"
+                            style={{
+                              top: sched.top, height: sched.height,
+                              left: `${leftPct + 0.5}%`, width: `${widthPct - 1}%`,
+                              padding: "2px 4px", zIndex: 1,
+                              backgroundColor: `${color.hex}18`,
+                              borderColor: `${color.hex}60`,
+                            }}
+                            onClick={(e) => handleBlockClick(sched, e)}
+                          >
+                            <p className="text-xs font-semibold truncate leading-tight" style={{ color: color.darkHex, opacity: 0.6 }}>
+                              {sched.memberName}
+                            </p>
+                            {sched.height >= 32 && (
+                              <p className="text-xs truncate leading-tight" style={{ color: color.darkHex, opacity: 0.4 }}>
+                                予定 {sched.startTime}〜{sched.endTime ?? ""}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      // 実績あり（予定があればコンテナとして表示）
+                      if (att) {
+                        const isWorking = att.clockOut === null;
+                        // 予定と実績の合計範囲でコンテナサイズを決定
+                        const containerTop = sched ? Math.min(sched.top, att.top) : att.top;
+                        const containerBottom = sched
+                          ? Math.max(sched.top + sched.height, att.top + att.height)
+                          : att.top + att.height;
+                        const containerHeight = containerBottom - containerTop;
+
+                        // 予定終了ラインの位置（コンテナ内の相対位置）
+                        const schedEndY = sched ? (sched.top + sched.height - containerTop) : null;
+
+                        return (
+                          <div
+                            key={`${mid}-combined`}
+                            className="absolute overflow-visible"
+                            style={{
+                              top: containerTop,
+                              height: containerHeight,
+                              left: `${leftPct + 0.5}%`,
+                              width: `${widthPct - 1}%`,
+                              zIndex: 2,
+                            }}
+                          >
+                            {/* 予定枠（薄い背景 + 破線ボーダー） */}
+                            {sched && (
+                              <div
+                                className="absolute rounded-md border border-dashed pointer-events-none"
+                                style={{
+                                  top: sched.top - containerTop,
+                                  height: sched.height,
+                                  left: 0, right: 0,
+                                  backgroundColor: `${color.hex}10`,
+                                  borderColor: `${color.hex}40`,
+                                }}
+                              />
+                            )}
+
+                            {/* 実績ブロック（実線＋濃い背景） */}
+                            <div
+                              className="absolute rounded-md border-l-[3px] overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] outline-none"
+                              style={{
+                                top: att.top - containerTop,
+                                height: att.height,
+                                left: 0, right: 0,
+                                padding: "2px 4px",
+                                backgroundColor: `${color.hex}55`,
+                                borderLeftColor: color.hex,
+                              }}
+                              onClick={(e) => handleBlockClick(att, e)}
+                            >
+                              <div className="flex items-center gap-1">
+                                <p className="text-xs font-semibold truncate leading-tight" style={{ color: color.darkHex }}>
+                                  {att.memberName}
+                                </p>
+                                {isWorking && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                                )}
+                              </div>
+                              {att.height >= 32 && (
+                                <p className="text-xs truncate leading-tight opacity-80" style={{ color: color.darkHex }}>
+                                  {att.clockIn}〜{att.clockOut ?? "勤務中"}
+                                </p>
+                              )}
+                              {att.height >= 48 && (
+                                <LocationBadge locationType={att.locationType} />
+                              )}
+                            </div>
+
+                            {/* 予定終了ライン（破線マーカー） */}
+                            {schedEndY != null && isWorking && schedEndY > 0 && schedEndY < containerHeight && (
+                              <div
+                                className="absolute inset-x-1 pointer-events-none"
+                                style={{ top: schedEndY }}
+                              >
+                                <div className="h-px border-t border-dashed" style={{ borderColor: color.darkHex, opacity: 0.5 }} />
+                                <span className="absolute right-0 -top-3 text-[9px] whitespace-nowrap" style={{ color: color.darkHex, opacity: 0.5 }}>
+                                  〜{sched!.endTime}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    });
+                  })()}
                 </div>
               </div>
             ))}
@@ -354,15 +415,19 @@ export function WeekView({ weekDays, visible, calData, onDateClick }: {
         >
           <p className="font-bold text-slate-800 mb-1">{preview.memberName}</p>
           <div className="space-y-0.5 text-slate-600">
-            {preview.type === "attendance" ? (
+            {preview.type === "attendance" && (
               <>
-                <p>出勤: {preview.clockIn}</p>
-                <p>退勤: {preview.clockOut ?? "勤務中"}</p>
+                <p className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: "#3b82f6" }} />
+                  実績: {preview.clockIn}〜{preview.clockOut ?? <span className="text-green-600 font-medium">勤務中</span>}
+                </p>
               </>
-            ) : (
-              <>
-                <p>予定: {preview.startTime}〜{preview.endTime ?? ""}</p>
-              </>
+            )}
+            {preview.type === "schedule" && (
+              <p className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-sm border border-dashed border-slate-400 shrink-0" />
+                予定: {preview.startTime}〜{preview.endTime ?? ""}
+              </p>
             )}
             <p>勤務形態: <LocationBadge locationType={preview.locationType} /></p>
           </div>
