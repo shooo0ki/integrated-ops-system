@@ -445,6 +445,7 @@ model WorkSchedule {
   endTime      String?  @map("end_time") @db.VarChar(5)
   isOff        Boolean  @default(false) @map("is_off")
   locationType String   @default("office") @map("location_type") @db.VarChar(20) // "office"|"online"|"client_site"
+  note         String?  @db.VarChar(200)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

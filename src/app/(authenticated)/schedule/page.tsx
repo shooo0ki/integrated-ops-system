@@ -26,6 +26,7 @@ interface DayEntry {
   plannedStart: string;
   plannedEnd: string;
   workType: WorkType;
+  note: string;
 }
 
 const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -49,6 +50,7 @@ function buildWeek(anchor: Date): DayEntry[] {
       plannedStart: DEFAULT_START,
       plannedEnd: DEFAULT_END,
       workType: "出社" as WorkType,
+      note: "",
     };
   });
 }
@@ -124,7 +126,7 @@ export default function SchedulePage() {
 
   const from = entries[0]?.date;
   const to = entries[6]?.date;
-  const { data: existingSchedules, mutate: mutateSchedules } = useSWR<{ date: string; startTime: string | null; endTime: string | null; isOff: boolean; locationType: string }[]>(
+  const { data: existingSchedules, mutate: mutateSchedules } = useSWR<{ date: string; startTime: string | null; endTime: string | null; isOff: boolean; locationType: string; note: string | null }[]>(
     memberId && from && to ? `/api/members/${memberId}/work-schedules?from=${from}&to=${to}` : null
   );
 
@@ -146,6 +148,7 @@ export default function SchedulePage() {
           plannedStart: found.startTime ?? DEFAULT_START,
           plannedEnd: found.endTime ?? DEFAULT_END,
           workType: LOCATION_TO_WORK_TYPE[found.locationType] ?? "出社",
+          note: found.note ?? "",
         };
       })
     );
@@ -192,7 +195,7 @@ export default function SchedulePage() {
     const res = await fetch(`/api/members/${memberId}/work-schedules?date=${date}`, { method: "DELETE" });
     if (res.ok) {
       setEntries((prev) => prev.map((e) =>
-        e.date === date ? { ...e, isOff: false, plannedStart: DEFAULT_START, plannedEnd: DEFAULT_END, workType: "出社" as WorkType } : e
+        e.date === date ? { ...e, isOff: false, plannedStart: DEFAULT_START, plannedEnd: DEFAULT_END, workType: "出社" as WorkType, note: "" } : e
       ));
       await mutateSchedules();
     }
@@ -210,6 +213,7 @@ export default function SchedulePage() {
         endTime: e.isOff ? null : e.plannedEnd,
         isOff: e.isOff,
         locationType: WORK_TYPE_TO_LOCATION[e.workType] ?? "office",
+        note: e.note || null,
       }));
 
     const res = await fetch(`/api/members/${memberId}/work-schedules`, {
@@ -355,6 +359,17 @@ export default function SchedulePage() {
                     </>
                   )}
                 </div>
+
+                {/* 備考欄 */}
+                <input
+                  type="text"
+                  placeholder="備考（例: この日はオンラインで対応）"
+                  value={entry.note}
+                  onChange={(e) => update(i, "note", e.target.value)}
+                  disabled={!editable}
+                  maxLength={200}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-300 focus:border-blue-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                />
               </div>
             </Card>
           );

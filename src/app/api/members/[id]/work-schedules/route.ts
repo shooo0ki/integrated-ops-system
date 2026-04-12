@@ -49,6 +49,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       endTime: s.endTime,
       isOff: s.isOff,
       locationType: s.locationType,
+      note: s.note,
     }))
   );
 }
@@ -72,9 +73,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const results = await Promise.all(
-    body.map(async (item: { date: string; startTime?: string; endTime?: string; isOff?: boolean; locationType?: string }) => {
+    body.map(async (item: { date: string; startTime?: string; endTime?: string; isOff?: boolean; locationType?: string; note?: string }) => {
       if (!item.date || !/^\d{4}-\d{2}-\d{2}$/.test(item.date)) return null;
       const locationType = item.locationType ?? "office";
+      const note = item.note?.trim() || null;
       return prisma.workSchedule.upsert({
         where: { memberId_date: { memberId, date: new Date(item.date) } },
         create: {
@@ -84,12 +86,14 @@ export async function POST(req: NextRequest, { params }: Params) {
           endTime: item.isOff ? null : (item.endTime ?? null),
           isOff: item.isOff ?? false,
           locationType,
+          note,
         },
         update: {
           startTime: item.isOff ? null : (item.startTime ?? null),
           endTime: item.isOff ? null : (item.endTime ?? null),
           isOff: item.isOff ?? false,
           locationType,
+          note,
         },
       });
     })
@@ -98,7 +102,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const saved = results.filter(Boolean);
   const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
   const LOCATION_JA: Record<string, string> = { office: "出社", remote: "リモート" };
-  type ScheduleItem = { date: string; startTime?: string | null; endTime?: string | null; isOff?: boolean; locationType?: string };
+  type ScheduleItem = { date: string; startTime?: string | null; endTime?: string | null; isOff?: boolean; locationType?: string; note?: string };
   const workDays: ScheduleItem[] = (body as ScheduleItem[])
     .filter((item) => item.date && !item.isOff)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -118,7 +122,8 @@ export async function POST(req: NextRequest, { params }: Params) {
         const dayName = WEEKDAYS_JA[d.getDay()];
         const time = item.startTime && item.endTime ? `${item.startTime}-${item.endTime}` : "終日";
         const loc = LOCATION_JA[item.locationType ?? "office"] ?? item.locationType ?? "";
-        return `• ${dayName}: ${time} ${loc}`;
+        const noteStr = item.note?.trim() ? ` — ${item.note.trim()}` : "";
+        return `• ${dayName}: ${time} ${loc}${noteStr}`;
       }),
     ];
     await sendSlack(lines.join("\n"), "schedule");
