@@ -6,7 +6,7 @@ import { unauthorized, forbidden } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 import { recalcAttendanceSummary } from "@/backend/attendance-summary";
 import { toTimeStr, parseTimeOnDate } from "@/backend/jst";
-import { sendSlack } from "@/backend/slack";
+import { notifyAdmins } from "@/backend/notify";
 
 
 type Params = { params: Promise<{ id: string }> };
@@ -106,14 +106,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   await recalcAttendanceSummary(updated.memberId, updated.date.toISOString().slice(0, 7));
 
-  // 管理者向け Slack 通知（fire-and-forget）
+  // 管理者向けアプリ内通知
   const dateStr = updated.date.toISOString().slice(0, 10);
   const ciStr = toTimeStr(updated.clockIn) ?? "—";
   const coStr = toTimeStr(updated.clockOut) ?? "—";
-  sendSlack(
-    `📝 *勤怠修正申請* が届きました\n申請者: *${user.name}*\n対象日: ${dateStr}\n出勤: ${ciStr} / 退勤: ${coStr}\n<${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/attendance/corrections|確認する>`,
-    "attendance"
-  ).catch(() => {});
+  notifyAdmins({
+    type: "attendance_correction",
+    title: `${user.name}さんから勤怠修正申請`,
+    body: `対象日: ${dateStr} / 出勤: ${ciStr} / 退勤: ${coStr}`,
+    linkUrl: "/attendance/corrections",
+  }).catch(() => {});
 
   const actualHours = updated.workMinutes != null
     ? Math.round((updated.workMinutes / 60) * 10) / 10

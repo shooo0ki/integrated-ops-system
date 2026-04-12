@@ -240,6 +240,7 @@ model Member {
   attendanceSummaries   MonthlyAttendanceSummary[]
   notificationSetting   NotificationSetting?
   googleToken           GoogleToken?
+  notifications         Notification[]
 
   @@index([deletedAt])
   @@index([leftAt])
@@ -804,4 +805,23 @@ model GoogleToken {
   member Member @relation(fields: [memberId], references: [id])
 
   @@map("google_tokens")
+}
+
+// ─────────────────────────────────────────────
+// アプリ内通知
+// ─────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(uuid())
+  memberId  String   @map("member_id")
+  type      String   @db.VarChar(50) // "attendance_correction" etc.
+  title     String   @db.VarChar(200)
+  body      String?
+  linkUrl   String?  @map("link_url")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@index([memberId, readAt])
+  @@map("notifications")
 }
