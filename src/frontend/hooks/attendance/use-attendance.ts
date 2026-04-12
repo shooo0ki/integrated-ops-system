@@ -1,11 +1,17 @@
 "use client";
 import { toJSTDateString } from "@/shared/utils";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { useToast } from "@/frontend/hooks/use-toast";
-import type { AttendanceStatus, TodayRecord } from "@/shared/types/attendance";
+import type { AttendanceStatus, TodayRecord, WorkLogEntry } from "@/shared/types/attendance";
+
+export interface WorkLogRow {
+  projectId: string;
+  hours: number;
+  note: string;
+}
 
 export function useAttendance() {
   const { memberId } = useAuth();
@@ -36,12 +42,33 @@ export function useAttendance() {
   const [clockingOut, setClockingOut] = useState(false);
   const [actionLog, setActionLog] = useState<string[]>([]);
 
+  // workLogs (PJ + 工数)
+  const [workLogs, setWorkLogs] = useState<WorkLogRow[]>([]);
+  const { data: myProjects } = useSWR<{ id: string; name: string }[]>("/api/attendances/my-projects");
+
+  const addWorkLog = useCallback(() => {
+    setWorkLogs((prev) => [...prev, { projectId: "", hours: 0, note: "" }]);
+  }, []);
+  const removeWorkLog = useCallback((idx: number) => {
+    setWorkLogs((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+  const updateWorkLog = useCallback((idx: number, field: keyof WorkLogRow, value: string | number) => {
+    setWorkLogs((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  }, []);
+
   useEffect(() => {
     if (myRecord?.todoToday) {
       setTodayPlan(myRecord.todoToday);
     } else if (prevTodoTomorrow && !todayPlan) {
-      // 未出勤時: 前回退勤時の「次回やること」をプリフィル（1-1-1）
       setTodayPlan(prevTodoTomorrow);
+    }
+    // 既存 workLogs をプリフィル
+    if (myRecord?.workLogs && myRecord.workLogs.length > 0 && workLogs.length === 0) {
+      setWorkLogs(myRecord.workLogs.map((l: WorkLogEntry) => ({
+        projectId: l.projectId,
+        hours: l.hours,
+        note: l.note ?? "",
+      })));
     }
   }, [myRecord, prevTodoTomorrow]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -82,6 +109,7 @@ export function useAttendance() {
       mutateToday({ ...myRecord, status: "done", clockOut: now }, { revalidate: false });
     }
     try {
+      const validLogs = workLogs.filter((l) => l.projectId && l.hours > 0);
       const res = await fetch("/api/attendances/clock-out", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -90,6 +118,7 @@ export function useAttendance() {
           doneToday: todayDone,
           todoTomorrow: tomorrowPlan,
           breakMinutes: Number(breakMinutes),
+          workLogs: validLogs.map((l) => ({ projectId: l.projectId, hours: l.hours, note: l.note || undefined })),
         }),
       });
       if (res.ok) {
@@ -104,7 +133,8 @@ export function useAttendance() {
   }
 
   function validateClockOut(): boolean {
-    if (!todayDone.trim()) { setClockInError("今日やったことを入力してください"); return false; }
+    const validLogs = workLogs.filter((l) => l.projectId && l.hours > 0);
+    if (validLogs.length === 0) { setClockInError("工数を1件以上入力してください"); return false; }
     if (!tomorrowPlan.trim()) { setClockInError("次回勤務日にやることを入力してください"); return false; }
     setClockInError("");
     return true;
@@ -120,5 +150,8 @@ export function useAttendance() {
     clockInError, clockingIn, clockingOut, actionLog,
     toast,
     clockIn, clockOut, validateClockOut,
+    // workLogs (1-1-2, 1-1-3, 1-1-5)
+    workLogs, myProjects: myProjects ?? [],
+    addWorkLog, removeWorkLog, updateWorkLog,
   };
 }

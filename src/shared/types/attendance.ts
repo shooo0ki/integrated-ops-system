@@ -2,6 +2,12 @@
 
 export type AttendanceStatus = "not_started" | "working" | "break" | "done" | "absent";
 
+export interface WorkLogEntry {
+  projectId: string;
+  hours: number;
+  note?: string | null;
+}
+
 export interface TodayRecord {
   id: string;
   date: string;
@@ -12,6 +18,7 @@ export interface TodayRecord {
   todoToday: string | null;
   doneToday: string | null;
   todoTomorrow: string | null;
+  workLogs?: WorkLogEntry[];
   status: AttendanceStatus;
   prevTodoTomorrow?: string | null;
 }

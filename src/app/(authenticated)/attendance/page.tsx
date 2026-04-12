@@ -1,10 +1,11 @@
 "use client";
 
-import { Clock, CheckCircle, Building2, Monitor } from "lucide-react";
+import { Clock, CheckCircle, Building2, Monitor, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/frontend/components/common/card";
 import { Badge } from "@/frontend/components/common/badge";
 import { Button } from "@/frontend/components/common/button";
 import { Toast } from "@/frontend/components/common/toast";
+import { Select } from "@/frontend/components/common/input";
 import { statusVariant, STATUS_LABELS } from "@/frontend/constants/attendance";
 import { useAttendance } from "@/frontend/hooks/attendance/use-attendance";
 
@@ -19,7 +20,11 @@ export default function AttendancePage() {
     clockInError, clockingIn, clockingOut, actionLog,
     toast,
     clockIn, clockOut, validateClockOut,
+    workLogs, myProjects, addWorkLog, removeWorkLog, updateWorkLog,
   } = useAttendance();
+
+  const HOURS_OPTIONS = Array.from({ length: 33 }, (_, i) => i * 0.5); // 0, 0.5, 1.0, ..., 16.0
+  const workLogsTotal = workLogs.reduce((s, l) => s + l.hours, 0);
 
   return (
     <div className="space-y-6">
@@ -100,14 +105,66 @@ export default function AttendancePage() {
                   <p className="text-sm text-slate-700 whitespace-pre-wrap">{myRecord.todoToday}</p>
                 </div>
               )}
+              {/* PJ工数入力 (1-1-2, 1-1-3, 1-1-5) */}
               <div>
-                <label className="text-sm font-medium text-slate-700">今日やったこと <span className="text-red-500">*</span></label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-slate-700">今日の工数 <span className="text-red-500">*</span></label>
+                  <span className="text-xs text-slate-500">合計: {workLogsTotal.toFixed(1)}h</span>
+                </div>
+                <div className="space-y-2">
+                  {workLogs.map((log, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <Select
+                        value={log.projectId}
+                        onChange={(e) => updateWorkLog(idx, "projectId", e.target.value)}
+                        className="flex-1 min-w-0 px-2 py-1.5 text-sm"
+                      >
+                        <option value="">PJを選択</option>
+                        {myProjects.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </Select>
+                      <Select
+                        value={String(log.hours)}
+                        onChange={(e) => updateWorkLog(idx, "hours", parseFloat(e.target.value))}
+                        className="w-20 shrink-0 px-2 py-1.5 text-sm"
+                      >
+                        {HOURS_OPTIONS.map((h) => (
+                          <option key={h} value={h}>{h.toFixed(1)}h</option>
+                        ))}
+                      </Select>
+                      <input
+                        type="text"
+                        placeholder="備考"
+                        value={log.note}
+                        onChange={(e) => updateWorkLog(idx, "note", e.target.value)}
+                        maxLength={200}
+                        className="w-28 shrink-0 rounded-md border border-slate-300 px-2 py-1.5 text-sm placeholder:text-slate-300 focus:border-blue-500 focus:outline-none"
+                      />
+                      <button type="button" onClick={() => removeWorkLog(idx)} className="mt-1.5 text-slate-400 hover:text-red-500">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addWorkLog}
+                    className="flex items-center gap-1 rounded-md border border-dashed border-slate-300 px-3 py-1.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600"
+                  >
+                    <Plus size={12} /> PJ工数を追加
+                  </button>
+                </div>
+              </div>
+
+              {/* 今日やったこと (自由記述、任意) */}
+              <div>
+                <label className="text-sm font-medium text-slate-700">今日やったこと（補足メモ）</label>
                 <textarea
                   value={todayDone}
                   onChange={(e) => setTodayDone(e.target.value)}
                   rows={2}
                   maxLength={500}
-                  placeholder="本日の実績を入力..."
+                  placeholder="自由記述（任意）..."
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 />
               </div>
@@ -162,9 +219,25 @@ export default function AttendancePage() {
                   </span>
                 </div>
               </div>
+              {myRecord?.workLogs && myRecord.workLogs.length > 0 && (
+                <div className="rounded-md bg-slate-50 px-3 py-2">
+                  <p className="text-xs font-medium text-slate-500 mb-1">工数</p>
+                  <div className="space-y-1">
+                    {myRecord.workLogs.map((l, i) => {
+                      const pj = myProjects.find((p) => p.id === l.projectId);
+                      return (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-slate-700">{pj?.name ?? l.projectId}</span>
+                          <span className="font-medium text-slate-700">{l.hours.toFixed(1)}h{l.note ? ` (${l.note})` : ""}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {myRecord?.doneToday && (
                 <div className="rounded-md bg-slate-50 px-3 py-2">
-                  <p className="text-xs font-medium text-slate-500 mb-1">今日やったこと</p>
+                  <p className="text-xs font-medium text-slate-500 mb-1">補足メモ</p>
                   <p className="text-sm text-slate-700 whitespace-pre-wrap">{myRecord.doneToday}</p>
                 </div>
               )}

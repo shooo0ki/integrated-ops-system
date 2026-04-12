@@ -230,6 +230,7 @@ model Member {
   skills                MemberSkill[]
   assignments           ProjectAssignment[]
   workSchedules         WorkSchedule[]
+  scheduleWorkPlans     ScheduleWorkPlan[]
   attendances           Attendance[]
   invoices              Invoice[]
   tools                 MemberTool[]
@@ -338,6 +339,8 @@ model Project {
   assignments ProjectAssignment[]
   plRecords   PLRecord[]
   selfReports MonthlySelfReport[]
+  workLogs          AttendanceWorkLog[]
+  scheduleWorkPlans ScheduleWorkPlan[]
 
   @@index([status])
   @@index([company])
@@ -459,6 +462,27 @@ model WorkSchedule {
 }
 
 // ─────────────────────────────────────────────
+// 10b. schedule_work_plans（週次PJ予定工数）
+// ─────────────────────────────────────────────
+model ScheduleWorkPlan {
+  id        String   @id @default(uuid())
+  memberId  String   @map("member_id")
+  weekStart DateTime @map("week_start") @db.Date  // 週の月曜日
+  projectId String   @map("project_id")
+  hours     Float                                   // 予定工数（0.5h 刻み）
+  note      String?  @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  member  Member  @relation(fields: [memberId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([memberId, weekStart, projectId])
+  @@index([memberId, weekStart])
+  @@map("schedule_work_plans")
+}
+
+// ─────────────────────────────────────────────
 // 11. attendances（勤怠）
 // ─────────────────────────────────────────────
 model Attendance {
@@ -487,6 +511,26 @@ model Attendance {
   @@index([status, confirmStatus])
   @@index([confirmStatus, date])
   @@map("attendances")
+
+  workLogs AttendanceWorkLog[]
+}
+
+// ─────────────────────────────────────────────
+// 11b. attendance_work_logs（日次工数ログ）
+// ─────────────────────────────────────────────
+model AttendanceWorkLog {
+  id           String  @id @default(uuid())
+  attendanceId String  @map("attendance_id")
+  projectId    String  @map("project_id")
+  hours        Float               // 0.5h 刻み
+  note         String? @db.VarChar(200)
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  project    Project    @relation(fields: [projectId], references: [id])
+
+  @@index([attendanceId])
+  @@index([projectId])
+  @@map("attendance_work_logs")
 }
 
 // ─────────────────────────────────────────────

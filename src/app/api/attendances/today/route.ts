@@ -62,9 +62,16 @@ export async function GET() {
     status = "not_started";
   }
 
+  // workLogs を取得
+  const workLogs = await prisma.attendanceWorkLog.findMany({
+    where: { attendanceId: attendance.id },
+    select: { projectId: true, hours: true, note: true },
+  });
+
   return NextResponse.json({
     id: attendance.id,
     date: attendance.date.toISOString().slice(0, 10), // 日またぎ時は昨日の日付を返す
+    workLogs,
     clockIn: attendance.clockIn
       ? (() => { const jst = new Date(attendance.clockIn.getTime() + 9 * 60 * 60 * 1000); return `${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`; })()
       : null,

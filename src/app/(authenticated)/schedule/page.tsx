@@ -1,13 +1,19 @@
 "use client";
 import { Select } from "@/frontend/components/common/input";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import useSWR from "swr";
-import { ChevronLeft, ChevronRight, CheckCircle, Save, AlertTriangle, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle, Save, AlertTriangle, Trash2, Plus } from "lucide-react";
 import { useAuth } from "@/frontend/contexts/auth-context";
 import { Card } from "@/frontend/components/common/card";
 import { ConfirmDialog } from "@/frontend/components/common/confirm-dialog";
 import { Button } from "@/frontend/components/common/button";
+
+interface WorkPlanRow {
+  projectId: string;
+  hours: number;
+  note: string;
+}
 
 type WorkType = "出社" | "オンライン";
 
@@ -104,6 +110,23 @@ export default function SchedulePage() {
   const today = useMemo(() => todayStr(), []);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
+  // PJ予定工数 (1-3-2, 1-3-3)
+  const [workPlans, setWorkPlans] = useState<WorkPlanRow[]>([]);
+  const { data: myProjects } = useSWR<{ id: string; name: string }[]>(
+    memberId ? "/api/attendances/my-projects" : null
+  );
+  const HOURS_OPTIONS = useMemo(() => Array.from({ length: 33 }, (_, i) => i * 0.5), []);
+
+  const addWorkPlan = useCallback(() => {
+    setWorkPlans((prev) => [...prev, { projectId: "", hours: 0, note: "" }]);
+  }, []);
+  const removeWorkPlan = useCallback((idx: number) => {
+    setWorkPlans((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+  const updateWorkPlan = useCallback((idx: number, field: keyof WorkPlanRow, value: string | number) => {
+    setWorkPlans((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  }, []);
+
   // 初期表示: 来週
   useEffect(() => {
     const now = new Date();
@@ -134,6 +157,17 @@ export default function SchedulePage() {
     () => new Set((existingSchedules ?? []).map((s) => s.date)),
     [existingSchedules]
   );
+
+  // 週次PJ予定工数の取得
+  const weekStart = from; // entries[0] = 月曜日
+  const { data: existingPlans, mutate: mutatePlans } = useSWR<{ projectId: string; hours: number; note: string | null }[]>(
+    memberId && weekStart ? `/api/members/${memberId}/work-plans?weekStart=${weekStart}` : null
+  );
+
+  useEffect(() => {
+    if (!existingPlans) { setWorkPlans([]); return; }
+    setWorkPlans(existingPlans.map((p) => ({ projectId: p.projectId, hours: p.hours, note: p.note ?? "" })));
+  }, [existingPlans]);
 
   // 既存スケジュールを反映
   useEffect(() => {
@@ -216,15 +250,29 @@ export default function SchedulePage() {
         note: e.note || null,
       }));
 
-    const res = await fetch(`/api/members/${memberId}/work-schedules`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const [schedRes, planRes] = await Promise.all([
+      fetch(`/api/members/${memberId}/work-schedules`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+      weekStart
+        ? fetch(`/api/members/${memberId}/work-plans`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              weekStart,
+              plans: workPlans
+                .filter((p) => p.projectId && p.hours > 0)
+                .map((p) => ({ projectId: p.projectId, hours: p.hours, note: p.note || undefined })),
+            }),
+          })
+        : Promise.resolve({ ok: true } as Response),
+    ]);
     setSaving(false);
-    if (res.ok) {
+    if (schedRes.ok) {
       setSaved(true);
-      await mutateSchedules();
+      await Promise.all([mutateSchedules(), mutatePlans()]);
       setTimeout(() => setSaved(false), 3000);
     }
   }
@@ -375,6 +423,61 @@ export default function SchedulePage() {
           );
         })}
       </div>
+
+      {/* 週次PJ予定工数 (1-3-2, 1-3-3) */}
+      <Card>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-700">週間PJ予定工数</h2>
+            <span className="text-xs text-slate-500">
+              合計: {workPlans.reduce((s, p) => s + p.hours, 0).toFixed(1)}h
+            </span>
+          </div>
+          <div className="space-y-2">
+            {workPlans.map((plan, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <Select
+                  value={plan.projectId}
+                  onChange={(e) => updateWorkPlan(idx, "projectId", e.target.value)}
+                  className="flex-1 min-w-0 px-2 py-1.5 text-sm"
+                >
+                  <option value="">PJを選択</option>
+                  {(myProjects ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </Select>
+                <Select
+                  value={String(plan.hours)}
+                  onChange={(e) => updateWorkPlan(idx, "hours", parseFloat(e.target.value))}
+                  className="w-20 shrink-0 px-2 py-1.5 text-sm"
+                >
+                  {HOURS_OPTIONS.map((h) => (
+                    <option key={h} value={h}>{h.toFixed(1)}h</option>
+                  ))}
+                </Select>
+                <input
+                  type="text"
+                  placeholder="備考"
+                  value={plan.note}
+                  onChange={(e) => updateWorkPlan(idx, "note", e.target.value)}
+                  maxLength={200}
+                  className="w-28 shrink-0 rounded-md border border-slate-300 px-2 py-1.5 text-sm placeholder:text-slate-300 focus:border-blue-500 focus:outline-none"
+                />
+                <button type="button" onClick={() => removeWorkPlan(idx)} className="text-slate-400 hover:text-red-500">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addWorkPlan}
+              className="flex items-center gap-1 rounded-md border border-dashed border-slate-300 px-3 py-1.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600"
+            >
+              <Plus size={12} /> PJ予定工数を追加
+            </button>
+          </div>
+        </div>
+      </Card>
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-400">
