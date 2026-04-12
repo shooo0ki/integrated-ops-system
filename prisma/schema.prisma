@@ -350,6 +350,16 @@ model Project {
 }
 
 // ─────────────────────────────────────────────
+// 6b. project_position_masters（ポジションマスタ）
+// ─────────────────────────────────────────────
+model ProjectPositionMaster {
+  id   String @id @default(uuid())
+  name String @unique @db.VarChar(100)
+
+  @@map("project_position_masters")
+}
+
+// ─────────────────────────────────────────────
 // 7. project_positions（PJポジション）
 // ─────────────────────────────────────────────
 model ProjectPosition {
@@ -357,6 +367,8 @@ model ProjectPosition {
   projectId     String   @map("project_id")
   positionName  String   @map("position_name") @db.VarChar(100)
   requiredCount Int      @default(1) @map("required_count")
+  headcount     Int      @default(1)                              // 2-3-4: 同ポジション定員数
+  weeklyHours   Float?   @map("weekly_hours")                     // 2-3-5: 週あたり稼働時間
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -394,9 +406,10 @@ model ProjectAssignment {
   id            String    @id @default(uuid())
   projectId     String    @map("project_id")
   positionId    String    @map("position_id")
-  memberId      String?   @map("member_id") // null = 未アサイン枠
-  workloadHours Int       @map("workload_hours") // デフォルト月間稼働時間
-  startDate     DateTime  @map("start_date") @db.Date
+  memberId       String?   @map("member_id") // null = 未アサイン枠
+  workloadHours  Int       @map("workload_hours") // デフォルト月間稼働時間
+  allocationRate Int       @default(100) @map("allocation_rate") // 2-3-3: 稼働率 0-100%
+  startDate      DateTime  @map("start_date") @db.Date
   endDate       DateTime? @map("end_date") @db.Date
   createdBy     String    @map("created_by")
   createdAt     DateTime  @default(now()) @map("created_at")

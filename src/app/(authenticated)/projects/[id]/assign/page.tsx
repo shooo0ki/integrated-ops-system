@@ -19,6 +19,8 @@ interface Position {
   id: string;
   positionName: string;
   requiredCount: number;
+  headcount: number;
+  weeklyHours: number | null;
   assignmentCount: number;
 }
 
@@ -30,6 +32,7 @@ interface Assignment {
   positionId: string;
   positionName: string;
   workloadHours: number;
+  allocationRate: number;
   startDate: string;
 }
 
@@ -43,9 +46,13 @@ interface ProjectSummary {
 interface MemberOption {
   id: string;
   name: string;
-  company: string;
   role: string;
   status: string;
+}
+
+interface PositionMaster {
+  id: string;
+  name: string;
 }
 
 // ─── ページ ───────────────────────────────────────────────
@@ -58,15 +65,22 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [members, setMembers] = useState<MemberOption[]>([]);
+  const [positionMasters, setPositionMasters] = useState<PositionMaster[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState({ memberId: "", positionId: "", workloadHours: "80", startDate: "" });
+  const [form, setForm] = useState({
+    memberId: "", positionId: "", workloadHours: "80",
+    startDate: "", allocationRate: "100",
+  });
   const [positionMode, setPositionMode] = useState<"existing" | "new">("existing");
   const [newPositionName, setNewPositionName] = useState("");
+  const [newPositionHeadcount, setNewPositionHeadcount] = useState("1");
+  const [newPositionWeeklyHours, setNewPositionWeeklyHours] = useState("");
+  const [newMasterName, setNewMasterName] = useState("");
 
   const loadProject = useCallback(async () => {
     const res = await fetch(`/api/projects/${id}`);
@@ -80,6 +94,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     });
   }, [id]);
 
+  const loadPositionMasters = useCallback(async () => {
+    const res = await fetch("/api/position-masters");
+    if (res.ok) setPositionMasters(await res.json());
+  }, []);
+
   useEffect(() => {
     setForm((prev) => ({ ...prev, startDate: toJSTDateString() }));
   }, []);
@@ -88,8 +107,26 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     Promise.all([
       loadProject(),
       fetch("/api/members").then((r) => r.json()).then(setMembers),
+      loadPositionMasters(),
     ]).finally(() => setLoading(false));
-  }, [loadProject]);
+  }, [loadProject, loadPositionMasters]);
+
+  async function handleAddMaster() {
+    const name = newMasterName.trim();
+    if (!name) return;
+    const res = await fetch("/api/position-masters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      await loadPositionMasters();
+      setNewMasterName("");
+    } else {
+      const data = await res.json();
+      setError(data.error?.message ?? "マスタ追加に失敗しました");
+    }
+  }
 
   async function handleAdd() {
     if (!form.memberId || !form.startDate) {
@@ -101,7 +138,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       return;
     }
     if (positionMode === "new" && !newPositionName.trim()) {
-      setError("新規ポジション名を入力してください");
+      setError("新規ポジション名を選択してください");
       return;
     }
 
@@ -115,7 +152,12 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       const posRes = await fetch(`/api/projects/${id}/positions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ positionName: newPositionName.trim(), requiredCount: 1 }),
+        body: JSON.stringify({
+          positionName: newPositionName.trim(),
+          requiredCount: 1,
+          headcount: Number(newPositionHeadcount) || 1,
+          weeklyHours: newPositionWeeklyHours ? Number(newPositionWeeklyHours) : null,
+        }),
       });
       if (!posRes.ok) {
         const data = await posRes.json();
@@ -134,6 +176,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         positionId,
         memberId: form.memberId,
         workloadHours: Number(form.workloadHours),
+        allocationRate: Number(form.allocationRate),
         startDate: form.startDate,
       }),
     });
@@ -142,9 +185,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       await loadProject();
       globalMutate(`/api/projects/${id}`);
       setAddOpen(false);
-      setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: toJSTDateString() });
+      setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: toJSTDateString(), allocationRate: "100" });
       setPositionMode("existing");
       setNewPositionName("");
+      setNewPositionHeadcount("1");
+      setNewPositionWeeklyHours("");
     } else {
       const data = await res.json();
       setError(data.error?.message ?? "登録に失敗しました");
@@ -178,7 +223,10 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             setError("");
             setPositionMode(project.positions.length > 0 ? "existing" : "new");
             setNewPositionName("");
-            setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: toJSTDateString() });
+            setNewPositionHeadcount("1");
+            setNewPositionWeeklyHours("");
+            setNewMasterName("");
+            setForm({ memberId: "", positionId: "", workloadHours: "80", startDate: toJSTDateString(), allocationRate: "100" });
             setAddOpen(true);
           }}>
             <Plus size={14} /> アサイン追加
@@ -192,12 +240,15 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           {project.positions.map((p) => (
             <div key={p.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
               <span className="text-sm font-medium text-slate-800">{p.positionName}</span>
-              {p.assignmentCount >= p.requiredCount ? (
+              {p.assignmentCount >= p.headcount ? (
                 <Badge variant="success" className="ml-2">充足</Badge>
               ) : (
-                <Badge variant="warning" className="ml-2">空き{p.requiredCount - p.assignmentCount}名</Badge>
+                <Badge variant="warning" className="ml-2">空き{p.headcount - p.assignmentCount}名</Badge>
               )}
-              <span className="ml-2 text-xs text-slate-400">{p.assignmentCount}/{p.requiredCount}名</span>
+              <span className="ml-2 text-xs text-slate-400">{p.assignmentCount}/{p.headcount}名</span>
+              {p.weeklyHours != null && (
+                <span className="ml-2 text-xs text-slate-400">({p.weeklyHours}h/週)</span>
+              )}
             </div>
           ))}
         </div>
@@ -215,6 +266,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 <tr className="text-xs text-slate-500">
                   <th className="py-2 text-left font-medium">メンバー</th>
                   <th className="py-2 text-left font-medium">ポジション</th>
+                  <th className="py-2 text-right font-medium">稼働率</th>
                   <th className="py-2 text-right font-medium">月間工数</th>
                   <th className="py-2 text-left font-medium">開始日</th>
                   {canManage && <th className="py-2" />}
@@ -230,6 +282,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                       </Badge>
                     </td>
                     <td className="py-2 text-slate-500">{a.positionName}</td>
+                    <td className="py-2 text-right font-medium text-slate-700">{a.allocationRate}%</td>
                     <td className="py-2 text-right font-medium text-slate-700">{a.workloadHours}h/月</td>
                     <td className="py-2 text-xs text-slate-400">{new Date(a.startDate).toLocaleDateString("ja-JP")}</td>
                     {canManage && (
@@ -259,7 +312,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           <Select id="memberId" label="メンバー *" value={form.memberId} onChange={(e) => setForm((f) => ({ ...f, memberId: e.target.value }))}>
             <option value="">選択してください</option>
             {members.map((m) => (
-              <option key={m.id} value={m.id}>{m.name} ({m.company === "boost" ? "Boost" : "SALT2"})</option>
+              <option key={m.id} value={m.id}>{m.name}</option>
             ))}
           </Select>
 
@@ -302,17 +355,52 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 </p>
               )
             ) : (
-              <Input
-                id="newPositionName"
-                label=""
-                placeholder="ポジション名（例: バックエンドエンジニア）"
-                value={newPositionName}
-                onChange={(e) => setNewPositionName(e.target.value)}
-              />
+              <div className="space-y-2">
+                {/* ポジションマスタから選択 */}
+                <Select id="newPositionName" label="ポジション名" value={newPositionName} onChange={(e) => setNewPositionName(e.target.value)}>
+                  <option value="">マスタから選択</option>
+                  {positionMasters.map((pm) => (
+                    <option key={pm.id} value={pm.name}>{pm.name}</option>
+                  ))}
+                </Select>
+                {/* マスタ追加 */}
+                <div className="flex gap-1.5">
+                  <Input
+                    id="newMasterName"
+                    label=""
+                    placeholder="新しいポジション名を追加"
+                    value={newMasterName}
+                    onChange={(e) => setNewMasterName(e.target.value)}
+                  />
+                  <Button variant="outline" size="sm" onClick={handleAddMaster} className="shrink-0 mt-0.5">
+                    追加
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    id="newPositionHeadcount"
+                    type="number"
+                    label="人数"
+                    value={newPositionHeadcount}
+                    onChange={(e) => setNewPositionHeadcount(e.target.value)}
+                  />
+                  <Input
+                    id="newPositionWeeklyHours"
+                    type="number"
+                    label="週間稼働時間"
+                    placeholder="任意"
+                    value={newPositionWeeklyHours}
+                    onChange={(e) => setNewPositionWeeklyHours(e.target.value)}
+                  />
+                </div>
+              </div>
             )}
           </div>
 
-          <Input id="workloadHours" type="number" label="月間工数（時間）" value={form.workloadHours} onChange={(e) => setForm((f) => ({ ...f, workloadHours: e.target.value }))} />
+          <div className="grid grid-cols-2 gap-2">
+            <Input id="workloadHours" type="number" label="月間工数（時間）" value={form.workloadHours} onChange={(e) => setForm((f) => ({ ...f, workloadHours: e.target.value }))} />
+            <Input id="allocationRate" type="number" label="稼働率（%）" value={form.allocationRate} onChange={(e) => setForm((f) => ({ ...f, allocationRate: e.target.value }))} />
+          </div>
           <Input id="startDate" type="date" label="開始日 *" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setAddOpen(false)}>キャンセル</Button>

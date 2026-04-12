@@ -30,6 +30,8 @@ interface Position {
   id: string;
   positionName: string;
   requiredCount: number;
+  headcount: number;
+  weeklyHours: number | null;
   assignmentCount: number;
   requiredSkills: RequiredSkill[];
 }
@@ -47,6 +49,8 @@ interface Assignment {
   positionName: string;
   positionId: string;
   workloadHours: number;
+  allocationRate: number;
+  memberCompany: string | null;
   startDate: string;
   endDate: string | null;
   monthlyHours: MonthlyHour[];
@@ -558,12 +562,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <div key={pos.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-slate-700">{pos.positionName}</span>
-                  {pos.assignmentCount >= pos.requiredCount ? (
+                  {pos.assignmentCount >= pos.headcount ? (
                     <Badge variant="success" className="text-xs">充足</Badge>
                   ) : (
-                    <Badge variant="warning" className="text-xs">空き {pos.requiredCount - pos.assignmentCount}名</Badge>
+                    <Badge variant="warning" className="text-xs">空き {pos.headcount - pos.assignmentCount}名</Badge>
                   )}
-                  <span className="text-xs text-slate-400">{pos.assignmentCount}/{pos.requiredCount}名</span>
+                  <span className="text-xs text-slate-400">{pos.assignmentCount}/{pos.headcount}名</span>
+                  {pos.weeklyHours != null && (
+                    <span className="text-xs text-slate-400">({pos.weeklyHours}h/週)</span>
+                  )}
                   {canManage && (
                     <button
                       onClick={() => setEditSkillsPositionId(pos.id)}
@@ -600,6 +607,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <tr className="text-xs text-slate-500">
                   <th className="py-2 text-left font-medium">名前</th>
                   <th className="py-2 text-left font-medium">ポジション</th>
+                  <th className="py-2 text-right font-medium">稼働率</th>
                   <th className="py-2 text-right font-medium">月間工数</th>
                   <th className="py-2 text-left font-medium">開始日</th>
                   {canManage && <th className="py-2 w-20" />}
@@ -629,6 +637,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       )}
                     </td>
                     <td className="py-2 text-slate-500">{a.positionName}</td>
+                    <td className="py-2 text-right font-medium text-slate-700">{a.allocationRate}%</td>
                     <td className="py-2 text-right font-medium text-slate-700">{a.workloadHours}h/月</td>
                     <td className="py-2 text-xs text-slate-400">{formatDate(a.startDate)}</td>
                     {canManage && (

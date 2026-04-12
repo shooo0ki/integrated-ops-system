@@ -58,6 +58,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       id: pos.id,
       positionName: pos.positionName,
       requiredCount: pos.requiredCount,
+      headcount: pos.headcount,
+      weeklyHours: pos.weeklyHours,
       assignmentCount: pos.assignments.length,
       requiredSkills: pos.requiredSkills.map((rs) => ({
         id: rs.id,
@@ -71,9 +73,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
       id: a.id,
       memberId: a.memberId,
       memberName: a.member?.name ?? null,
+      memberCompany: project.company,
       positionName: a.position.positionName,
       positionId: a.positionId,
       workloadHours: a.workloadHours,
+      allocationRate: a.allocationRate,
       startDate: a.startDate,
       endDate: a.endDate,
       monthlyHours: a.monthlyHours.map((mh) => ({

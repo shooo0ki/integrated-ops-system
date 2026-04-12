@@ -20,7 +20,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: { code: "NOT_FOUND", message: "プロジェクトが見つかりません" } }, { status: 404 });
   }
 
-  const body = await req.json().catch(() => null) as { positionName?: string; requiredCount?: number } | null;
+  const body = await req.json().catch(() => null) as {
+    positionName?: string; requiredCount?: number;
+    headcount?: number; weeklyHours?: number;
+  } | null;
   if (!body?.positionName?.trim()) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "positionName は必須です" } }, { status: 400 });
   }
@@ -30,11 +33,17 @@ export async function POST(req: NextRequest, { params }: Params) {
       projectId,
       positionName: body.positionName.trim(),
       requiredCount: body.requiredCount ?? 1,
+      headcount: body.headcount ?? 1,
+      weeklyHours: body.weeklyHours ?? null,
     },
   });
 
   return NextResponse.json(
-    { id: position.id, positionName: position.positionName, requiredCount: position.requiredCount },
+    {
+      id: position.id, positionName: position.positionName,
+      requiredCount: position.requiredCount, headcount: position.headcount,
+      weeklyHours: position.weeklyHours,
+    },
     { status: 201 }
   );
 }

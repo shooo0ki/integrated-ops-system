@@ -34,6 +34,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       positionId: a.positionId,
       positionName: a.position.positionName,
       workloadHours: a.workloadHours,
+      allocationRate: a.allocationRate,
       startDate: a.startDate,
       endDate: a.endDate,
       monthlyHours: a.monthlyHours.map((mh) => ({
@@ -77,6 +78,9 @@ export async function POST(req: NextRequest, { params }: Params) {
         positionId: data.positionId,
         memberId: data.memberId ?? null,
         workloadHours: data.workloadHours,
+        allocationRate: (body as Record<string, unknown>)?.allocationRate != null
+          ? Math.min(100, Math.max(0, Number((body as Record<string, unknown>).allocationRate)))
+          : 100,
         startDate: new Date(data.startDate),
         endDate: endDate ? new Date(endDate) : null,
         createdBy: user.id,
@@ -101,6 +105,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       memberName: assignment.member?.name ?? null,
       positionName: assignment.position.positionName,
       workloadHours: assignment.workloadHours,
+      allocationRate: assignment.allocationRate,
       startDate: assignment.startDate,
     },
     { status: 201 }
