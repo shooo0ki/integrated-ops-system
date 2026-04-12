@@ -4,10 +4,23 @@ import { prisma } from "@/backend/db";
 import { unauthorized } from "@/backend/api-response";
 import { getSessionUser } from "@/backend/auth";
 
-// GET /api/attendances/my-projects — 自分にアサインされているPJ一覧
+// GET /api/attendances/my-projects — 工数入力用のPJ一覧
+// admin/manager: 全アクティブPJを返す
+// member: 自分にアサインされているPJのみ
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return unauthorized();
+
+  const isAdminOrManager = ["admin", "manager"].includes(user.role);
+
+  if (isAdminOrManager) {
+    const projects = await prisma.project.findMany({
+      where: { deletedAt: null, status: { in: ["active", "planning"] } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    return NextResponse.json(projects);
+  }
 
   const today = new Date();
 
