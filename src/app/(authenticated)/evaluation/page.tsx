@@ -13,6 +13,7 @@ import { GradeBadge, AvgBadge } from "@/frontend/components/domain/evaluation/ev
 import { InlineSkeleton } from "@/frontend/components/common/skeleton";
 import { EmptyState } from "@/frontend/components/common/empty-state";
 import { ErrorAlert } from "@/frontend/components/common/error-alert";
+import { AlertTriangle } from "lucide-react";
 
 const MONTHS = buildMonths(12);
 
@@ -140,16 +141,26 @@ export default function EvaluationPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {[
-          { label: "総メンバー", value: rows.length },
-          { label: "評価済み", value: rows.filter((r) => r.evaluated).length },
-          { label: "未評価", value: rows.filter((r) => !r.evaluated).length },
-        ].map(({ label, value }) => (
-          <div key={label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-500">{label}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-800">{value}</p>
-          </div>
-        ))}
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-500">総メンバー</p>
+          <p className="mt-1 text-2xl font-bold text-slate-800">{rows.length}</p>
+        </div>
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4 shadow-sm">
+          <p className="text-xs text-green-600">評価済み</p>
+          <p className="mt-1 text-2xl font-bold text-green-700">{rows.filter((r) => r.evaluated).length}</p>
+        </div>
+        {(() => {
+          const pending = rows.filter((r) => !r.evaluated).length;
+          return (
+            <div className={`rounded-xl p-4 shadow-sm ${pending > 0 ? "border border-amber-300 bg-amber-50" : "border border-slate-200 bg-white"}`}>
+              <p className={`text-xs ${pending > 0 ? "text-amber-600 font-semibold" : "text-slate-500"}`}>
+                {pending > 0 && <AlertTriangle size={12} className="inline -mt-0.5 mr-1" />}
+                未評価
+              </p>
+              <p className={`mt-1 text-2xl font-bold ${pending > 0 ? "text-amber-700" : "text-slate-800"}`}>{pending}</p>
+            </div>
+          );
+        })()}
       </div>
 
       {/* フィルター・ソート */}
@@ -206,6 +217,8 @@ export default function EvaluationPage() {
               {[...rows]
                 .filter((r) => evalFilter === "all" ? true : evalFilter === "done" ? r.evaluated : !r.evaluated)
                 .sort((a, b) => {
+                  // 未評価を常に上に表示
+                  if (a.evaluated !== b.evaluated) return a.evaluated ? 1 : -1;
                   if (sortKey === "total") {
                     const av = a.totalAvg ?? -1, bv = b.totalAvg ?? -1;
                     return sortAsc ? av - bv : bv - av;
@@ -213,8 +226,11 @@ export default function EvaluationPage() {
                   return sortAsc ? a.memberName.localeCompare(b.memberName) : b.memberName.localeCompare(a.memberName);
                 })
                 .map((row) => (
-                <tr key={row.memberId} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">{row.memberName}</td>
+                <tr key={row.memberId} className={row.evaluated ? "hover:bg-slate-50" : "bg-amber-50/60 hover:bg-amber-50"}>
+                  <td className="px-4 py-3 font-medium text-slate-800">
+                    {!row.evaluated && <AlertTriangle size={14} className="inline -mt-0.5 mr-1.5 text-amber-500" />}
+                    {row.memberName}
+                  </td>
                   {row.evaluated ? (
                     <>
                       {EVALUATION_AXES.map((axis) => {
@@ -240,8 +256,11 @@ export default function EvaluationPage() {
                       </td>
                     </>
                   ) : (
-                    <td colSpan={EVALUATION_AXES.length + 2} className="px-4 py-3 text-center text-slate-400">
-                      未評価
+                    <td colSpan={EVALUATION_AXES.length + 2} className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                        <AlertTriangle size={12} />
+                        未評価
+                      </span>
                     </td>
                   )}
                   {canEdit && (
